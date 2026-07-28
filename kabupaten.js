@@ -1,0 +1,24 @@
+exports.handler = async (event) => {
+
+  const idProvinsi = event.queryStringParameters.province;
+
+  const response = await fetch(
+    `https://rajaongkir.komerce.id/api/v1/destination/city/${idProvinsi}`,
+    {
+      headers: {
+        key: "zj7KY4pl909d2fa9a32db82bosZJg5gg"
+      }
+    }
+  );
+
+  const data = await response.json();
+
+  return {
+    statusCode: 200,
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  };
+
+};

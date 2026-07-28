@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>
+Admin SUBUR MAJUR TANI
+</title>
+
+
+<style>
+
+body{
+
+font-family:Arial, sans-serif;
+
+background:#f1f8e9;
+
+margin:0;
+
+}
+
+
+
+header{
+
+background:#1b5e20;
+
+color:white;
+
+padding:20px;
+
+text-align:center;
+
+}
+
+
+
+.container{
+
+width:95%;
+
+max-width:1200px;
+
+margin:auto;
+
+padding:20px;
+
+}
+
+
+
+.box{
+
+background:white;
+
+padding:20px;
+
+margin-bottom:20px;
+
+border-radius:12px;
+
+box-shadow:0 3px 10px rgba(0,0,0,.15);
+
+}
+
+
+
+h2{
+
+color:#1b5e20;
+
+}
+
+
+
+input,
+select,
+textarea{
+
+width:100%;
+
+padding:12px;
+
+margin:8px 0;
+
+border-radius:8px;
+
+border:1px solid #ccc;
+
+}
+
+
+
+button{
+
+background:#1b5e20;
+
+color:white;
+
+border:0;
+
+padding:12px 18px;
+
+border-radius:8px;
+
+cursor:pointer;
+
+}
+
+
+
+button:hover{
+
+background:#388e3c;
+
+}
+
+
+
+.card{
+
+border:1px solid #ddd;
+
+padding:15px;
+
+border-radius:10px;
+
+margin-bottom:15px;
+
+}
+
+
+
+.status{
+
+font-weight:bold;
+
+color:#1b5e20;
+
+}
+
+
+
+</style>
+
+</head>
+
+
+
+<body>
+
+
+<header>
+
+<h1>
+🌱 Dashboard Admin
+</h1>
+
+<p>
+SUBUR MUJUR TANI
+</p>
+
+</header>
+
+
+
+<div class="container">
+
+
+<div class="box">
+
+<h2>
+📦 Pesanan Masuk
+</h2>
+
+<input
+id="cariPesanan"
+placeholder="Cari nama pelanggan..."
+onkeyup="filterPesanan()"><div id="pesanan">
+
+Memuat data pesanan...
+
+</div>
+
+
+</div>
+<!-- FIREBASE -->
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+
+
+
+<script>
+
+
+/* =========================
+   KONFIGURASI FIREBASE
+========================= */
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCAnApRscAHXJF-NWt3P_BivrvWzGt996U",
+  authDomain: "subur-mujur-tani-6ff54.firebaseapp.com",
+  databaseURL: "https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "subur-mujur-tani-6ff54",
+  storageBucket: "subur-mujur-tani-6ff54.firebasestorage.app",
+  messagingSenderId: "338009458768",
+  appId: "1:338009458768:web:c562a610cee4940b856955"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+
+
+const database = firebase.database();
+
+
+
+
+
+/* =========================
+   CEK LOGIN ADMIN
+========================= */
+
+
+firebase.auth()
+
+.onAuthStateChanged(
+
+function(user){
+
+
+if(!user){
+
+
+window.location.href="login.html";
+
+
+}
+
+
+}
+
+);
+
+
+
+
+
+
+
+/* =========================
+   TAMPIL PESANAN
+========================= */
+
+
+database.ref("pesanan")
+
+.on(
+
+"value",
+
+function(snapshot){
+
+
+
+let data=snapshot.val();
+
+
+
+let hasil="";
+
+
+
+
+
+if(!data){
+
+
+hasil="<p>Belum ada pesanan.</p>";
+
+
+}
+
+else{
+
+
+
+for(let id in data){
+
+
+
+hasil += `
+
+<div class="card">
+
+<h3>${data[id].nama}</h3>
+
+<p><b>WhatsApp:</b> ${data[id].whatsapp}</p>
+
+<p><b>Total:</b> Rp ${data[id].total}</p>
+
+<p><b>Status:</b> ${data[id].status}</p>
+
+${
+data[id].bukti
+?
+`
+<img
+src="${data[id].bukti}"
+style="
+width:250px;
+border-radius:10px;
+margin-top:10px;
+">
+`
+:
+"<p>Belum ada bukti pembayaran</p>"
+}
+
+<br>
+
+<button onclick="verifikasiBayar('${id}')">
+✅ Konfirmasi Lunas
+</button>
+
+<button onclick="ubahStatus('${id}')">
+📝 Ubah Status
+</button>
+
+<button onclick="tambahResi('${id}')">
+🚚 Tambah Resi
+</button>
+
+<button onclick="tolakPembayaran('${id}')">
+❌ Tolak
+</button>
+
+</div>
+
+`;
+
+
+
+}
+
+
+}
+
+
+
+document.getElementById(
+
+"pesanan"
+
+).innerHTML=hasil;
+
+
+
+}
+
+);
+
+
+
+</script>
+<script>
+
+
+/* =========================
+   UBAH STATUS PESANAN
+========================= */
+
+
+function ubahStatus(id){
+
+
+
+let status = prompt(
+
+"Masukkan status pesanan:\n\nMenunggu\nDiproses\nDikirim\nSelesai"
+
+);
+
+
+
+if(status){
+
+
+database.ref(
+
+"pesanan/" + id
+
+)
+
+.update({
+
+status:status
+
+});
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+/* =========================
+   TAMBAH NOMOR RESI
+========================= */
+
+
+function tambahResi(id){
+
+
+
+let resi = prompt(
+
+"Masukkan nomor resi"
+
+);
+
+
+
+if(resi){
+
+
+database.ref(
+
+"pesanan/" + id
+
+)
+
+.update({
+
+resi:resi
+
+});
+
+
+}
+
+
+
+}
+
+
+
+
+
+
+</script>
+
+
+
+
+
+<!-- =========================
+     KELOLA PRODUK
+========================= -->
+
+
+<div class="box">
+
+
+<h2>
+
+🌱 Tambah Produk
+
+</h2>
+
+
+
+<input
+
+id="namaProduk"
+
+placeholder="Nama bibit"
+
+>
+
+
+
+<input
+
+id="hargaProduk"
+
+placeholder="Harga produk"
+
+>
+
+
+
+<input
+
+id="stokProduk"
+
+placeholder="Jumlah stok"
+
+>
+<label>URL Gambar Produk</label>
+
+<input
+type="text"
+id="gambarProduk"
+placeholder="https://contoh.com/gambar.jpg"
+oninput="previewGambar()">
+
+<br><br>
+
+<img
+id="previewProduk"
+src=""
+style="
+width:180px;
+display:none;
+border-radius:10px;
+border:1px solid #ddd;
+">
+
+
+
+<button id="btnProduk" onclick="tambahProduk()">
+Tambah Produk
+</button>
+
+
+
+</div>
+
+
+
+
+
+
+<div class="box">
+
+
+<h2>
+
+📋 Daftar Produk
+
+</h2>
+
+
+
+<div id="produk">
+
+Memuat produk...
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+<script>
+
+
+
+
+
+/* =========================
+   TAMPIL PRODUK
+========================= */
+
+
+database.ref("produk")
+
+.on(
+
+"value",
+
+function(snapshot){
+
+
+
+let data=snapshot.val();
+
+
+
+let hasil="";
+
+
+
+
+
+if(!data){
+
+
+hasil="<p>Belum ada produk</p>";
+
+
+}
+
+else{
+
+
+
+for(let id in data){
+
+
+
+hasil += `
+<div class="card">
+
+<img src="${data[id].gambar}"
+style="
+width:120px;
+height:120px;
+object-fit:cover;
+border-radius:10px;
+">
+
+<h3>${data[id].nama}</h3>
+
+<p>Harga : Rp ${Number(data[id].harga).toLocaleString("id-ID")}</p>
+
+<p>Stok : ${data[id].stok}</p>
+
+<button onclick="editProduk('${id}')">
+✏️ Edit
+</button>
+
+<button onclick="hapusProduk('${id}')">
+🗑️ Hapus
+</button>
+
+</div>
+`;
+
+
+
+}
+
+
+}
+
+
+
+document.getElementById(
+
+"produk"
+
+).innerHTML=hasil;
+
+
+
+}
+
+);
+
+
+
+</script>
+<script>
+
+
+/* =========================
+   HAPUS PRODUK
+========================= */
+
+
+function hapusProduk(id){
+
+
+
+let yakin = confirm(
+
+"Yakin ingin menghapus produk ini?"
+
+);
+
+
+
+if(yakin){
+
+
+database.ref(
+
+"produk/" + id
+
+)
+
+.remove();
+
+
+
+}
+
+
+
+}
+
+function editProduk(id){
+
+    database.ref("produk/"+id).once("value").then(function(snapshot){
+
+        const data = snapshot.val();
+
+        editID = id;
+
+        document.getElementById("namaProduk").value = data.nama || "";
+        document.getElementById("hargaProduk").value = data.harga || "";
+        document.getElementById("stokProduk").value = data.stok || "";
+        document.getElementById("gambarProduk").value = data.gambar || "";
+
+        previewGambar();
+
+        document.getElementById("btnProduk").innerHTML = "💾 Simpan Perubahan";
+
+        window.scrollTo({
+            top:0,
+            behavior:"smooth"
+        });
+
+    });
+
+}
+
+
+
+
+
+
+</script>
+
+
+
+
+
+<!-- =========================
+     PEMBAYARAN MASUK
+========================= -->
+
+
+<div class="box">
+
+
+<h2>
+
+💳 Pembayaran Masuk
+
+</h2>
+
+
+
+<div id="pembayaran">
+
+Memuat pembayaran...
+
+</div>
+
+
+
+</div>
+
+
+
+
+
+
+
+<script>
+
+
+/* =========================
+   TAMPIL PEMBAYARAN
+========================= */
+
+
+database.ref("pembayaran")
+
+.on(
+
+"value",
+
+function(snapshot){
+
+
+
+let data=snapshot.val();
+
+
+
+let hasil="";
+
+
+
+
+
+if(!data){
+
+
+hasil="<p>Belum ada pembayaran.</p>";
+
+
+}
+
+else{
+
+
+
+for(let id in data){
+
+
+
+hasil += `
+
+
+<div class="card">
+
+
+<h3>
+
+${data[id].nama}
+
+</h3>
+
+
+
+<p>
+
+<b>WhatsApp:</b>
+
+${data[id].whatsapp}
+
+</p>
+
+
+
+<p>
+
+<b>Total:</b>
+
+Rp ${data[id].total}
+
+</p>
+
+
+
+<p>
+
+<b>Status:</b>
+
+${data[id].status}
+
+</p>
+
+
+
+<button onclick="verifikasiBayar('${id}')">
+
+Konfirmasi Lunas
+
+</button>
+
+
+
+</div>
+
+
+`;
+
+
+
+}
+
+
+}
+
+
+
+document.getElementById(
+
+"pembayaran"
+
+).innerHTML=hasil;
+
+
+
+}
+
+);
+
+
+
+</script>
+
+
+
+
+
+
+<script>
+
+
+/* =========================
+   VERIFIKASI PEMBAYARAN
+========================= */
+
+
+async function verifikasiBayar(id){
+
+    const bayarRef = database.ref("pembayaran/" + id);
+    const bayarSnap = await bayarRef.once("value");
+    const bayar = bayarSnap.val();
+
+    if(!bayar || !bayar.produk){
+        alert("Data produk tidak ditemukan.");
+        return;
+    }
+
+    const produkRef = database.ref("produk/" + bayar.produk);
+    const produkSnap = await produkRef.once("value");
+    const produk = produkSnap.val();
+
+    if(!produk){
+        alert("Produk tidak ditemukan.");
+        return;
+    }
+
+    if(produk.stok < bayar.jumlah){
+        alert("Stok tidak mencukupi.");
+        return;
+    }
+
+    await produkRef.update({
+        stok: produk.stok - bayar.jumlah
+    });
+
+    await bayarRef.update({
+        status: "Lunas"
+    });
+
+    alert("Pembayaran berhasil diverifikasi dan stok dikurangi.");
+}
+
+
+</script>
+<!-- =========================
+     RINGKASAN DASHBOARD
+========================= -->
+
+
+<div class="box">
+
+
+<h2>
+
+📊 Ringkasan
+
+</h2>
+
+
+
+<p>
+
+Jumlah Pesanan:
+
+<b id="jumlahPesanan">
+
+0
+
+</b>
+
+</p>
+
+
+
+<p>
+
+Jumlah Produk:
+
+<b id="jumlahProduk">
+
+0
+
+</b>
+
+</p>
+
+
+
+<p>
+
+Jumlah Pembayaran:
+
+<b id="jumlahPembayaran">
+
+0
+
+</b>
+
+</p>
+
+
+
+</div>
+
+
+
+
+
+
+<script>
+
+
+/* =========================
+   HITUNG PESANAN
+========================= */
+
+
+database.ref("pesanan")
+
+.on(
+
+"value",
+
+function(snapshot){
+
+
+
+let data=snapshot.val();
+
+
+
+let jumlah=0;
+
+
+
+if(data){
+
+
+jumlah=
+
+Object.keys(data).length;
+
+
+}
+
+
+
+document.getElementById(
+
+"jumlahPesanan"
+
+).innerHTML=jumlah;
+
+
+
+}
+
+);
+
+
+
+
+
+
+
+/* =========================
+   HITUNG PRODUK
+========================= */
+
+
+database.ref("produk")
+
+.on(
+
+"value",
+
+function(snapshot){
+
+
+
+let data=snapshot.val();
+
+
+
+let jumlah=0;
+
+
+
+if(data){
+
+
+jumlah=
+
+Object.keys(data).length;
+
+
+}
+
+
+
+document.getElementById(
+
+"jumlahProduk"
+
+).innerHTML=jumlah;
+
+
+
+}
+
+);
+
+
+
+
+
+
+
+/* =========================
+   HITUNG PEMBAYARAN
+========================= */
+
+
+database.ref("pembayaran")
+
+.on(
+
+"value",
+
+function(snapshot){
+
+
+
+let data=snapshot.val();
+
+
+
+let jumlah=0;
+
+
+
+if(data){
+
+
+jumlah=
+
+Object.keys(data).length;
+
+
+}
+
+
+
+document.getElementById(
+
+"jumlahPembayaran"
+
+).innerHTML=jumlah;
+
+
+
+}
+
+);
+
+
+
+
+
+</script>
+
+
+
+
+
+
+<!-- =========================
+     LOGOUT ADMIN
+========================= -->
+
+
+<div class="box">
+
+
+<button onclick="logout()">
+
+🚪 Keluar Admin
+
+</button>
+
+
+</div>
+
+
+
+
+
+
+<script>
+
+
+function logout(){
+
+
+firebase.auth()
+
+.signOut()
+
+.then(()=>{
+
+
+window.location="login.html";
+
+
+});
+
+
+}
+
+
+
+let editID = null;
+
+async function tambahProduk(){
+
+    try{
+
+        const produk = {
+    nama: document.getElementById("namaProduk").value.trim(),
+    harga: parseInt(
+        document.getElementById("hargaProduk").value.replace(/\D/g, "")
+    ) || 0,
+    stok: parseInt(
+        document.getElementById("stokProduk").value
+    ) || 0,
+    gambar: document.getElementById("gambarProduk").value.trim()
+};
+
+        if(editID){
+          
+          console.log(produk);
+
+            await database.ref("produk/"+editID).update(produk);
+
+            alert("Produk berhasil diperbarui");
+
+        }else{
+
+            await database.ref("produk").push(produk);
+
+            alert("Produk berhasil ditambahkan");
+
+        }
+
+        editID = null;
+
+        document.getElementById("btnProduk").innerHTML = "➕ Tambah Produk";
+
+        kosongkanForm();
+        
+        document.getElementById("previewProduk").src = "";
+document.getElementById("previewProduk").style.display = "none";
+
+    }catch(err){
+
+        console.error(err);
+
+        alert(err.message);
+
+    }
+
+}
+
+function previewGambar(){
+
+    const url = document.getElementById("gambarProduk").value;
+    const img = document.getElementById("previewProduk");
+
+    if(url.trim()==""){
+
+        img.style.display="none";
+        img.src="";
+
+    }else{
+
+        img.src=url;
+        img.style.display="block";
+
+    }
+
+}
+
+function kosongkanForm(){
+
+    document.getElementById("namaProduk").value = "";
+    document.getElementById("hargaProduk").value = "";
+    document.getElementById("stokProduk").value = "";
+    document.getElementById("gambarProduk").value = "";
+
+    document.getElementById("previewProduk").src = "";
+    document.getElementById("previewProduk").style.display = "none";
+
+}
+
+function filterPesanan(){
+
+    let input = document.getElementById("cariPesanan").value.toLowerCase();
+
+    let card = document.getElementsByClassName("card");
+
+    for(let i=0;i<card.length;i++){
+
+        let teks = card[i].innerText.toLowerCase();
+
+        if(teks.indexOf(input)>-1){
+
+            card[i].style.display="block";
+
+        }else{
+
+            card[i].style.display="none";
+
+        }
+
+    }
+
+}
+
+</script>
+<!-- =========================
+     FOOTER ADMIN
+========================= -->
+
+
+<div class="box">
+
+
+<p style="text-align:center;">
+
+🌱 SUBUR MUJUR TANI
+
+<br>
+
+Dashboard Administrator
+
+<br>
+
+© 2026
+
+</p>
+
+
+</div>
+
+
+
+
+
+</div>
+
+
+</body>
+
+
+</html>
