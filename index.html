@@ -1256,7 +1256,7 @@ function hapusItem(index){
 async function hitungOngkirAPI() {
 
     const tujuan = document.getElementById("kabupaten").value;
-    const kurir = document.getElementById("kurir").value;
+    const kurir = document.getElementById("kurirOngkir").value;
 
     const berat = keranjang.reduce((total, item) => {
         return total + (item.berat * item.jumlah);
@@ -1288,9 +1288,14 @@ async function hitungOngkirAPI() {
             return;
         }
 
-        const layanan = hasil.data[0];
+        if(!hasil.data || hasil.data.length === 0){
+    alert("Ongkir tidak ditemukan");
+    return;
+}
 
-        ongkir = layanan.cost;
+const layanan = hasil.data[0];
+
+ongkir = layanan.cost;
 
         document.getElementById("ongkir").innerHTML =
             "Rp " + Number(ongkir).toLocaleString("id-ID");
@@ -1300,14 +1305,14 @@ async function hitungOngkirAPI() {
     } catch (err) {
 
         console.error(err);
-        alert("Tidak dapat menghitung ongkir");
+        alert(err.message);
 
     }
 }
 
 function hitungPembayaran(){
   
-  let ongkir = 0;
+  let ongkir = window.ongkir || 0;
 
     let totalProduk = 0;
 
@@ -1799,6 +1804,13 @@ document.getElementById("kecamatanSelect").addEventListener("change", async func
 });
 
 </script>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+<script src="script.js"></script>
 
 </body>
 </html>
