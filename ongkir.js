@@ -1,28 +1,31 @@
 exports.handler = async (event) => {
-
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
+      headers: {
+        "Content-Type": "application/json"
+      },
       body: JSON.stringify({
-        error: "Method tidak diizinkan"
+        success: false,
+        message: "Method tidak diizinkan"
       })
     };
   }
 
   try {
-
     const body = JSON.parse(event.body);
 
-    if (
-      !body.origin ||
-      !body.destination ||
-      !body.weight ||
-      !body.courier
-    ) {
+    const { origin, destination, weight, courier } = body;
+
+    if (!origin || !destination || !weight || !courier) {
       return {
         statusCode: 400,
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          error: "Data pengiriman belum lengkap"
+          success: false,
+          message: "Data pengiriman belum lengkap"
         })
       };
     }
@@ -36,40 +39,35 @@ exports.handler = async (event) => {
           "key": "zj7KY4pl909d2fa9a32db82bosZJg5gg"
         },
         body: JSON.stringify({
-          origin: body.origin,
-          destination: body.destination,
-          weight: Number(body.weight),
-          courier: body.courier
+          origin: origin,
+          destination: destination,
+          weight: Number(weight),
+          courier: courier
         })
       }
     );
 
-    const hasil = await response.json();
-
-    if (!response.ok) {
-      return {
-        statusCode: response.status,
-        body: JSON.stringify(hasil)
-      };
-    }
+    const result = await response.json();
 
     return {
-      statusCode: 200,
+      statusCode: response.status,
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*"
+      },
+      body: JSON.stringify(result)
+    };
+
+  } catch (error) {
+    return {
+      statusCode: 500,
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify(hasil)
-    };
-
-  } catch (err) {
-
-    return {
-      statusCode: 500,
       body: JSON.stringify({
-        error: err.message
+        success: false,
+        message: error.message
       })
     };
-
   }
-
 };
