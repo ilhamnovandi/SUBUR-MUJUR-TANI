@@ -258,6 +258,10 @@ nav{
 
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
 </head>
 
 <body>
@@ -579,16 +583,6 @@ Pilih Kecamatan
     </option>
 
 </select>
-
-<div class="mb-3">
-    <label for="kurir">Pilih Kurir</label>
-    <select id="kurir" class="form-control">
-        <option value="">Pilih Kurir</option>
-        <option value="jne">JNE</option>
-        <option value="jnt">J&T</option>
-        <option value="sicepat">SiCepat</option>
-    </select>
-</div>
 
 <div class="mb-3">
     <label>Ongkir</label>
@@ -1255,27 +1249,55 @@ function hapusItem(index){
 
 async function hitungOngkirAPI() {
 
-    const tujuan = document.getElementById("kabupaten").value;
     const kurir = document.getElementById("kurirOngkir").value;
+    const kabupaten = document.getElementById("kabupaten");
+    const namaTujuan = kabupaten.options[kabupaten.selectedIndex].text;
 
-    const berat = keranjang.reduce((total, item) => {
-        return total + (item.berat * item.jumlah);
+    if (!namaTujuan || kabupaten.value === "") {
+        alert("Pilih Kabupaten / Kota.");
+        return;
+    }
+
+    if (!kurir) {
+        alert("Pilih kurir.");
+        return;
+    }
+
+    const berat = keranjang.reduce((t, item) => {
+        return t + (Number(item.berat) * Number(item.jumlah));
     }, 0);
 
-    if (!tujuan || !kurir || berat <= 0) {
+    if (berat <= 0) {
+        alert("Keranjang masih kosong.");
         return;
     }
 
     try {
 
+        // Cari ID tujuan
+        const tujuanRes = await fetch(
+            "/.netlify/functions/destination?search=" +
+            encodeURIComponent(namaTujuan)
+        );
+
+        const tujuanJson = await tujuanRes.json();
+
+        if (!tujuanJson.data || tujuanJson.data.length === 0) {
+            alert("Tujuan tidak ditemukan.");
+            return;
+        }
+
+        const destinationID = tujuanJson.data[0].id;
+
+        // Hitung ongkir
         const res = await fetch("/.netlify/functions/ongkir", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                origin: "3273",
-                destination: tujuan,
+                origin: originID,
+                destination: destinationID,
                 weight: berat,
                 courier: kurir
             })
@@ -1284,47 +1306,116 @@ async function hitungOngkirAPI() {
         const hasil = await res.json();
 
         if (!res.ok) {
-            alert(hasil.error || "Gagal menghitung ongkir");
+            alert(hasil.error || "Gagal menghitung ongkir.");
             return;
         }
 
-        if(!hasil.data || hasil.data.length === 0){
-    alert("Ongkir tidak ditemukan");
-    return;
-}
+        if (!hasil.data || hasil.data.length === 0) {
+            alert("Tidak ada layanan pengiriman.");
+            return;
+        }
 
-const layanan = hasil.data[0];
+        window.daftarLayanan = hasil.data;
 
-ongkir = layanan.cost;
+        const layanan = document.getElementById("layananOngkir");
+
+        layanan.innerHTML = "";
+
+        hasil.data.forEach((item, index) => {
+
+            layanan.innerHTML += `
+                <option value="${index}">
+                    ${item.service} - Rp ${Number(item.cost).toLocaleString("id-ID")} (${item.etd})
+                </option>
+            `;
+
+        });
+
+        layanan.selectedIndex = 0;
+
+        ongkir = Number(hasil.data[0].cost);
 
         document.getElementById("ongkir").innerHTML =
-            "Rp " + Number(ongkir).toLocaleString("id-ID");
+            "Rp " + ongkir.toLocaleString("id-ID");
 
         hitungPembayaran();
 
     } catch (err) {
 
         console.error(err);
-        alert(err.message);
+        alert("Error : " + err.message);
 
     }
+
 }
 
+document.getElementById("layananOngkir").addEventListener("change", function () {
+
+    const index = this.value;
+
+    if (!window.daftarLayanan) return;
+
+    ongkir = Number(window.daftarLayanan[index].cost);
+
+    document.getElementById("ongkir").innerHTML =
+        "Rp " + ongkir.toLocaleString("id-ID");
+
+    hitungPembayaran();
+
+});
+
 function hitungPembayaran(){
-  
-  let ongkir = window.ongkir || 0;
+
+    let biayaOngkir = Number(window.ongkir) || 0;
 
     let totalProduk = 0;
 
     keranjang.forEach(function(item){
-        totalProduk += item.harga * item.jumlah;
+        totalProduk += Number(item.harga) * Number(item.jumlah);
     });
+
+    let totalAkhir = totalProduk + biayaOngkir;
 
     document.getElementById("totalProduk").innerHTML =
         totalProduk.toLocaleString("id-ID");
 
+    document.getElementById("totalOngkir").innerHTML =
+        biayaOngkir.toLocaleString("id-ID");
+
     document.getElementById("totalBayar").innerHTML =
-        (totalProduk + ongkir).toLocaleString("id-ID");
+        totalAkhir.toLocaleString("id-ID");
+
+}
+
+async function loadOrigin() {
+
+    try {
+
+        const res = await fetch(
+            "/.netlify/functions/destination?search=Cirebon"
+        );
+
+        const hasil = await res.json();
+
+        if (hasil.data && hasil.data.length > 0) {
+
+            originID = hasil.data[0].id;
+
+            console.log("Origin:", originID);
+
+        } else {
+
+            alert("Origin Cirebon tidak ditemukan.");
+
+        }
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert("Gagal mengambil origin.");
+
+    }
 
 }
 
@@ -1650,15 +1741,17 @@ function resetCheckout(){
 
 <script>
   
-  document.getElementById("kabupaten").addEventListener("change", hitungOngkirAPI);
+document.getElementById("kabupaten").addEventListener("change", hitungOngkirAPI);
 
-document.getElementById("kurir").addEventListener("change", hitungOngkirAPI);
+document.getElementById("kurirOngkir").addEventListener("change", hitungOngkirAPI);
   
 window.onload = function () {
 
     tampilkanKeranjang();
 
     loadProvinsi();
+
+    loadOrigin();
 
 };
 
@@ -1805,12 +1898,7 @@ document.getElementById("kecamatanSelect").addEventListener("change", async func
 
 </script>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 
-<script src="script.js"></script>
 
 </body>
 </html>
