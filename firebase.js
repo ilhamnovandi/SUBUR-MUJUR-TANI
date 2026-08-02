@@ -1,160 +1,364 @@
+// ======================================
+// FIREBASE.JS
+// SUBUR MUJUR TANI
+// ======================================
+
+
 // ===============================
-// FIREBASE CONFIG
+// CONFIG FIREBASE
 // ===============================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCAnApRscAHXJF-NWt3P_BivrvWzGt996U",
-  authDomain: "subur-mujur-tani-6ff54.firebaseapp.com",
-  databaseURL: "https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "subur-mujur-tani-6ff54",
-  storageBucket: "subur-mujur-tani-6ff54.firebasestorage.app",
-  messagingSenderId: "338009458768",
-  appId: "1:338009458768:web:c562a610cee4940b856955"
+
+    apiKey: "AIzaSyCAnApRscAHXJF-NWt3P_BivrvWzGt996U",
+
+    authDomain: "subur-mujur-tani-6ff54.firebaseapp.com",
+
+    databaseURL:
+    "https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app",
+
+    projectId:
+    "subur-mujur-tani-6ff54",
+
+    storageBucket:
+    "subur-mujur-tani-6ff54.firebasestorage.app",
+
+    messagingSenderId:
+    "338009458768",
+
+    appId:
+    "1:338009458768:web:c562a610cee4940b856955"
+
 };
 
-// ===============================
-// INISIALISASI FIREBASE
-// ===============================
 
-firebase.initializeApp(firebaseConfig);
 
 // ===============================
-// FIREBASE SERVICES
+// CEK FIREBASE
+// ===============================
+
+if(typeof firebase === "undefined"){
+
+    throw new Error(
+        "Firebase belum dimuat. Pastikan library Firebase dipasang sebelum firebase.js"
+    );
+
+}
+
+
+
+// ===============================
+// INIT FIREBASE
+// ===============================
+
+if(firebase.apps.length === 0){
+
+    if (!firebase.apps.length) {
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+}
+
+}
+
+
+
+// ===============================
+// SERVICE FIREBASE
 // ===============================
 
 const auth = firebase.auth();
-const db = firebase.firestore();
+
+const database = firebase.database();
+
+const firestore = firebase.firestore();
+
 const storage = firebase.storage();
+
+
 
 // ===============================
 // LOGIN ADMIN
 // ===============================
 
-async function loginAdmin(email, password) {
-  try {
-    await auth.signInWithEmailAndPassword(email, password);
-    alert("Login berhasil");
-    window.location.href = "admin.html";
-  } catch (err) {
-    alert(err.message);
-  }
+function loginAdmin(email,password){
+
+
+    return auth
+    .signInWithEmailAndPassword(
+        email,
+        password
+    )
+
+    .then(()=>{
+
+        window.location.href =
+        "admin.html";
+
+    })
+
+    .catch(error=>{
+
+        alert(error.message);
+
+    });
+
+
 }
+
+
+
 
 // ===============================
 // LOGOUT ADMIN
 // ===============================
 
-async function logoutAdmin() {
-  await auth.signOut();
-  window.location.href = "login.html";
+function logoutAdmin(){
+
+
+    auth.signOut()
+
+    .then(()=>{
+
+        window.location.href =
+        "login.html";
+
+    });
+
+
 }
+
+
+
+// ===============================
+// CEK STATUS LOGIN
+// ===============================
+
+auth.onAuthStateChanged(function(user){
+
+    window.userLogin = user || null;
+
+});
+
+
+
+
+
+// ===============================
+// SIMPAN PRODUK
+// ===============================
+
+function simpanProduk(data){
+
+
+    return database
+    .ref("produk")
+    .push(data);
+
+
+}
+
+
+
+// ===============================
+// AMBIL PRODUK
+// ===============================
+
+function loadProduk(callback){
+
+
+    database
+    .ref("produk")
+    .on(
+        "value",
+        snapshot=>{
+
+            callback(
+                snapshot.val()
+            );
+
+        }
+    );
+
+
+}
+
+
+
+// ===============================
+// HAPUS PRODUK
+// ===============================
+
+function hapusProduk(id){
+
+
+    return database
+    .ref("produk/"+id)
+    .remove();
+
+
+}
+
+
+
+// ===============================
+// UPDATE PRODUK
+// ===============================
+
+function updateProduk(id,data){
+
+
+    return database
+    .ref("produk/"+id)
+    .update(data);
+
+
+}
+
+
+
 
 // ===============================
 // SIMPAN PESANAN
 // ===============================
 
-async function simpanPesanan(data) {
-  try {
-    await db.collection("pesanan").add({
-      ...data,
-      status: "Menunggu Pembayaran",
-      waktu: firebase.firestore.FieldValue.serverTimestamp()
+function simpanPesanan(data){
+
+
+    return database
+    .ref("pesanan")
+    .push({
+
+        ...data,
+
+        status:
+        "Menunggu Pembayaran",
+
+        tanggal:
+        new Date().toLocaleString("id-ID")
+
     });
 
-    return true;
-  } catch (err) {
-    console.error(err);
-    return false;
-  }
+
 }
 
+
+
+
 // ===============================
-// AMBIL SEMUA PESANAN
+// AMBIL PESANAN
 // ===============================
 
-async function ambilPesanan() {
+function loadPesanan(callback){
 
-  const snapshot = await db
-    .collection("pesanan")
-    .orderBy("waktu", "desc")
-    .get();
 
-  let hasil = [];
+    database
+    .ref("pesanan")
+    .on(
+        "value",
+        snapshot=>{
 
-  snapshot.forEach((doc) => {
+            callback(
+                snapshot.val()
+            );
 
-    hasil.push({
-      id: doc.id,
-      ...doc.data()
+        }
+    );
+
+
+}
+
+
+
+
+// ===============================
+// UPDATE STATUS PESANAN
+// ===============================
+
+function updateStatusPesanan(id,status){
+
+
+    return database
+    .ref("pesanan/"+id)
+    .update({
+
+        status:status
+
     });
 
-  });
-
-  return hasil;
 
 }
 
+
+
+
+
 // ===============================
-// UBAH STATUS PESANAN
+// UPLOAD GAMBAR
 // ===============================
 
-async function ubahStatus(id, statusBaru) {
+function uploadGambar(file){
 
-  await db.collection("pesanan")
-  .doc(id)
-  .update({
-    status: statusBaru
-  });
+
+    let namaFile =
+    "gambar/"+Date.now()+"_"+file.name;
+
+
+    return storage
+    .ref(namaFile)
+    .put(file)
+
+    .then(snapshot=>{
+
+        return snapshot.ref.getDownloadURL();
+
+    });
+
 
 }
 
-// ===============================
-// HAPUS PESANAN
-// ===============================
 
-async function hapusPesanan(id){
 
-  await db.collection("pesanan")
-  .doc(id)
-  .delete();
 
-}
 
 // ===============================
-// UPLOAD BUKTI TRANSFER
+// EXPORT GLOBAL
 // ===============================
 
-async function uploadBukti(file){
+window.FirebaseApp = {
 
-  const namaFile =
-  Date.now()+"_"+file.name;
 
-  const ref =
-  storage.ref("bukti/"+namaFile);
+    auth,
 
-  await ref.put(file);
+    database,
 
-  const url =
-  await ref.getDownloadURL();
+    firestore,
 
-  return url;
+    storage,
 
-}
 
-// ===============================
-// CEK LOGIN ADMIN
-// ===============================
+    loginAdmin,
 
-auth.onAuthStateChanged(function(user){
+    logoutAdmin,
 
-  if(user){
 
-    console.log("Admin Login");
+    simpanProduk,
 
-  }else{
+    loadProduk,
 
-    console.log("Belum Login");
+    hapusProduk,
 
-  }
+    updateProduk,
 
-});
+
+    simpanPesanan,
+
+    loadPesanan,
+
+    updateStatusPesanan,
+
+
+    uploadGambar
+
+
+};

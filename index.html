@@ -1045,7 +1045,7 @@ const storage = firebase.storage();
   "use strict";
 
 let keranjang = JSON.parse(localStorage.getItem("keranjang")) || [];
-let ongkir = 0;
+window.ongkir = 0;
 let originID = "";
 window.daftarLayanan = [];
 
@@ -1338,7 +1338,7 @@ document.getElementById("layananOngkir").addEventListener("change", function () 
 
     if (!window.daftarLayanan) return;
 
-    ongkir = Number(window.daftarLayanan[index].cost);
+    window.ongkir = Number(window.daftarLayanan[index].cost);
 
     document.getElementById("ongkir").innerHTML =
         "Rp " + ongkir.toLocaleString("id-ID");
@@ -1700,9 +1700,8 @@ function resetCheckout(){
 
     document.getElementById("rw").value="";
 
-    document.getElementById("desa").value="";
-
-    document.getElementById("kecamatan").value="";
+    document.getElementById("kecamatanSelect").selectedIndex = 0;
+document.getElementById("desaSelect").selectedIndex = 0;
 
     document.getElementById("kodePos").value="";
 
@@ -1725,54 +1724,160 @@ document.getElementById("kabupaten").addEventListener("change", hitungOngkirAPI)
 
 document.getElementById("kurirOngkir").addEventListener("change", hitungOngkirAPI);
   
-window.onload = function () {
 
-    tampilkanKeranjang();
-
-    loadProvinsi();
-
-
-};
 
 </script>
 
 <script>
   
-  async function loadProvinsi() {
+  // ===============================
+// LOAD PROVINSI
+// ===============================
+
+async function loadProvinsi() {
 
     const prov = document.getElementById("provinsi");
 
-    const res = await fetch("/.netlify/functions/provinsi");
-    const hasil = await res.json();
+    prov.innerHTML = '<option value="">Memuat...</option>';
 
-    prov.innerHTML = '<option value="">Pilih Provinsi</option>';
+    try {
 
-    hasil.data.forEach(item => {
-        prov.innerHTML += `
-            <option value="${item.id}">
-                ${item.name}
-            </option>
-        `;
-    });
+        const res = await fetch("/.netlify/functions/provinsi");
+        const hasil = await res.json();
+
+        prov.innerHTML = '<option value="">Pilih Provinsi</option>';
+
+        hasil.data.forEach(item => {
+
+            prov.innerHTML += `
+                <option value="${item.id}">
+                    ${item.name}
+                </option>
+            `;
+
+        });
+
+    } catch (err) {
+
+        alert("Gagal memuat provinsi");
+
+        console.error(err);
+
+    }
 
 }
-  
-// Saat provinsi dipilih
+
+// ===============================
+// LOAD KABUPATEN
+// ===============================
+
 document.getElementById("provinsi").addEventListener("change", async function () {
 
-    const id = this.value;
+    const province = this.value;
 
     const kab = document.getElementById("kabupaten");
 
-    const res = await fetch(
-        "/.netlify/functions/kabupaten?province=" + id
-    );
+    const kec = document.getElementById("kecamatanSelect");
+
+    const desa = document.getElementById("desaSelect");
+
+    kab.innerHTML = '<option>Memuat...</option>';
+
+    kec.innerHTML = '<option>Pilih Kecamatan</option>';
+
+    desa.innerHTML = '<option>Pilih Desa</option>';
+
+    if (!province) {
+
+        kab.innerHTML = '<option>Pilih Kabupaten</option>';
+
+        return;
+
+    }
+
+    const res = await fetch("/.netlify/functions/kabupaten?province=" + province);
 
     const hasil = await res.json();
 
     kab.innerHTML = hasil.options;
 
 });
+
+// ===============================
+// LOAD KECAMATAN
+// ===============================
+
+document.getElementById("kabupaten").addEventListener("change", async function () {
+
+    const kabupaten = this.value;
+
+    const kec = document.getElementById("kecamatanSelect");
+
+    const desa = document.getElementById("desaSelect");
+
+    kec.innerHTML = '<option>Memuat...</option>';
+
+    desa.innerHTML = '<option>Pilih Desa</option>';
+
+    if (!kabupaten) {
+
+        kec.innerHTML = '<option>Pilih Kecamatan</option>';
+
+        return;
+
+    }
+
+    const res = await fetch("/.netlify/functions/kecamatan?kabupaten=" + kabupaten);
+
+    const hasil = await res.json();
+
+    kec.innerHTML = hasil.options;
+
+});
+
+// ===============================
+// LOAD DESA
+// ===============================
+
+document.getElementById("kecamatanSelect").addEventListener("change", async function () {
+
+    const kecamatan = this.value;
+
+    const desa = document.getElementById("desaSelect");
+
+    desa.innerHTML = '<option>Memuat...</option>';
+
+    if (!kecamatan) {
+
+        desa.innerHTML = '<option>Pilih Desa</option>';
+
+        return;
+
+    }
+
+    const res = await fetch("/.netlify/functions/desa?kecamatan=" + kecamatan);
+
+    const hasil = await res.json();
+
+    desa.innerHTML = hasil.options;
+
+});
+
+// ===============================
+// LOAD SAAT HALAMAN DIBUKA
+// ===============================
+
+window.onload = function () {
+
+    loadProvinsi();
+
+    if (typeof tampilkanKeranjang === "function") {
+
+        tampilkanKeranjang();
+
+    }
+
+};
 
 document.getElementById("kabupaten").addEventListener("change", async function () {
 
@@ -1783,8 +1888,6 @@ document.getElementById("kabupaten").addEventListener("change", async function (
     kec.innerHTML = '<option value="">Memuat...</option>';
 
     try {
-
-        const res = await fetch(API_URL + "/districts/" + id + ".json");
 
         const data = await res.json();
 
@@ -1820,7 +1923,6 @@ document.getElementById("kecamatanSelect").addEventListener("change", async func
 
     try {
 
-        const res = await fetch(API_URL + "/villages/" + id + ".json");
 
         const data = await res.json();
 
