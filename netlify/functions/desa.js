@@ -1,58 +1,58 @@
-const data = require("./desa.json");
-
 exports.handler = async (event) => {
 
     try {
 
-        const kecamatan = event.queryStringParameters?.kecamatan;
+        const kecamatan = event.queryStringParameters.kecamatan;
 
         if (!kecamatan) {
+
             return {
                 statusCode: 400,
-                headers: {
-                    "Content-Type": "application/json"
-                },
                 body: JSON.stringify({
-                    success: false,
-                    error: "Parameter kecamatan wajib diisi."
+                    success:false,
+                    message:"Parameter kecamatan wajib diisi"
                 })
             };
+
         }
 
-        const hasil = data.filter(item => item.district_id === kecamatan);
 
-        const options =
-            '<option value="">Pilih Desa / Kelurahan</option>' +
-            hasil.map(item => `
-<option value="${item.id}">
-${item.name}
-</option>
-`).join("");
+        const response = await fetch(
+            "https://rajaongkir.komerce.id/api/v1/destination/sub-district?search=" + kecamatan,
+            {
+                headers:{
+                    key:"zj7KY4pl909d2fa9a32db82bosZJg5gg"
+                }
+            }
+        );
+
+
+        const hasil = await response.json();
+
 
         return {
-            statusCode: 200,
-            headers: {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
+
+            statusCode:200,
+
+            headers:{
+                "Content-Type":"application/json"
             },
-            body: JSON.stringify({
-                success: true,
-                data: hasil,
-                options
-            })
+
+            body:JSON.stringify(hasil)
+
         };
 
-    } catch (err) {
+
+    } catch(error){
 
         return {
-            statusCode: 500,
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                success: false,
-                error: err.message
+
+            statusCode:500,
+
+            body:JSON.stringify({
+                error:error.message
             })
+
         };
 
     }
