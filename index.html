@@ -1879,40 +1879,6 @@ window.onload = function () {
 
 };
 
-document.getElementById("kabupaten").addEventListener("change", async function () {
-
-    const id = this.value;
-
-    const kec = document.getElementById("kecamatanSelect");
-
-    kec.innerHTML = '<option value="">Memuat...</option>';
-
-    try {
-
-        const data = await res.json();
-
-        kec.innerHTML = '<option value="">Pilih Kecamatan</option>';
-
-        data.forEach(item => {
-
-            kec.innerHTML += `
-                <option value="${item.id}">
-                    ${item.name}
-                </option>
-            `;
-
-        });
-
-    } catch (err) {
-
-        console.error(err);
-
-        alert("Gagal memuat kecamatan");
-
-    }
-
-});
-
 document.getElementById("kecamatanSelect").addEventListener("change", async function () {
 
     const id = this.value;
