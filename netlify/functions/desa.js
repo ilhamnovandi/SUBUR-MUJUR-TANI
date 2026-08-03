@@ -2,15 +2,18 @@ exports.handler = async (event) => {
 
     try {
 
-        const kecamatan = event.queryStringParameters.kecamatan;
+        const kecamatan = event.queryStringParameters?.kecamatan;
 
         if (!kecamatan) {
 
             return {
                 statusCode: 400,
+                headers: {
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({
                     success:false,
-                    message:"Parameter kecamatan wajib diisi"
+                    message:"Kecamatan kosong"
                 })
             };
 
@@ -27,32 +30,29 @@ exports.handler = async (event) => {
         );
 
 
-        const hasil = await response.json();
+        const data = await response.json();
 
 
         return {
-
             statusCode:200,
-
             headers:{
-                "Content-Type":"application/json"
+                "Content-Type":"application/json",
+                "Access-Control-Allow-Origin":"*"
             },
-
-            body:JSON.stringify(hasil)
-
+            body:JSON.stringify(data)
         };
 
 
-    } catch(error){
+    } catch(error) {
 
         return {
-
             statusCode:500,
-
+            headers:{
+                "Content-Type":"application/json"
+            },
             body:JSON.stringify({
                 error:error.message
             })
-
         };
 
     }
