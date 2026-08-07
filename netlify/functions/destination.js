@@ -1,45 +1,45 @@
 exports.handler = async (event) => {
-  try {
 
-    const search = event.queryStringParameters.search;
+    try {
 
-    if (!search) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({
-          error: "Parameter search wajib diisi."
-        })
-      };
+        const keyword = event.queryStringParameters.search;
+
+        if (!keyword) {
+
+            return {
+                statusCode: 400,
+                body: JSON.stringify({
+                    success: false,
+                    message: "Parameter search wajib diisi."
+                })
+            };
+
+        }
+
+        const response = await fetch(
+            `https://api.binderbyte.com/v1/search?api_key=${process.env.BINDERBYTE_API_KEY}&keyword=${encodeURIComponent(keyword)}`
+        );
+
+        const result = await response.json();
+
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(result)
+        };
+
+    } catch (err) {
+
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                success: false,
+                message: err.message
+            })
+        };
+
     }
 
-    const response = await fetch(
-      "https://rajaongkir.komerce.id/api/v1/destination/domestic-destination?search=" +
-      encodeURIComponent(search),
-      {
-        headers: {
-          key: process.env.RAJAONGKIR_KEY
-        }
-      }
-    );
-
-    const data = await response.json();
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    };
-
-  } catch (err) {
-
-    return {
-      statusCode: 500,
-      body: JSON.stringify({
-        error: err.message
-      })
-    };
-
-  }
 };

@@ -1,87 +1,60 @@
-const fs = require("fs");
+const data = require("./kecamatan.json");
 
-const API_KEY = "zj7KY4pl909d2fa9a32db82bosZJg5gg";
+exports.handler = async (event) => {
 
-const kabupaten = require("./data/kabupaten.json");
+    try {
 
-let hasilKecamatan = [];
+        const kabupaten = event.queryStringParameters?.kabupaten;
 
-
-async function ambilKecamatan() {
-
-    console.log("Mulai mengambil data kecamatan...");
-
-    for (const kab of kabupaten) {
-
-        try {
-
-            console.log(
-                "Proses:",
-                kab.name
-            );
-
-
-            const response = await fetch(
-                "https://rajaongkir.komerce.id/api/v1/destination/sub-district?search=" + kab.id,
-                {
-                    headers:{
-                        key: API_KEY
-                    }
-                }
-            );
-
-
-            const json = await response.json();
-
-
-            if(json.data){
-
-                json.data.forEach(item => {
-
-                    hasilKecamatan.push({
-
-                        id: item.id,
-
-                        regency_id: kab.id,
-
-                        name: item.name
-
-                    });
-
-                });
-
-            }
-
-
-        } catch(error){
-
-            console.log(
-                "Gagal:",
-                kab.name,
-                error.message
-            );
-
+        if (!kabupaten) {
+            return {
+                statusCode: 400,
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    success: false,
+                    error: "Parameter kabupaten wajib diisi."
+                })
+            };
         }
+
+        const hasil = data.filter(item => item.regency_id === kabupaten);
+
+        const options =
+            '<option value="">Pilih Kecamatan</option>' +
+            hasil.map(item => `
+<option value="${item.id}">
+${item.name}
+</option>
+`).join("");
+
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
+            },
+            body: JSON.stringify({
+                success: true,
+                data: hasil,
+                options
+            })
+        };
+
+    } catch (err) {
+
+        return {
+            statusCode: 500,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                success: false,
+                error: err.message
+            })
+        };
 
     }
 
-
-    fs.writeFileSync(
-        "./data/kecamatan.json",
-        JSON.stringify(
-            hasilKecamatan,
-            null,
-            2
-        )
-    );
-
-
-    console.log(
-        "SELESAI. Total kecamatan:",
-        hasilKecamatan.length
-    );
-
-}
-
-
-ambilKecamatan();
+};

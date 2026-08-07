@@ -1,3 +1,5 @@
+const data = require("./desa.json");
+
 exports.handler = async (event) => {
 
     try {
@@ -5,53 +7,51 @@ exports.handler = async (event) => {
         const kecamatan = event.queryStringParameters?.kecamatan;
 
         if (!kecamatan) {
-
             return {
                 statusCode: 400,
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    success:false,
-                    message:"Kecamatan kosong"
+                    success: false,
+                    error: "Parameter kecamatan wajib diisi."
                 })
             };
-
         }
 
+        const hasil = data.filter(item => item.district_id === kecamatan);
 
-        const response = await fetch(
-            "https://rajaongkir.komerce.id/api/v1/destination/sub-district?search=" + kecamatan,
-            {
-                headers:{
-                    key:"zj7KY4pl909d2fa9a32db82bosZJg5gg"
-                }
-            }
-        );
-
-
-        const data = await response.json();
-
+        const options =
+            '<option value="">Pilih Desa / Kelurahan</option>' +
+            hasil.map(item => `
+<option value="${item.id}">
+${item.name}
+</option>
+`).join("");
 
         return {
-            statusCode:200,
-            headers:{
-                "Content-Type":"application/json",
-                "Access-Control-Allow-Origin":"*"
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*"
             },
-            body:JSON.stringify(data)
+            body: JSON.stringify({
+                success: true,
+                data: hasil,
+                options
+            })
         };
 
-
-    } catch(error) {
+    } catch (err) {
 
         return {
-            statusCode:500,
-            headers:{
-                "Content-Type":"application/json"
+            statusCode: 500,
+            headers: {
+                "Content-Type": "application/json"
             },
-            body:JSON.stringify({
-                error:error.message
+            body: JSON.stringify({
+                success: false,
+                error: err.message
             })
         };
 
