@@ -1248,156 +1248,111 @@ function hapusItem(index){
 }
 
 async function hitungOngkirAPI() {
-  
-  try {
-  
-  const origin = "3210";
-const destination = document.getElementById("kabupaten").value;
-const weight = Number(document.getElementById("totalBerat").innerText);
-const courier = document.getElementById("kurirOngkir").value;
 
-if (!destination) {
-    alert("Pilih kabupaten.");
-    return;
-}
+    const destination = document.getElementById("desaSelect").value;
+    const courier = document.getElementById("kurirOngkir").value;
 
-if (!courier) {
-    alert("Pilih ekspedisi.");
-    return;
-}
+    if (!destination) {
+        alert("Pilih desa tujuan terlebih dahulu.");
+        return;
+    }
 
-if (weight <= 0) {
-    alert("Keranjang masih kosong.");
-    return;
-}
+    if (!courier) {
+        alert("Pilih ekspedisi.");
+        return;
+    }
 
-        // Hitung ongkir
-        const res = await fetch("/.netlify/functions/ongkir", {
+    const weight = totalBerat || 1000;
+
+    try {
+
+        document.getElementById("hasilOngkir").innerHTML = "Menghitung ongkir...";
+
+        const response = await fetch("/.netlify/functions/ongkir", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-    origin,
-    destination,
-    weight,
-    courier
-})
+                origin: "3210",      // ID Kabupaten asal (ubah sesuai lokasi toko)
+                destination,
+                weight,
+                courier
+            })
         });
 
-        const hasil = await res.json();
+        const json = await response.json();
+        
+        console.log(json);
 
-        if (!res.ok) {
-    console.log(hasil);
-    alert(JSON.stringify(hasil));
-    return;
+        if (json.status === false || json.success === false) {
+    throw new Error(json.message || "Gagal mengambil ongkir");
 }
 
-        if (!hasil.data || hasil.data.length === 0) {
-            alert("Tidak ada layanan pengiriman.");
-            return;
-        }
+        const layanan =
+    json.data?.costs ||
+    json.data?.cost ||
+    json.costs ||
+    json.results ||
+    [];
+        const select = document.getElementById("layananOngkir");
 
-        window.daftarLayanan = hasil.data;
+        select.innerHTML =
+            '<option value="">Pilih Layanan</option>';
 
-        const layanan = document.getElementById("layananOngkir");
+        layanan.forEach(item => {
 
-        layanan.innerHTML = "";
+    const biaya = item.cost?.[0]?.value || 0;
+    const etd = item.cost?.[0]?.etd || "-";
 
-        hasil.data.forEach((item, index) => {
+    const option = document.createElement("option");
 
-            layanan.innerHTML += `
-                <option value="${index}">
-                    ${item.service} - Rp ${Number(item.cost).toLocaleString("id-ID")} (${item.etd})
-                </option>
-            `;
+    option.value = JSON.stringify({
+        service: item.service,
+        cost: biaya,
+        etd: etd
+    });
 
-        });
+    option.textContent =
+        `${item.service} - Rp ${biaya.toLocaleString("id-ID")} (${etd} hari)`;
 
-        layanan.selectedIndex = 0;
-
-        ongkir = Number(hasil.data[0].cost);
-
-        document.getElementById("ongkir").innerHTML =
-            "Rp " + ongkir.toLocaleString("id-ID");
-
-        hitungPembayaran();
-
-  } catch (err) {
-
-    console.error(err);
-    alert(err.stack);
-
-}
-
-}
-
-document.getElementById("layananOngkir").addEventListener("change", function () {
-
-    const index = this.value;
-
-    if (!window.daftarLayanan) return;
-
-    window.ongkir = Number(window.daftarLayanan[index].cost);
-
-    document.getElementById("ongkir").innerHTML =
-        "Rp " + ongkir.toLocaleString("id-ID");
-
-    hitungPembayaran();
+    select.appendChild(option);
 
 });
 
-function hitungPembayaran(){
-
-    let biayaOngkir = Number(window.ongkir) || 0;
-
-    let totalProduk = 0;
-
-    keranjang.forEach(function(item){
-        totalProduk += Number(item.harga) * Number(item.jumlah);
-    });
-
-    let totalAkhir = totalProduk + biayaOngkir;
-
-    document.getElementById("totalProduk").innerHTML =
-        totalProduk.toLocaleString("id-ID");
-
-    document.getElementById("totalOngkir").innerHTML =
-        biayaOngkir.toLocaleString("id-ID");
-
-    document.getElementById("totalBayar").innerHTML =
-        totalAkhir.toLocaleString("id-ID");
-
-}
-
-async function loadOrigin() {
-
-    try {
-
-        const res = await fetch(
-            "/.netlify/functions/destination?search=Majalengka"
-        );
-
-        const hasil = await res.json();
-
-        if (!hasil.data || hasil.data.length === 0) {
-            alert("Majalengka tidak ditemukan.");
-            return;
-        }
-
-        originID = hasil.data[0].id;
-
-        console.log("Origin ID :", originID);
+        document.getElementById("hasilOngkir").innerHTML =
+            "Silakan pilih layanan.";
 
     } catch (err) {
 
         console.error(err);
 
-        alert(err.message);
+        document.getElementById("hasilOngkir").innerHTML =
+            err.message;
 
     }
 
 }
+
+document
+.getElementById("layananOngkir")
+.addEventListener("change", function(){
+
+    if(this.value==="") return;
+
+    const layanan = JSON.parse(this.value);
+
+    totalOngkir = Number(layanan.cost);
+
+    document.getElementById("ongkir").innerHTML =
+        "Rp " + totalOngkir.toLocaleString("id-ID");
+
+    document.getElementById("totalOngkir").innerHTML =
+        totalOngkir.toLocaleString("id-ID");
+
+    hitungTotalBayar();
+
+});
 
 </script>
 
@@ -1736,34 +1691,23 @@ document.getElementById("kurirOngkir").addEventListener("change", hitungOngkirAP
 
 async function loadProvinsi() {
 
-    const prov = document.getElementById("provinsi");
+    const res = await fetch("/.netlify/functions/provinsi");
+    const json = await res.json();
 
-    prov.innerHTML = '<option value="">Memuat...</option>';
+    const select = document.getElementById("provinsi");
 
-    try {
+    select.innerHTML =
+        '<option value="">Pilih Provinsi</option>';
 
-        const res = await fetch("/.netlify/functions/provinsi");
-        const hasil = await res.json();
+    json.value.forEach(item => {
 
-        prov.innerHTML = '<option value="">Pilih Provinsi</option>';
+        select.innerHTML += `
+            <option value="${item.id}">
+                ${item.name}
+            </option>
+        `;
 
-        hasil.data.forEach(item => {
-
-            prov.innerHTML += `
-                <option value="${item.id}">
-                    ${item.name}
-                </option>
-            `;
-
-        });
-
-    } catch (err) {
-
-        alert("Gagal memuat provinsi");
-
-        console.error(err);
-
-    }
+    });
 
 }
 
@@ -1771,35 +1715,32 @@ async function loadProvinsi() {
 // LOAD KABUPATEN
 // ===============================
 
-document.getElementById("provinsi").addEventListener("change", async function () {
+document.getElementById("provinsi")
+.addEventListener("change", async function(){
 
-    const province = this.value;
+    const id = this.value;
 
-    const kab = document.getElementById("kabupaten");
+    const res = await fetch(
+        "/.netlify/functions/cariKota?id=" + id
+    );
 
-    const kec = document.getElementById("kecamatanSelect");
+    const json = await res.json();
 
-    const desa = document.getElementById("desaSelect");
+    const select =
+        document.getElementById("kabupaten");
 
-    kab.innerHTML = '<option>Memuat...</option>';
+    select.innerHTML =
+        '<option value="">Pilih Kabupaten</option>';
 
-    kec.innerHTML = '<option>Pilih Kecamatan</option>';
+    json.value.forEach(item=>{
 
-    desa.innerHTML = '<option>Pilih Desa</option>';
+        select.innerHTML += `
+            <option value="${item.id}">
+                ${item.name}
+            </option>
+        `;
 
-    if (!province) {
-
-        kab.innerHTML = '<option>Pilih Kabupaten</option>';
-
-        return;
-
-    }
-
-    const res = await fetch("/.netlify/functions/kabupaten?province=" + province);
-
-    const hasil = await res.json();
-
-    kab.innerHTML = hasil.options;
+    });
 
 });
 
@@ -1838,8 +1779,6 @@ document.getElementById("kabupaten").addEventListener("change", async function (
 // ===============================
 // LOAD DESA
 // ===============================
-
-document.getElementById("kecamatanSelect").addEventListener("change", async function () {
 
     const kecamatan = this.value;
 
@@ -1889,6 +1828,7 @@ document.getElementById("kecamatanSelect").addEventListener("change", async func
 
     try {
 
+        const res = await fetch("/.netlify/functions/desa?kecamatan=" + id);
 
         const data = await res.json();
 
