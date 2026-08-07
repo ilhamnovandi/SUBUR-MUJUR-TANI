@@ -1,18 +1,31 @@
 exports.handler = async () => {
 
-  const response = await fetch("https://rajaongkir.komerce.id/api/v1/destination/province", {
-    headers: {
-      "key": "zj7KY4pl909d2fa9a32db82bosZJg5gg"
+    try {
+
+        const response = await fetch(
+            `https://api.binderbyte.com/v1/listprovinsi?api_key=${process.env.BINDERBYTE_API_KEY}`
+        );
+
+        const result = await response.json();
+
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(result)
+        };
+
+    } catch (err) {
+
+        return {
+            statusCode: 500,
+            body: JSON.stringify({
+                success: false,
+                message: err.message
+            })
+        };
+
     }
-  });
 
-  const data = await response.json();
-
-  return {
-    statusCode: 200,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data)
-  };
 };
