@@ -547,41 +547,25 @@ placeholder="RW">
 <label>Provinsi</label>
 
 <select id="provinsi">
-
-<option value="">
-Pilih Provinsi
-</option>
-
+    <option value="">Pilih Provinsi</option>
 </select>
 
 <label>Kabupaten / Kota</label>
 
 <select id="kabupaten">
-
-<option value="">
-Pilih Kabupaten / Kota
-</option>
-
+    <option value="">Pilih Kabupaten / Kota</option>
 </select>
 
 <label>Kecamatan</label>
 
 <select id="kecamatanSelect">
-
-<option value="">
-Pilih Kecamatan
-</option>
-
+    <option value="">Pilih Kecamatan</option>
 </select>
 
 <label>Desa / Kelurahan</label>
 
 <select id="desaSelect">
-
-    <option value="">
-        Pilih Desa / Kelurahan
-    </option>
-
+    <option value="">Pilih Desa / Kelurahan</option>
 </select>
 
 <div class="mb-3">
@@ -632,23 +616,15 @@ Pilih Ekspedisi
 </option>
 
 <option value="jne">
-JNE
+JNE / JNE Trucking (JTR)
 </option>
 
 <option value="jnt">
 J&T Express
 </option>
 
-<option value="jnt_cargo">
-J&T Cargo
-</option>
-
 <option value="sicepat">
-SiCepat
-</option>
-
-<option value="sicepat_cargo">
-SiCepat Cargo
+SiCepat / SiCepat GOKIL
 </option>
 
 <option value="anteraja">
@@ -660,11 +636,7 @@ Ninja Xpress
 </option>
 
 <option value="lion">
-Lion Parcel
-</option>
-
-<option value="lion_cargo">
-Lion Cargo
+Lion Parcel / Lion Big Pack
 </option>
 
 <option value="pos">
@@ -672,27 +644,27 @@ POS Indonesia
 </option>
 
 <option value="tiki">
-TIKI
+TIKI / TIKI Trucking
 </option>
 
 <option value="wahana">
 Wahana
 </option>
 
-<option value="rex">
-REX Express
-</option>
-
 <option value="sap">
-SAP Express
+SAP / SAP Cargo
 </option>
 
-<option value="ide">
-ID Express
+<option value="idexpress">
+ID Express / ID Truck
 </option>
 
-<option value="indah">
-Indah Cargo
+<option value="sentralcargo">
+Sentral Cargo
+</option>
+
+<option value="rpx">
+RPX
 </option>
 
 </select>
@@ -1006,7 +978,726 @@ Pusat Bibit Tanaman Hortikultura Berkualitas
 
 </footer>
 
+<script>
 
+// ===========================
+// API Wilayah Indonesia
+// ===========================
+
+const BASE_WILAYAH = "https://www.emsifa.com/api-wilayah-indonesia/api";
+
+const provinsi = document.getElementById("provinsi");
+const kabupaten = document.getElementById("kabupaten");
+const kecamatan = document.getElementById("kecamatanSelect");
+const desa = document.getElementById("desaSelect");
+
+// ===========================
+// LOAD PROVINSI
+// ===========================
+async function loadProvinsi() {
+    try {
+        const res = await fetch(`${BASE_WILAYAH}/provinces.json`);
+        const data = await res.json();
+
+        provinsi.innerHTML = '<option value="">Pilih Provinsi</option>';
+
+        data.forEach(item => {
+            provinsi.innerHTML += `
+            <option value="${item.id}">
+                ${item.name}
+            </option>`;
+        });
+
+    } catch (e) {
+        console.error("Gagal memuat provinsi", e);
+    }
+}
+
+// ===========================
+// LOAD KABUPATEN
+// ===========================
+provinsi.addEventListener("change", async function () {
+
+    kabupaten.innerHTML = '<option value="">Pilih Kabupaten</option>';
+    kecamatan.innerHTML = '<option value="">Pilih Kecamatan</option>';
+    desa.innerHTML = '<option value="">Pilih Desa</option>';
+
+    if (!this.value) return;
+
+    const res = await fetch(`${BASE_WILAYAH}/regencies/${this.value}.json`);
+    const data = await res.json();
+
+    data.forEach(item => {
+        kabupaten.innerHTML += `
+            <option value="${item.id}">
+                ${item.name}
+            </option>`;
+    });
+
+});
+  
+
+// ===========================
+// LOAD KECAMATAN
+// ===========================
+kabupaten.addEventListener("change", async function () {
+
+    kecamatan.innerHTML = '<option>Pilih Kecamatan</option>';
+    desa.innerHTML = '<option>Pilih Desa</option>';
+
+    if (!this.value) return;
+
+    const res = await fetch(`${BASE_WILAYAH}/districts/${this.value}.json`);
+    const data = await res.json();
+
+    kecamatan.innerHTML = '<option value="">Pilih Kecamatan</option>';
+
+    data.forEach(item => {
+        kecamatan.innerHTML += `
+        <option value="${item.id}">
+            ${item.name}
+        </option>`;
+    });
+
+});
+
+// ===========================
+// LOAD DESA
+// ===========================
+kecamatan.addEventListener("change", async function () {
+
+    desa.innerHTML = '<option>Pilih Desa</option>';
+
+    if (!this.value) return;
+
+    const res = await fetch(`${BASE_WILAYAH}/villages/${this.value}.json`);
+    const data = await res.json();
+
+    desa.innerHTML = '<option value="">Pilih Desa / Kelurahan</option>';
+
+    data.forEach(item => {
+        desa.innerHTML += `
+        <option value="${item.id}">
+            ${item.name}
+        </option>`;
+    });
+
+});
+
+// Jalankan saat halaman dibuka
+window.addEventListener("load", loadProvinsi);
+
+// ==========================
+// SISTEM KERANJANG - PART 1
+// ==========================
+
+let keranjang = JSON.parse(localStorage.getItem("keranjang")) || [];
+
+// Simpan keranjang ke localStorage
+function simpanKeranjang() {
+    localStorage.setItem("keranjang", JSON.stringify(keranjang));
+}
+
+// Tambah produk ke keranjang
+function tambahKeranjang(produk) {
+
+    // Jika produk dikirim dalam bentuk string JSON
+    if (typeof produk === "string") {
+        produk = JSON.parse(produk);
+    }
+
+    const index = keranjang.findIndex(item => item.id === produk.id);
+
+    if (index >= 0) {
+        keranjang[index].jumlah += 1;
+    } else {
+        keranjang.push({
+            id: produk.id,
+            nama: produk.nama,
+            harga: Number(produk.harga),
+            gambar: produk.gambar,
+            stok: Number(produk.stok || 0),
+            jumlah: 1,
+            berat: Number(produk.berat || 1000)
+        });
+    }
+
+    simpanKeranjang();
+
+    renderKeranjang();
+}
+
+// ===============================
+// KONFIGURASI
+// ===============================
+// Kode pos toko diatur aman di Netlify Environment Variable:
+// BITESHIP_ORIGIN_POSTAL_CODE
+// API key Biteship juga disimpan di Netlify, bukan di file ini.
+let ongkir = 0;
+window.daftarLayanan = [];
+
+// ==========================
+// RENDER KERANJANG
+// ==========================
+
+function renderKeranjang() {
+
+    const isi = document.getElementById("isiKeranjang");
+
+    if (!isi) return;
+
+    if (keranjang.length === 0) {
+
+        isi.innerHTML = "Keranjang masih kosong.";
+
+        document.getElementById("totalHarga").innerHTML = "0";
+        document.getElementById("totalBerat").innerHTML = "0";
+
+        return;
+    }
+
+    isi.innerHTML = "";
+
+    let totalHarga = 0;
+    let totalBerat = 0;
+
+    keranjang.forEach((item, index) => {
+
+        const subtotal = item.harga * item.jumlah;
+
+        totalHarga += subtotal;
+
+        totalBerat += item.berat * item.jumlah;
+
+        isi.innerHTML += `
+        <div style="display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #ddd;">
+
+            <img src="${item.gambar}"
+                 style="width:70px;height:70px;object-fit:cover;border-radius:8px;">
+
+            <div style="flex:1">
+
+                <b>${item.nama}</b><br>
+
+                Rp ${item.harga.toLocaleString("id-ID")}<br>
+
+                Jumlah :
+                <button onclick="kurangProduk(${index})">-</button>
+
+                <b>${item.jumlah}</b>
+
+                <button onclick="tambahProduk(${index})">+</button>
+
+            </div>
+
+            <div>
+
+                <b>Rp ${subtotal.toLocaleString("id-ID")}</b><br>
+
+                <button onclick="hapusProduk(${index})">
+                    🗑 Hapus
+                </button>
+
+            </div>
+
+        </div>
+        `;
+
+    });
+
+    document.getElementById("totalHarga").innerHTML =
+        totalHarga.toLocaleString("id-ID");
+
+    document.getElementById("totalBerat").innerHTML =
+        totalBerat.toLocaleString("id-ID");
+
+    updateTotalBayar();
+
+}
+
+window.addEventListener("load", renderKeranjang);
+
+// ==========================
+// AKSI KERANJANG
+// ==========================
+
+function tambahProduk(index) {
+
+    if (keranjang[index].stok > 0 &&
+        keranjang[index].jumlah >= keranjang[index].stok) {
+
+        alert("Stok produk habis.");
+        return;
+    }
+
+    keranjang[index].jumlah++;
+
+    simpanKeranjang();
+
+    renderKeranjang();
+}
+
+function kurangProduk(index) {
+
+    keranjang[index].jumlah--;
+
+    if (keranjang[index].jumlah <= 0) {
+
+        keranjang.splice(index, 1);
+
+    }
+
+    simpanKeranjang();
+
+    renderKeranjang();
+}
+
+function hapusProduk(index) {
+
+    if (!confirm("Hapus produk dari keranjang?")) return;
+
+    keranjang.splice(index, 1);
+
+    simpanKeranjang();
+
+    renderKeranjang();
+}
+
+function kosongkanKeranjang() {
+
+    if (!confirm("Kosongkan seluruh keranjang?")) return;
+
+    keranjang = [];
+    ongkir = 0;
+
+    simpanKeranjang();
+    renderKeranjang();
+
+    const layanan = document.getElementById("layananOngkir");
+    if (layanan) {
+        layanan.innerHTML = '<option value="">Pilih Layanan</option>';
+    }
+
+    const hasil = document.getElementById("hasilOngkir");
+    if (hasil) hasil.innerHTML = "";
+
+    const ongkirEl = document.getElementById("ongkir");
+    if (ongkirEl) ongkirEl.innerHTML = "Rp 0";
+
+    updateTotalBayar();
+}
+
+// ==========================
+// UPDATE TOTAL BAYAR
+// ==========================
+function updateTotalBayar() {
+
+    let totalProduk = 0;
+
+    keranjang.forEach(item => {
+        totalProduk += Number(item.harga || 0) * Number(item.jumlah || 0);
+    });
+
+    const totalHargaEl = document.getElementById("totalHarga");
+    const totalProdukEl = document.getElementById("totalProduk");
+    const totalBayarEl = document.getElementById("totalBayar");
+
+    if (totalHargaEl) {
+        totalHargaEl.innerHTML = totalProduk.toLocaleString("id-ID");
+    }
+
+    if (totalProdukEl) {
+        totalProdukEl.innerHTML = totalProduk.toLocaleString("id-ID");
+    }
+
+    if (totalBayarEl) {
+        totalBayarEl.innerHTML =
+            (totalProduk + Number(ongkir || 0)).toLocaleString("id-ID");
+    }
+}
+
+// ===============================
+// HITUNG ONGKIR - BITESHIP
+// ===============================
+async function hitungOngkirAPI() {
+
+    const destinationPostalCode =
+        document.getElementById("kodePos").value.trim();
+
+    const courier =
+        document.getElementById("kurirOngkir").value;
+
+    const hasilOngkir =
+        document.getElementById("hasilOngkir");
+
+    if (!destinationPostalCode) {
+        alert("Isi Kode Pos tujuan terlebih dahulu.");
+        document.getElementById("kodePos").focus();
+        return;
+    }
+
+    if (!/^[0-9]{5}$/.test(destinationPostalCode)) {
+        alert("Kode Pos harus 5 angka.");
+        document.getElementById("kodePos").focus();
+        return;
+    }
+
+    if (!courier) {
+        alert("Pilih ekspedisi terlebih dahulu.");
+        return;
+    }
+
+    if (!keranjang.length) {
+        alert("Keranjang masih kosong.");
+        return;
+    }
+
+    const items = keranjang.map(item => ({
+        name: item.nama || "Produk",
+        description: item.nama || "Produk pertanian",
+        category: "outdoor_gear",
+        value: Number(item.harga || 0),
+        quantity: Number(item.jumlah || 1),
+        weight: Number(item.berat || 1000)
+    }));
+
+    try {
+
+        hasilOngkir.innerHTML =
+            "⏳ Menghitung ongkir dengan Biteship...";
+
+        const res = await fetch("/.netlify/functions/ongkir", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                destination_postal_code: Number(destinationPostalCode),
+                courier,
+                items
+            })
+        });
+
+        const data = await res.json();
+
+        console.log("RESPON BITESHIP:", data);
+
+        if (!res.ok || data.success === false) {
+            throw new Error(
+                data.message ||
+                "Biteship gagal menghitung ongkir."
+            );
+        }
+
+        if (!Array.isArray(data.pricing) || data.pricing.length === 0) {
+            hasilOngkir.innerHTML =
+                "❌ Tidak ada layanan tersedia untuk tujuan, berat, atau ekspedisi tersebut.";
+            daftarLayanan = [];
+            isiLayanan();
+            return;
+        }
+
+        daftarLayanan = data.pricing;
+
+        isiLayanan();
+
+        hasilOngkir.innerHTML = `
+            <div style="padding:15px;background:#e8f5e9;border-radius:10px;">
+                <b>Ongkir berhasil dihitung.</b><br>
+                Silakan pilih layanan pengiriman.
+            </div>
+        `;
+
+    } catch (err) {
+
+        console.error("ERROR BITESHIP:", err);
+
+        hasilOngkir.innerHTML = `
+            <div style="padding:15px;background:#ffebee;color:#c62828;border-radius:10px;">
+                ❌ <b>Ongkir gagal dihitung</b><br><br>
+                ${err.message}
+            </div>
+        `;
+    }
+}
+
+// ===============================
+// PILIH EKSPEDISI
+// ===============================
+document.getElementById("kurirOngkir")
+.addEventListener("change", function () {
+
+    // Jangan otomatis memanggil API sebelum user menekan
+    // tombol Hitung Ongkir.
+    daftarLayanan = [];
+    ongkir = 0;
+
+    document.getElementById("layananOngkir").innerHTML =
+        '<option value="">Pilih Layanan</option>';
+
+    document.getElementById("hasilOngkir").innerHTML =
+        "";
+
+    document.getElementById("ongkir").innerHTML =
+        "Rp 0";
+
+    updateTotalBayar();
+});
+
+// ===============================
+// TAMPILKAN LAYANAN BITESHIP
+// ===============================
+function isiLayanan() {
+
+    const layanan =
+        document.getElementById("layananOngkir");
+
+    layanan.innerHTML =
+        '<option value="">Pilih Layanan</option>';
+
+    daftarLayanan.forEach((item, i) => {
+
+        const harga = Number(item.price || item.shipping_fee || 0);
+        const estimasi = item.duration || "Estimasi tidak tersedia";
+
+        layanan.innerHTML += `
+            <option value="${i}">
+                ${item.courier_name} - ${item.courier_service_name}
+                | Rp ${harga.toLocaleString("id-ID")}
+                | ${estimasi}
+            </option>
+        `;
+    });
+}
+
+// ===============================
+// PILIH LAYANAN
+// ===============================
+document.getElementById("layananOngkir")
+.addEventListener("change", function () {
+
+    if (this.value === "") {
+        ongkir = 0;
+        document.getElementById("ongkir").innerHTML = "Rp 0";
+        updateTotalBayar();
+        return;
+    }
+
+    const data = daftarLayanan[Number(this.value)];
+
+    if (!data) return;
+
+    ongkir = Number(data.price || data.shipping_fee || 0);
+
+    document.getElementById("ongkir").innerHTML =
+        "Rp " + ongkir.toLocaleString("id-ID");
+
+    const hasilOngkir = document.getElementById("hasilOngkir");
+
+    hasilOngkir.innerHTML = `
+        <div style="padding:15px;background:#e8f5e9;border-radius:10px;">
+            <b>Ekspedisi :</b> ${data.courier_name}<br>
+            <b>Layanan :</b> ${data.courier_service_name}<br>
+            <b>Estimasi :</b> ${data.duration || "-"}<br>
+            <b>Ongkir :</b> Rp ${ongkir.toLocaleString("id-ID")}
+        </div>
+    `;
+
+    updateTotalBayar();
+});
+
+// Reset ongkir jika kode pos diubah setelah tarif dihitung.
+document.getElementById("kodePos")
+.addEventListener("input", function () {
+    daftarLayanan = [];
+    ongkir = 0;
+
+    document.getElementById("layananOngkir").innerHTML =
+        '<option value="">Pilih Layanan</option>';
+
+    document.getElementById("hasilOngkir").innerHTML =
+        "";
+
+    document.getElementById("ongkir").innerHTML =
+        "Rp 0";
+
+    updateTotalBayar();
+});
+
+</script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCAnApRscAHXJF-NWt3P_BivrvWzGt996U",
+  authDomain: "subur-mujur-tani-6ff54.firebaseapp.com",
+  databaseURL: "https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "subur-mujur-tani-6ff54",
+  storageBucket: "subur-mujur-tani-6ff54.firebasestorage.app",
+  messagingSenderId: "338009458768",
+  appId: "1:338009458768:web:c562a610cee4940b856955"
+};
+
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
+
+const database = firebase.database();
+
+function loadProduk() {
+
+    database.ref("produk").on("value", function(snapshot){
+
+        const data = snapshot.val();
+
+        const container = document.getElementById("daftarProduk");
+
+        if(!container) return;
+
+        container.innerHTML = "";
+
+        if(!data){
+            container.innerHTML =
+            "<p style='text-align:center'>Belum ada produk.</p>";
+            return;
+        }
+
+        Object.keys(data).forEach(function(id){
+
+            const p = data[id];
+
+            container.innerHTML += `
+            <div class="produk-card">
+
+                <img src="${p.gambar}"
+                     style="width:100%;height:200px;object-fit:cover;">
+
+                <h3>${p.nama}</h3>
+
+                <p>
+                    Rp ${Number(p.harga).toLocaleString("id-ID")}
+                </p>
+
+                <p>
+                    Stok : ${p.stok}
+                </p>
+
+                <button onclick='tambahKeranjang(${JSON.stringify({
+    id: id,
+    nama: p.nama,
+    harga: Number(p.harga),
+    gambar: p.gambar,
+    stok: Number(p.stok || 0)
+}).replace(/'/g, "&apos;")})'>
+    Tambah ke Keranjang
+</button>
+
+            </div>
+            `;
+
+        });
+
+    });
+
+}
+
+window.addEventListener("load", loadProduk);
+</script>
+
+<script>
+function pesanWhatsApp() {
+
+    // KODE WHATSAPP DI SINI
+
+}
+</script>
+
+<script>
+function pesanWhatsApp() {
+
+    const nama = document.getElementById("namaPembeli").value.trim();
+    const alamat = document.getElementById("alamat").value.trim();
+    const rt = document.getElementById("rt").value.trim();
+    const rw = document.getElementById("rw").value.trim();
+    const kodePos = document.getElementById("kodePos").value.trim();
+    const whatsapp = document.getElementById("whatsapp").value.trim();
+
+    if (!nama) {
+        alert("Nama pembeli belum diisi.");
+        return;
+    }
+
+    if (!alamat) {
+        alert("Alamat belum diisi.");
+        return;
+    }
+
+    if (!whatsapp) {
+        alert("Nomor WhatsApp belum diisi.");
+        return;
+    }
+
+    if (!keranjang || keranjang.length === 0) {
+        alert("Keranjang masih kosong.");
+        return;
+    }
+
+    let pesan = "🌱 *PESANAN SUBUR MUJUR TANI*%0A%0A";
+
+    pesan += "*Data Pembeli*%0A";
+    pesan += "Nama: " + nama + "%0A";
+    pesan += "Alamat: " + alamat + "%0A";
+    pesan += "RT/RW: " + (rt || "-") + "/" + (rw || "-") + "%0A";
+    pesan += "Kode Pos: " + (kodePos || "-") + "%0A";
+    pesan += "WhatsApp: " + whatsapp + "%0A%0A";
+
+    pesan += "*Detail Pesanan*%0A";
+
+    keranjang.forEach((item, index) => {
+        const jumlah = Number(item.jumlah || 1);
+        const harga = Number(item.harga || 0);
+        const subtotal = jumlah * harga;
+
+        pesan +=
+            (index + 1) + ". " +
+            item.nama +
+            " x" + jumlah +
+            " = Rp " +
+            subtotal.toLocaleString("id-ID") +
+            "%0A";
+    });
+
+    const totalProduk = keranjang.reduce(
+        (total, item) =>
+            total +
+            Number(item.harga || 0) *
+            Number(item.jumlah || 0),
+        0
+    );
+
+    pesan += "%0A";
+    pesan += "Total Produk: Rp " +
+        totalProduk.toLocaleString("id-ID") +
+        "%0A";
+
+    pesan += "Ongkir: Rp " +
+        Number(ongkir || 0).toLocaleString("id-ID") +
+        "%0A";
+
+    pesan += "Total Bayar: Rp " +
+        (totalProduk + Number(ongkir || 0))
+        .toLocaleString("id-ID") +
+        "%0A";
+
+    const nomorToko = "62859110011700";
+
+    const url =
+        "https://wa.me/" +
+        nomorToko +
+        "?text=" +
+        pesan;
+
+    window.open(url, "_blank");
+}
 </script>
 
 </body>
