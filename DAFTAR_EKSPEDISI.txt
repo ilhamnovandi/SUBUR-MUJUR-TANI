@@ -1,0 +1,23 @@
+DAFTAR EKSPEDISI SUBUR MUJUR TANI
+
+Pengiriman:
+1. JNE / JNE Trucking (JTR)
+2. J&T Express
+3. SiCepat / SiCepat GOKIL
+4. AnterAja
+5. Ninja Xpress
+6. Lion Parcel / Lion Big Pack
+7. POS Indonesia
+8. TIKI / TIKI Trucking
+9. Wahana
+10. SAP / SAP Cargo
+11. ID Express / ID Truck
+12. RPX
+13. Sentral Cargo
+14. Paxel / Paxel Big
+15. Deliveree Cargo
+
+Catatan:
+- JTR dan beberapa layanan cargo memiliki batas minimum berat/rute.
+- Biteship hanya mengembalikan layanan yang tersedia untuk rute dan berat pesanan.
+- Layanan yang tidak tersedia tidak akan muncul meskipun ekspedisinya dipilih.
