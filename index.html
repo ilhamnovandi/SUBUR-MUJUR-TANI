@@ -1619,41 +1619,42 @@ window.addEventListener("load", loadProvinsi);
 // SISTEM KERANJANG - PART 1
 // ==========================
 
-let keranjang = JSON.parse(localStorage.getItem("keranjang")) || [];
+function normalisasiKeranjang(value) {
+    if (Array.isArray(value)) return value;
+    if (!value || typeof value !== "object") return [];
+
+    // Migrasi format lama: object tunggal atau object dengan key numerik.
+    if (value.items && Array.isArray(value.items)) return value.items;
+    if (value.id) return [value];
+
+    const values = Object.values(value);
+    return values.every(v => v && typeof v === "object") ? values : [];
+}
+
+let keranjang;
+try {
+    keranjang = normalisasiKeranjang(JSON.parse(localStorage.getItem("keranjang") || "[]"));
+} catch (e) {
+    console.warn("Data keranjang lama rusak, dibuat ulang.", e);
+    keranjang = [];
+}
 
 // Simpan keranjang ke localStorage
 function simpanKeranjang() {
+    keranjang = normalisasiKeranjang(keranjang);
     localStorage.setItem("keranjang", JSON.stringify(keranjang));
 }
 
-// Tambah produk ke keranjang
-function tambahKeranjang(produk) {
-
-    // Jika produk dikirim dalam bentuk string JSON
-    if (typeof produk === "string") {
-        produk = JSON.parse(produk);
+// Pastikan semua kode selalu menerima array.
+function pastikanKeranjangArray() {
+    if (!Array.isArray(keranjang)) {
+        keranjang = normalisasiKeranjang(keranjang);
     }
-
-    const index = keranjang.findIndex(item => item.id === produk.id);
-
-    if (index >= 0) {
-        keranjang[index].jumlah += 1;
-    } else {
-        keranjang.push({
-            id: produk.id,
-            nama: produk.nama,
-            harga: Number(produk.harga),
-            gambar: produk.gambar,
-            stok: Number(produk.stok || 0),
-            jumlah: 1,
-            berat: Number(produk.berat || 1000)
-        });
-    }
-
-    simpanKeranjang();
-
-    renderKeranjang();
+    return keranjang;
 }
+
+pastikanKeranjangArray();
+simpanKeranjang();
 
 // ===============================
 // KONFIGURASI
@@ -1669,6 +1670,7 @@ window.daftarLayanan = [];
 // ==========================
 
 function renderKeranjang() {
+    pastikanKeranjangArray();
 
     const isi = document.getElementById("isiKeranjang");
 
@@ -2187,7 +2189,7 @@ function loadProduk() {
 }
 
 function pmUpdateCartCount(){
-    const total = (window.keranjang || keranjang || []).reduce((n,i)=>n+Number(i.jumlah||0),0);
+    const total = pastikanKeranjangArray().reduce((n,i)=>n+Number(i.jumlah||0),0);
     ["pmCartCount","pmFloatCount"].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.textContent=total;
@@ -2245,6 +2247,7 @@ async function pesanWhatsApp() {
         lines.push((index + 1) + ". " + item.nama + " x" + jumlah + " = Rp " + (harga * jumlah).toLocaleString("id-ID"));
     });
 
+    pastikanKeranjangArray();
     const totalProduk = keranjang.reduce((total, item) => total + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
     lines.push("", "Metode Pembayaran: " + metode, "Total Produk: Rp " + totalProduk.toLocaleString("id-ID"), "Ongkir: Rp " + Number(ongkir || 0).toLocaleString("id-ID"), "Total Bayar: Rp " + (totalProduk + Number(ongkir || 0)).toLocaleString("id-ID"));
 
@@ -2310,37 +2313,66 @@ function finalEscape(value) {
 }
 
 function finalGetTotals() {
+    pastikanKeranjangArray();
     const totalProduk = keranjang.reduce((sum, item) =>
         sum + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
     return {totalProduk, ongkir:Number(ongkir || 0), total:totalProduk + Number(ongkir || 0)};
 }
 
-/* Cek stok Firebase setiap kali tambah item */
+/* Cek stok Firebase setiap kali tambah item.
+   Gunakan window.FirebaseApp.database agar tidak tergantung pada
+   scope lexical `const database` dari firebase.js. */
 async function tambahKeranjang(produk) {
+    pastikanKeranjangArray();
     if (typeof produk === "string") {
-        try { produk = JSON.parse(produk); } catch(e) { return; }
+        try { produk = JSON.parse(produk); } catch(e) {
+            console.error("Data produk tidak valid:", e);
+            alert("Data produk tidak valid.");
+            return;
+        }
     }
-    if (!produk || !produk.id) return;
+
+    if (!produk || !produk.id) {
+        alert("ID produk tidak ditemukan.");
+        return;
+    }
+
+    const db = (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+    if (!db) {
+        console.error("Firebase Database belum tersedia.");
+        alert("Firebase Database belum siap. Silakan refresh halaman.");
+        return;
+    }
 
     try {
-        const snap = await database.ref("produk/" + produk.id).once("value");
+        const id = String(produk.id);
+        const snap = await db.ref("produk").child(id).once("value");
         const current = snap.val();
-        if (!current) { alert("Produk sudah tidak tersedia."); return; }
+
+        if (!snap.exists() || !current) {
+            alert("Produk sudah tidak tersedia atau sudah dihapus.");
+            return;
+        }
 
         const stok = Number(current.stok || 0);
-        if (stok <= 0) { alert("Stok produk habis."); return; }
+        if (stok <= 0) {
+            alert("Stok produk habis.");
+            return;
+        }
 
-        const index = keranjang.findIndex(item => item.id === produk.id);
+        const index = keranjang.findIndex(item => String(item.id) === id);
+
         if (index >= 0) {
-            if (Number(keranjang[index].jumlah) >= stok) {
+            if (Number(keranjang[index].jumlah || 0) >= stok) {
                 alert("Jumlah melebihi stok tersedia (" + stok + ").");
                 return;
             }
+
             keranjang[index].stok = stok;
-            keranjang[index].jumlah += 1;
+            keranjang[index].jumlah = Number(keranjang[index].jumlah || 0) + 1;
         } else {
             keranjang.push({
-                id: produk.id,
+                id: id,
                 nama: current.nama || produk.nama || "",
                 harga: Number(current.harga || produk.harga || 0),
                 gambar: current.gambar || produk.gambar || "",
@@ -2349,20 +2381,37 @@ async function tambahKeranjang(produk) {
                 berat: Number(current.berat || produk.berat || 1000)
             });
         }
+
         simpanKeranjang();
         renderKeranjang();
+        if (typeof pmUpdateCartCount === "function") pmUpdateCartCount();
+
     } catch(e) {
-        console.error(e);
-        alert("Gagal mengecek stok terbaru.");
+        console.error("Gagal mengecek stok terbaru:", e);
+        console.error("Firebase error code:", e && e.code);
+        console.error("Firebase error message:", e && e.message);
+
+        let pesan = "Gagal mengecek stok terbaru.";
+        if (e && e.code === "PERMISSION_DENIED") {
+            pesan = "Akses stok ditolak Firebase. Periksa Rules Realtime Database.";
+        } else if (e && e.code === "NETWORK_ERROR") {
+            pesan = "Koneksi ke Firebase bermasalah. Coba refresh lalu ulangi.";
+        } else if (e && e.message) {
+            pesan += "\\n\\n" + e.message;
+        }
+        alert(pesan);
     }
 }
 
 /* Plus pada keranjang: selalu cek stok terbaru */
 async function tambahProduk(index) {
+    pastikanKeranjangArray();
     const item = keranjang[index];
     if (!item) return;
+    const db = (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+    if (!db) { alert("Firebase Database belum siap. Silakan refresh halaman."); return; }
     try {
-        const snap = await database.ref("produk/" + item.id).once("value");
+        const snap = await db.ref("produk").child(String(item.id)).once("value");
         const p = snap.val();
         const stok = Number(p && p.stok || 0);
         if (!p || item.jumlah >= stok) {
@@ -2380,10 +2429,13 @@ async function tambahProduk(index) {
 
 /* Bersihkan keranjang jika stok Firebase turun */
 async function finalSyncCartStock() {
+    pastikanKeranjangArray();
+    const db = (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+    if (!db) return;
     for (let i = keranjang.length - 1; i >= 0; i--) {
         const item = keranjang[i];
         try {
-            const snap = await database.ref("produk/" + item.id).once("value");
+            const snap = await db.ref("produk").child(String(item.id)).once("value");
             const p = snap.val();
             const stok = Number(p && p.stok || 0);
             if (!p || stok <= 0) keranjang.splice(i,1);
@@ -2400,8 +2452,10 @@ async function finalSyncCartStock() {
 /* Simpan pesanan + kurangi stok secara atomik per produk.
    Jika ada produk yang gagal, stok yang sudah dipotong dikembalikan. */
 async function simpanPesanan() {
+    pastikanKeranjangArray();
     if (finalOrderProcessing) return;
-    if (!window.database) { alert("Firebase Database belum siap."); return; }
+    const db = (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+    if (!db) { alert("Firebase Database belum siap. Silakan refresh halaman."); return; }
     if (!keranjang.length) { alert("Keranjang masih kosong."); return; }
 
     const nama = (document.getElementById("namaPembeli")?.value || "").trim();
@@ -2427,14 +2481,14 @@ async function simpanPesanan() {
     if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Menyimpan..."; }
 
     const totals = finalGetTotals();
-    const orderKey = database.ref("pesanan").push().key;
+    const orderKey = db.ref("pesanan").push().key;
     const changed = [];
 
     try {
         /* Verifikasi dan kurangi setiap stok dengan transaction.
            Transaction mencegah dua pembeli mengambil stok yang sama. */
         for (const item of keranjang) {
-            const ref = database.ref("produk/" + item.id);
+            const ref = db.ref("produk/" + item.id);
             const result = await ref.transaction(function(current) {
                 if (current === null) return;
                 const stok = Number(current.stok || 0);
@@ -2469,8 +2523,8 @@ async function simpanPesanan() {
             waktu: Date.now()
         };
 
-        await database.ref("pesanan/" + orderKey).set(orderData);
-        await database.ref("pembayaran/" + orderKey).set({
+        await db.ref("pesanan/" + orderKey).set(orderData);
+        await db.ref("pembayaran/" + orderKey).set({
             nama: orderData.nama,
             whatsapp: orderData.whatsapp,
             total: orderData.total,
@@ -2495,7 +2549,7 @@ async function simpanPesanan() {
         /* Rollback stok yang sempat berhasil dikurangi */
         for (const c of changed) {
             try {
-                await database.ref("produk/" + c.id).transaction(function(current) {
+                await db.ref("produk/" + c.id).transaction(function(current) {
                     if (current) current.stok = Number(current.stok || 0) + c.jumlah;
                     return current;
                 });

@@ -25,6 +25,16 @@ const database = firebase.database();
 const firestore = (typeof firebase.firestore === "function") ? firebase.firestore() : null;
 const storage = (typeof firebase.storage === "function") ? firebase.storage() : null;
 
+// Pastikan service Firebase juga tersedia melalui window.
+// Ini mencegah fungsi checkout/stock gagal karena perbedaan scope script.
+window.FirebaseApp = window.FirebaseApp || {};
+window.FirebaseApp.auth = auth;
+window.FirebaseApp.database = database;
+window.FirebaseApp.firestore = firestore;
+window.FirebaseApp.storage = storage;
+window.database = database;
+window.auth = auth;
+
 function loginAdmin(email, password) {
     return auth.signInWithEmailAndPassword(email, password)
         .then(() => { window.location.href = "admin.html"; })
