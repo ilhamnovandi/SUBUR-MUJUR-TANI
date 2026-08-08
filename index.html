@@ -1637,7 +1637,7 @@ async function hitungOngkirAPI() {
         hasilOngkir.innerHTML = `
             <div style="padding:15px;background:#ffebee;color:#c62828;border-radius:10px;">
                 ❌ <b>Ongkir gagal dihitung</b><br><br>
-                ${err.message}
+                ${String(err.message || "Biteship gagal menghitung ongkir.").replace(/[<>]/g, "")}
             </div>
         `;
     }
