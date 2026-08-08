@@ -1,12 +1,18 @@
-DEPLOY FINAL SUBUR MUJUR TANI
+SUBUR MUJUR TANI - DEPLOY FINAL
 
-1. Upload isi folder ini ke ROOT repository GitHub (index.html sejajar dengan netlify.toml).
-2. Netlify: Import project dari GitHub. Build command kosong, Publish directory .
-3. Environment Variables:
-   BINDERBYTE_API_KEY = API key BinderByte baru kamu
-   BINDERBYTE_ORIGIN = nama kota/kabupaten asal toko, contoh Cirebon
-4. Deploy ulang setelah environment variable dibuat.
-5. Function ongkir: /.netlify/functions/ongkir
-6. Function lacak: /.netlify/functions/cekResi
+1. Upload the CONTENTS of this folder to the ROOT of your GitHub repository.
+   netlify.toml, index.html and netlify/ must be at repository root.
 
-Daftar ekspedisi di Hitung Ongkir dan Lacak Pengiriman disamakan: JNE, J&T, SiCepat, AnterAja, Ninja, Lion, POS, TIKI, Wahana, SAP, ID Express.
+2. Netlify Environment Variables:
+   BINDERBYTE_API_KEY = API key BinderByte kamu
+   BINDERBYTE_ORIGIN = kota/kabupaten asal pengiriman, contoh: Cirebon
+
+3. Deploy/redeploy after adding environment variables.
+
+Important:
+- Do NOT put BINDERBYTE_API_KEY in index.html or GitHub.
+- The regional functions no longer require local desa.json/kecamatan.json.
+  They load complete Indonesia region data from emsifa at runtime.
+- index.html already loads provinces/regencies/districts/villages from emsifa.
+- Ongkir uses /.netlify/functions/ongkir.
+- Tracking uses /.netlify/functions/cekResi.
