@@ -10,7 +10,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 
-<title>🌱 SUBUR MUJUR TANI</title>
+<title>SUBUR MUJUR TANI — Premium Bibit</title>
 
 <link rel="icon" href="favicon.ico">
 
@@ -253,6 +253,270 @@ nav{
 
 }
 
+/* =========================================================
+   SUBUR MUJUR TANI — LUXURY E-COMMERCE THEME
+   Visual-only layer: existing functions and IDs are preserved.
+========================================================= */
+:root{
+  --forest:#0b3d2e;
+  --forest-2:#123f32;
+  --leaf:#1d6b45;
+  --gold:#c7a15a;
+  --gold-light:#e4cc91;
+  --cream:#f7f4ec;
+  --paper:#fffdf8;
+  --ink:#1d2923;
+  --muted:#6d766f;
+  --line:#e7e1d4;
+  --shadow:0 18px 45px rgba(22,43,34,.10);
+}
+
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{
+  background:
+    radial-gradient(circle at 10% 0%,rgba(199,161,90,.08),transparent 28%),
+    linear-gradient(180deg,#faf9f5 0%,#f3f5f1 100%);
+  color:var(--ink);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  line-height:1.6;
+}
+
+header{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(135deg,#071f18 0%,var(--forest) 55%,#18513b 100%);
+  color:#fff;
+  text-align:left;
+  padding:28px max(5vw,22px);
+  border-bottom:1px solid rgba(228,204,145,.28);
+}
+header:before,header:after{
+  content:"";position:absolute;border-radius:50%;pointer-events:none;
+  border:1px solid rgba(228,204,145,.15);
+}
+header:before{width:300px;height:300px;right:-110px;top:-180px}
+header:after{width:190px;height:190px;left:-90px;bottom:-150px}
+header h1{
+  position:relative;z-index:1;font-size:clamp(26px,4vw,38px);letter-spacing:.8px;
+  margin:0 0 4px;font-weight:800;
+}
+header p{position:relative;z-index:1;margin:0;color:#e8eee9;font-size:15px;letter-spacing:.3px}
+
+nav{
+  background:rgba(7,31,24,.96);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid rgba(199,161,90,.20);
+  justify-content:center;gap:8px;padding:10px 14px;
+  position:sticky;top:0;z-index:999;
+  box-shadow:0 8px 25px rgba(0,0,0,.10);
+}
+nav a{
+  color:#edf3ee;text-decoration:none;font-weight:600;font-size:14px;
+  padding:10px 15px;border-radius:999px;transition:.25s ease;letter-spacing:.2px;
+}
+nav a:hover{color:#fff;background:rgba(199,161,90,.14);transform:translateY(-1px)}
+nav a[href="login.html"]{border:1px solid rgba(228,204,145,.45);color:var(--gold-light)}
+
+.hero{
+  min-height:540px;height:auto;
+  background:
+    linear-gradient(90deg,rgba(4,24,18,.84) 0%,rgba(4,24,18,.52) 46%,rgba(4,24,18,.18) 100%),
+    url("1.jpg");
+  background-size:cover;background-position:center;
+  justify-content:flex-start;text-align:left;padding:70px max(7vw,28px);
+  position:relative;
+}
+.hero:after{
+  content:"";position:absolute;inset:auto 0 0;height:100px;
+  background:linear-gradient(transparent,rgba(7,31,24,.12));pointer-events:none;
+}
+.hero>div{max-width:720px;position:relative;z-index:2}
+.hero h2{
+  font-size:clamp(38px,6vw,68px);line-height:1.02;margin:0 0 18px;
+  letter-spacing:-1.5px;color:#fff;font-weight:800;
+}
+.hero p{font-size:clamp(17px,2.2vw,22px);color:#eef3ef;max-width:620px;margin:0 0 26px}
+.hero p:before{
+  content:"BIBIT PILIHAN • KUALITAS TERJAGA • PENGIRIMAN AMAN";
+  display:block;color:var(--gold-light);font-size:11px;letter-spacing:2px;font-weight:800;margin-bottom:13px;
+}
+
+.container{width:min(1180px,92%);max-width:none;margin:auto;padding:38px 0}
+.box{
+  background:rgba(255,253,248,.96);padding:30px;border-radius:24px;margin-bottom:26px;
+  border:1px solid rgba(199,161,90,.16);box-shadow:var(--shadow);
+}
+.box>h2,h2{color:var(--forest);font-size:clamp(24px,3vw,32px);margin:0 0 22px;font-weight:800;letter-spacing:-.5px}
+.box>h2:after,h2:after{
+  content:"";display:block;width:46px;height:3px;background:var(--gold);border-radius:10px;margin-top:10px;
+}
+
+#daftarProduk.produk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:22px}
+.produk-card,.card{
+  background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(20,42,32,.07);transition:transform .25s ease,box-shadow .25s ease,border-color .25s ease;
+}
+.produk-card:hover,.card:hover{transform:translateY(-7px);box-shadow:0 20px 40px rgba(20,42,32,.14);border-color:rgba(199,161,90,.48)}
+.produk-card{padding-bottom:17px;position:relative}
+.produk-card img{display:block!important;width:100%!important;height:235px!important;object-fit:cover!important;background:#eef1ec}
+.produk-card h3{font-size:18px;margin:17px 17px 7px;color:var(--forest);font-weight:750}
+.produk-card p{margin:5px 17px;color:var(--muted);font-size:13px}
+.produk-card p:nth-of-type(1){font-size:21px;color:var(--leaf);font-weight:800;margin-top:8px}
+.produk-card button{width:calc(100% - 34px);margin:13px 17px 0;background:linear-gradient(135deg,var(--forest),var(--leaf));border:1px solid rgba(228,204,145,.32);box-shadow:0 8px 18px rgba(11,61,46,.16)}
+.produk-card button:hover{background:linear-gradient(135deg,#082f23,#155a3b);transform:translateY(-1px)}
+
+.card img{height:250px;object-fit:cover}
+.card-body{padding:18px}
+.harga{color:var(--leaf);font-size:24px;font-weight:800}
+
+button{
+  width:100%;padding:13px 16px;border:0;border-radius:12px;cursor:pointer;
+  background:linear-gradient(135deg,var(--forest),var(--leaf));color:#fff;font-size:15px;font-weight:700;
+  margin-top:10px;box-shadow:0 7px 18px rgba(11,61,46,.12);transition:.2s ease;
+}
+button:hover{background:linear-gradient(135deg,#082f23,#155a3b);box-shadow:0 10px 22px rgba(11,61,46,.18)}
+input,textarea,select{
+  width:100%;padding:13px 14px;margin:10px 0;border-radius:12px;border:1px solid #dcd9cf;
+  background:#fffefb;color:var(--ink);font-size:15px;outline:none;transition:.2s ease;
+}
+input:focus,textarea:focus,select:focus{border-color:var(--gold);box-shadow:0 0 0 4px rgba(199,161,90,.12)}
+
+#galeri .produk-grid{grid-template-columns:repeat(4,1fr)}
+#galeri .card{padding:0}
+#galeri .card img{height:220px;width:100%;display:block}
+
+#ulasan> .box>div:first-of-type{background:linear-gradient(135deg,#fffaf0,#f7f4e8)!important;border:1px solid rgba(199,161,90,.20)}
+#rataRating{color:var(--forest)}
+
+#keranjang .box,#checkout .box{border-top:3px solid var(--gold)}
+
+footer{
+  background:linear-gradient(135deg,#071f18,#0d382a);
+  color:#dfe9e2;text-align:center;padding:40px 20px;margin-top:25px;
+  border-top:1px solid rgba(228,204,145,.25);
+}
+
+/* Mobile */
+@media(max-width:768px){
+  header{text-align:center;padding:22px 16px}
+  header h1{font-size:26px}
+  nav{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;gap:4px;padding:8px 10px}
+  nav a{white-space:nowrap;font-size:13px;padding:9px 12px}
+  .hero{min-height:470px;padding:55px 24px;background-position:58% center}
+  .hero h2{font-size:42px}
+  .hero p{font-size:16px}
+  .container{width:94%;padding:22px 0}
+  .box{padding:21px;border-radius:20px}
+  #daftarProduk.produk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+  .produk-card img{height:170px!important}
+  .produk-card h3{font-size:15px;margin:12px 12px 5px}
+  .produk-card p{margin:4px 12px;font-size:12px}
+  .produk-card p:nth-of-type(1){font-size:17px}
+  .produk-card button{width:calc(100% - 24px);margin:11px 12px 0;padding:10px 8px;font-size:12px}
+  #galeri .produk-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  #galeri .card img{height:160px}
+}
+
+@media(max-width:380px){
+  #daftarProduk.produk-grid{grid-template-columns:1fr 1fr}
+  .produk-card img{height:145px!important}
+  .hero h2{font-size:36px}
+}
+
+/* ===== PREMIUM MARKETPLACE UPGRADE ===== */
+:root{
+  --pm-forest:#082f23;
+  --pm-green:#17633f;
+  --pm-gold:#c9a45c;
+  --pm-gold2:#ead7a6;
+  --pm-cream:#fbfaf5;
+  --pm-white:#fff;
+  --pm-text:#17231d;
+  --pm-muted:#758078;
+  --pm-line:#e7e4db;
+  --pm-shadow:0 14px 38px rgba(8,47,35,.10);
+}
+body{background:#f5f6f2}
+.pm-topbar{
+  background:#f0ede3;color:#3b443e;font-size:12px;padding:7px 5%;display:flex;
+  justify-content:space-between;gap:12px;align-items:center
+}
+.pm-topbar strong{color:var(--pm-green)}
+.pm-shopbar{
+  position:sticky;top:55px;z-index:998;background:rgba(255,255,255,.96);
+  backdrop-filter:blur(14px);border-bottom:1px solid var(--pm-line);
+  padding:13px 4%;box-shadow:0 6px 20px rgba(0,0,0,.05)
+}
+.pm-shoprow{max-width:1180px;margin:auto;display:flex;gap:12px;align-items:center}
+.pm-brand-mini{font-weight:900;color:var(--pm-forest);white-space:nowrap;font-size:17px}
+.pm-search{flex:1;position:relative}
+.pm-search input{margin:0!important;padding:13px 45px 13px 16px!important;border-radius:14px!important;background:#f7f8f5!important}
+.pm-search button{position:absolute;right:4px;top:4px;width:40px;height:40px;margin:0;padding:0;border-radius:11px;background:var(--pm-forest);box-shadow:none}
+.pm-cart-btn{width:auto!important;margin:0!important;white-space:nowrap;border-radius:14px!important;background:var(--pm-gold)!important;color:#18271f!important;padding:12px 15px!important;box-shadow:none!important}
+.pm-cart-count{display:inline-flex;min-width:21px;height:21px;align-items:center;justify-content:center;border-radius:50%;background:#fff;font-size:11px;margin-left:5px}
+.pm-cats{max-width:1180px;margin:10px auto 0;display:flex;gap:7px;overflow:auto;padding-bottom:2px}
+.pm-cat{flex:0 0 auto;border:1px solid #dedbd0;background:#fff;padding:7px 13px;border-radius:999px;font-size:12px;font-weight:700;color:#536057;cursor:pointer}
+.pm-cat.active,.pm-cat:hover{background:var(--pm-forest);border-color:var(--pm-forest);color:#fff}
+.pm-promo{
+  max-width:1180px;margin:24px auto 0;border-radius:22px;overflow:hidden;position:relative;
+  min-height:180px;background:linear-gradient(110deg,rgba(5,33,24,.94),rgba(16,82,54,.75)),url("1.jpg") center/cover;
+  display:flex;align-items:center;padding:28px 30px;color:#fff;box-shadow:var(--pm-shadow)
+}
+.pm-promo h3{font-size:clamp(24px,4vw,39px);line-height:1.05;margin:0 0 8px}
+.pm-promo p{margin:0;color:#e9efe9;font-size:14px}
+.pm-promo-badge{display:inline-block;color:#1d2a22;background:var(--pm-gold2);padding:6px 10px;border-radius:999px;font-size:10px;font-weight:900;letter-spacing:1.2px;margin-bottom:10px}
+.pm-section-head{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:18px}
+.pm-section-head h2{margin:0!important}
+.pm-section-head h2:after{margin-top:8px}
+.pm-count{font-size:12px;color:var(--pm-muted)}
+.pm-product-wrap{position:relative}
+.pm-product-badge{
+  position:absolute;left:10px;top:10px;z-index:2;background:var(--pm-gold);
+  color:#17251e;border-radius:999px;padding:5px 8px;font-size:10px;font-weight:900
+}
+.pm-product-stock{display:inline-block;background:#edf5ef;color:#28714c;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800}
+.pm-product-price{font-size:20px!important;font-weight:900!important;color:var(--pm-green)!important}
+.pm-product-meta{display:flex;justify-content:space-between;align-items:center;margin:7px 17px 0}
+.pm-product-meta p{margin:0!important}
+.pm-add{display:flex!important;align-items:center;justify-content:center;gap:6px}
+.pm-empty{grid-column:1/-1;text-align:center;padding:45px 15px;color:var(--pm-muted)}
+.pm-float-cart{
+  position:fixed;right:18px;bottom:22px;z-index:1001;width:58px;height:58px;border-radius:50%;
+  background:var(--pm-forest);color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 12px 28px rgba(8,47,35,.30);font-size:24px;text-decoration:none;border:2px solid rgba(234,215,166,.55)
+}
+.pm-float-cart span{position:absolute;right:-3px;top:-4px;background:var(--pm-gold);color:#18271f;border-radius:50%;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900}
+.pm-mobile-nav{display:none}
+@media(max-width:768px){
+  .pm-topbar{display:none}
+  .pm-shopbar{top:46px;padding:8px 10px}
+  .pm-shoprow{gap:7px}
+  .pm-brand-mini{font-size:14px}
+  .pm-search input{padding:11px 40px 11px 12px!important;font-size:13px!important}
+  .pm-search button{width:34px;height:34px}
+  .pm-cart-btn{padding:10px 11px!important;font-size:0}
+  .pm-cart-btn:first-letter{font-size:18px}
+  .pm-cats{margin-top:7px}
+  .pm-promo{margin:14px 3%;min-height:190px;padding:22px;border-radius:18px}
+  .pm-promo h3{font-size:28px}
+  .pm-section-head{align-items:center}
+  #daftarProduk.produk-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+  .produk-card{border-radius:15px}
+  .produk-card img{height:165px!important}
+  .produk-card h3{font-size:14px;margin:11px 10px 4px}
+  .pm-product-meta{margin:6px 10px 0}
+  .pm-product-price{font-size:16px!important}
+  .produk-card button.pm-add{width:calc(100% - 20px);margin:10px 10px 0;padding:9px 5px;font-size:11px}
+  .pm-float-cart{bottom:74px}
+  .pm-mobile-nav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;height:58px;background:rgba(255,255,255,.97);
+    z-index:1000;border-top:1px solid var(--pm-line);justify-content:space-around;align-items:center
+  }
+  .pm-mobile-nav a{font-size:10px;color:#59645d;text-decoration:none;text-align:center}
+  .pm-mobile-nav b{display:block;font-size:18px;line-height:20px}
+}
+
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -269,6 +533,48 @@ nav{
 </head>
 
 <body>
+
+<div class="pm-topbar">
+  <span>🌿 Bibit pilihan untuk kebun yang lebih produktif</span>
+  <strong>✓ Kualitas • ✓ Aman dikemas • ✓ Siap kirim</strong>
+</div>
+
+<div class="pm-shopbar">
+  <div class="pm-shoprow">
+    <div class="pm-brand-mini">SUBUR MUJUR</div>
+    <div class="pm-search">
+      <input id="pmSearch" type="search" placeholder="Cari bibit, tanaman, atau produk..." aria-label="Cari produk">
+      <button type="button" onclick="pmApplySearch()">🔍</button>
+    </div>
+    <button class="pm-cart-btn" type="button" onclick="document.getElementById('keranjang').scrollIntoView({behavior:'smooth'})">
+      🛒 <span class="pm-cart-label">Keranjang</span><span class="pm-cart-count" id="pmCartCount">0</span>
+    </button>
+  </div>
+  <div class="pm-cats" id="pmCategories">
+    <button class="pm-cat active" onclick="pmSetCategory('Semua',this)">Semua</button>
+    <button class="pm-cat" onclick="pmSetCategory('Bibit Buah',this)">🍊 Bibit Buah</button>
+    <button class="pm-cat" onclick="pmSetCategory('Bibit Sayur',this)">🥬 Bibit Sayur</button>
+    <button class="pm-cat" onclick="pmSetCategory('Bibit Tanaman',this)">🌱 Bibit Tanaman</button>
+    <button class="pm-cat" onclick="pmSetCategory('Terlaris',this)">🔥 Terlaris</button>
+  </div>
+</div>
+
+<div class="pm-promo">
+  <div>
+    <span class="pm-promo-badge">KOLEKSI PILIHAN SUBUR MUJUR</span>
+    <h3>Tanam lebih yakin.<br>Panen lebih berarti.</h3>
+    <p>Bibit berkualitas, dikemas aman, siap menemani kebun Anda tumbuh.</p>
+  </div>
+</div>
+
+<a class="pm-float-cart" href="#keranjang" aria-label="Buka keranjang">🛒<span id="pmFloatCount">0</span></a>
+<div class="pm-mobile-nav">
+  <a href="#home"><b>⌂</b>Beranda</a>
+  <a href="#produk"><b>🌱</b>Produk</a>
+  <a href="#keranjang"><b>🛒</b>Keranjang</a>
+  <a href="#checkout"><b>📦</b>Checkout</a>
+</div>
+
 
 <header>
 
@@ -292,9 +598,14 @@ nav{
 
 <div>
 
-<h2>Selamat Datang</h2>
+<h2>Tanam Kualitas.<br>Panen Lebih Berarti.</h2>
 
-<p>Belanja Bibit Berkualitas Langsung Dari Kebun Kami</p>
+<p>Belanja bibit hortikultura pilihan dengan kualitas terjaga, harga bersahabat, dan layanan pengiriman ke seluruh Indonesia.</p>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;max-width:430px;">
+  <a href="#produk" style="display:inline-block;padding:13px 20px;border-radius:12px;background:#c7a15a;color:#10291f;text-decoration:none;font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.16);">Lihat Produk</a>
+  <a href="#keranjang" style="display:inline-block;padding:13px 20px;border-radius:12px;border:1px solid rgba(255,255,255,.45);color:#fff;text-decoration:none;font-weight:700;background:rgba(255,255,255,.08);backdrop-filter:blur(8px);">Keranjang</a>
+</div>
 
 </div>
 
@@ -322,7 +633,7 @@ SUBUR MUJUR TANI menyediakan berbagai bibit tanaman hortikultura berkualitas tin
 
 <div class="box">
 
-<h2>🌱 Produk Bibit Unggulan</h2>
+<div class="pm-section-head"><div><h2>🌱 Produk Bibit Unggulan</h2></div><span class="pm-count" id="pmProductCount">Menampilkan produk</span></div>
 
 <div id="daftarProduk" class="produk-grid">
 
@@ -1429,6 +1740,7 @@ function renderKeranjang() {
         totalBerat.toLocaleString("id-ID");
 
     updateTotalBayar();
+    if (typeof pmUpdateCartCount === "function") pmUpdateCartCount();
 
 }
 
@@ -1763,65 +2075,138 @@ document.getElementById("kodePos")
 
 <script>
 // Firebase diinisialisasi oleh firebase.js
+let pmProducts = [];
+let pmCategory = "Semua";
+let pmSearchText = "";
 
-function loadProduk() {
-
-    database.ref("produk").on("value", function(snapshot){
-
-        const data = snapshot.val();
-
-        const container = document.getElementById("daftarProduk");
-
-        if(!container) return;
-
-        container.innerHTML = "";
-
-        if(!data){
-            container.innerHTML =
-            "<p style='text-align:center'>Belum ada produk.</p>";
-            return;
-        }
-
-        Object.keys(data).forEach(function(id){
-
-            const p = data[id];
-
-            container.innerHTML += `
-            <div class="produk-card">
-
-                <img src="${p.gambar}"
-                     style="width:100%;height:200px;object-fit:cover;">
-
-                <h3>${p.nama}</h3>
-
-                <p>
-                    Rp ${Number(p.harga).toLocaleString("id-ID")}
-                </p>
-
-                <p>
-                    Stok : ${p.stok}
-                </p>
-
-                <button onclick='tambahKeranjang(${JSON.stringify({
-    id: id,
-    nama: p.nama,
-    harga: Number(p.harga),
-    gambar: p.gambar,
-    stok: Number(p.stok || 0)
-}).replace(/'/g, "&apos;")})'>
-    Tambah ke Keranjang
-</button>
-
-            </div>
-            `;
-
-        });
-
-    });
-
+function pmEscape(v){
+    return String(v ?? "").replace(/[&<>"']/g, m => ({
+        "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
 }
 
-window.addEventListener("load", loadProduk);
+function pmSetCategory(category, btn){
+    pmCategory = category;
+    document.querySelectorAll(".pm-cat").forEach(x => x.classList.remove("active"));
+    if(btn) btn.classList.add("active");
+    pmRenderProducts();
+}
+
+function pmApplySearch(){
+    const el = document.getElementById("pmSearch");
+    pmSearchText = (el?.value || "").trim().toLowerCase();
+    pmRenderProducts();
+    document.getElementById("produk")?.scrollIntoView({behavior:"smooth"});
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    const input = document.getElementById("pmSearch");
+    if(input){
+        input.addEventListener("input", function(){
+            pmSearchText = this.value.trim().toLowerCase();
+            pmRenderProducts();
+        });
+        input.addEventListener("keydown", function(e){
+            if(e.key === "Enter") pmApplySearch();
+        });
+    }
+});
+
+function pmMatchesCategory(p){
+    if(pmCategory === "Semua") return true;
+    if(pmCategory === "Terlaris") return true;
+    const text = ((p.nama || "") + " " + (p.kategori || "")).toLowerCase();
+    if(pmCategory === "Bibit Buah") return /buah|mangga|rambutan|jeruk|durian|jambu|alpukat|kelengkeng|sirsak|nangka/.test(text);
+    if(pmCategory === "Bibit Sayur") return /sayur|cabai|tomat|terong|kol|sawi|selada|seledri|kangkung|bayam/.test(text);
+    return /bibit|tanaman|pohon|hias|herbal/.test(text);
+}
+
+function pmRenderProducts(){
+    const container = document.getElementById("daftarProduk");
+    if(!container) return;
+
+    let list = pmProducts.filter(p => {
+        const text = ((p.nama || "") + " " + (p.kategori || "")).toLowerCase();
+        return (!pmSearchText || text.includes(pmSearchText)) && pmMatchesCategory(p);
+    });
+
+    if(pmCategory === "Terlaris"){
+        list = [...list].sort((a,b) => Number(b.terjual || 0) - Number(a.terjual || 0));
+    }
+
+    container.innerHTML = "";
+
+    const count = document.getElementById("pmProductCount");
+    if(count) count.textContent = `${list.length} produk tersedia`;
+
+    if(!list.length){
+        container.innerHTML = `<div class="pm-empty">🌿<br><b>Produk tidak ditemukan</b><br>Coba kata kunci atau kategori lain.</div>`;
+        return;
+    }
+
+    list.forEach(function(p){
+        const id = p.id;
+        const stok = Number(p.stok || 0);
+        const harga = Number(p.harga || 0);
+        const safe = JSON.stringify({
+            id:id, nama:p.nama, harga:harga, gambar:p.gambar,
+            stok:stok, berat:Number(p.berat || 1000)
+        }).replace(/'/g, "&apos;");
+
+        const badge = Number(p.diskon || 0) > 0 ? `-${Number(p.diskon)}%` : (stok > 0 ? "Pilihan" : "Habis");
+        const stockText = stok > 0 ? `Stok ${stok}` : "Stok habis";
+
+        container.innerHTML += `
+        <div class="produk-card pm-product-wrap">
+            <span class="pm-product-badge">${badge}</span>
+            <img src="${pmEscape(p.gambar || '')}" alt="${pmEscape(p.nama || 'Produk')}" loading="lazy">
+            <h3>${pmEscape(p.nama || "Produk")}</h3>
+            <div class="pm-product-meta">
+                <p class="pm-product-price">Rp ${harga.toLocaleString("id-ID")}</p>
+                <span class="pm-product-stock">${stockText}</span>
+            </div>
+            <p style="margin-top:7px!important">🌿 Bibit berkualitas</p>
+            <button class="pm-add" ${stok <= 0 ? "disabled style='opacity:.55;cursor:not-allowed'" : ""} onclick='tambahKeranjang(${safe})'>
+                ${stok > 0 ? "🛒 Tambah ke Keranjang" : "Stok Habis"}
+            </button>
+        </div>`;
+    });
+}
+
+function loadProduk() {
+    database.ref("produk").on("value", function(snapshot){
+        const data = snapshot.val();
+        pmProducts = [];
+        if(data){
+            Object.keys(data).forEach(function(id){
+                pmProducts.push({...data[id], id:id});
+            });
+        }
+        pmRenderProducts();
+    });
+}
+
+function pmUpdateCartCount(){
+    const total = (window.keranjang || keranjang || []).reduce((n,i)=>n+Number(i.jumlah||0),0);
+    ["pmCartCount","pmFloatCount"].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.textContent=total;
+    });
+}
+
+window.addEventListener("load", function(){
+    loadProduk();
+    setTimeout(pmUpdateCartCount, 250);
+});
+
+const _pmOriginalRenderKeranjang = window.renderKeranjang;
+if(typeof _pmOriginalRenderKeranjang === "function"){
+    window.renderKeranjang = function(){
+        const r = _pmOriginalRenderKeranjang.apply(this, arguments);
+        pmUpdateCartCount();
+        return r;
+    };
+}
 </script>
 
 
