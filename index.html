@@ -1517,7 +1517,11 @@ function updateTotalBayar() {
 
     const totalHargaEl = document.getElementById("totalHarga");
     const totalProdukEl = document.getElementById("totalProduk");
+    const totalOngkirEl = document.getElementById("totalOngkir");
     const totalBayarEl = document.getElementById("totalBayar");
+
+    const nilaiOngkir = Number(ongkir || 0);
+    const totalAkhir = totalProduk + nilaiOngkir;
 
     if (totalHargaEl) {
         totalHargaEl.innerHTML = totalProduk.toLocaleString("id-ID");
@@ -1527,9 +1531,13 @@ function updateTotalBayar() {
         totalProdukEl.innerHTML = totalProduk.toLocaleString("id-ID");
     }
 
+    // Sinkronkan ongkir ke Ringkasan Pembayaran.
+    if (totalOngkirEl) {
+        totalOngkirEl.innerHTML = nilaiOngkir.toLocaleString("id-ID");
+    }
+
     if (totalBayarEl) {
-        totalBayarEl.innerHTML =
-            (totalProduk + Number(ongkir || 0)).toLocaleString("id-ID");
+        totalBayarEl.innerHTML = totalAkhir.toLocaleString("id-ID");
     }
 }
 
