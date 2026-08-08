@@ -6,6 +6,9 @@
 <meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 
 <title>🌱 SUBUR MUJUR TANI</title>
 
@@ -261,6 +264,7 @@ nav{
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="firebase.js"></script>
 
 </head>
 
@@ -463,6 +467,9 @@ accept="image/*">
 <!-- =========================
      KERANJANG BELANJA
 ========================= -->
+
+
+
 
 <section class="container" id="keranjang">
 
@@ -764,43 +771,46 @@ Rp
 <label>Metode Pembayaran</label>
 
 <select id="metodePembayaran" onchange="tampilPembayaran()">
+<option value="">-- Pilih Metode Pembayaran --</option>
 
-<option value="">
--- Pilih Metode Pembayaran --
-</option>
+<optgroup label="🏦 Bank">
+<option value="bri">BRI</option>
+<option value="bca">BCA</option>
+<option value="mandiri">Bank Mandiri</option>
+<option value="bni">BNI</option>
+<option value="btn">BTN</option>
+<option value="seabank">SeaBank</option>
+<option value="cimb">CIMB Niaga</option>
+<option value="danamon">Bank Danamon</option>
+<option value="permata">Bank Permata</option>
+<option value="maybank">Maybank</option>
+<option value="bsi">Bank Syariah Indonesia (BSI)</option>
+<option value="ocbc">OCBC</option>
+<option value="blu">blu by BCA Digital</option>
+<option value="neo">Bank Neo Commerce</option>
+<option value="jago">Bank Jago</option>
+<option value="bjb">Bank BJB</option>
+<option value="jatim">Bank Jatim</option>
+<option value="jateng">Bank Jateng</option>
+<option value="sumut">Bank Sumut</option>
+<option value="sumselbabel">Bank Sumsel Babel</option>
+<option value="kalbar">Bank Kalbar</option>
+<option value="kaltimtara">Bank Kaltimtara</option>
+<option value="kalsel">Bank Kalsel</option>
+<option value="sulselbar">Bank Sulselbar</option>
+</optgroup>
 
-<option value="bca">
-Transfer Bank BCA
-</option>
-
-<option value="mandiri">
-Transfer Bank Mandiri
-</option>
-
-<option value="bri">
-Transfer Bank BRI
-</option>
-
-<option value="bni">
-Transfer Bank BNI
-</option>
-
-<option value="dana">
-DANA
-</option>
-
-<option value="ovo">
-OVO
-</option>
-
-<option value="gopay">
-GoPay
-</option>
-
-<option value="qris">
-QRIS
-</option>
-
+<optgroup label="📱 E-Wallet">
+<option value="dana">DANA</option>
+<option value="gopay">GoPay</option>
+<option value="ovo">OVO</option>
+<option value="shopeepay">ShopeePay</option>
+<option value="linkaja">LinkAja</option>
+<option value="isaku">i.saku</option>
+<option value="sakuku">Sakuku</option>
+<option value="doku">DOKU</option>
+<option value="flip">Flip</option>
+</optgroup>
 </select>
 
 <div id="detailPembayaran"
@@ -815,44 +825,137 @@ Silakan pilih metode pembayaran.
 
 </div>
 
-<br>
-
-<label>Upload Bukti Pembayaran</label>
-
-<input
-type="file"
-id="buktiBayar"
-accept="image/*">
-
-<button onclick="kirimBukti()">
-
-📤 Upload Bukti Pembayaran
-
-</button>
-
 <hr style="margin:25px 0;">
 
+<div id="buktiPembayaranBox" style="
+background:#fff;
+border:1px solid #ddd;
+padding:18px;
+border-radius:10px;
+margin-bottom:18px;
+">
+    <h3 style="margin-top:0;">🧾 Bukti Pembayaran</h3>
+    <p style="font-size:14px;color:#666;">
+        Upload foto/screenshot bukti transfer. Setelah berhasil diupload,
+        link bukti akan otomatis dicantumkan saat pesanan dikirim ke WhatsApp.
+    </p>
+
+    <input
+        type="file"
+        id="buktiPembayaran"
+        accept="image/*,.pdf"
+        style="width:100%;padding:10px;box-sizing:border-box;"
+        onchange="previewBuktiPembayaran()"
+    >
+
+    <div id="previewBuktiPembayaran" style="margin-top:12px;"></div>
+
+    <button type="button" onclick="uploadBuktiPembayaran()" style="margin-top:10px;">
+        ☁️ Upload Bukti Pembayaran
+    </button>
+
+    <div id="statusUploadBukti" style="margin-top:10px;font-size:14px;"></div>
+</div>
+
 <button onclick="pesanWhatsApp()">
-
 💬 Kirim Pesanan ke WhatsApp
-
 </button>
 
 <button onclick="simpanPesanan()">
-
 📦 Simpan Pesanan
-
 </button>
 
 <button onclick="cetakInvoice()">
-
 🖨️ Cetak Invoice
-
 </button>
 
 </div>
 
 </section>
+
+<script>
+function tampilPembayaran() {
+    const metode = document.getElementById("metodePembayaran").value;
+    const detail = document.getElementById("detailPembayaran");
+
+    if (!metode) {
+        detail.innerHTML = "Silakan pilih metode pembayaran.";
+        return;
+    }
+
+    const dataPembayaran = {
+        bri: ["🏦 BRI", "Bank BRI"],
+        bca: ["🏦 BCA", "Bank BCA"],
+        mandiri: ["🏦 Bank Mandiri", "Bank Mandiri"],
+        bni: ["🏦 BNI", "Bank BNI"],
+        btn: ["🏦 BTN", "Bank BTN"],
+        seabank: ["🏦 SeaBank", "SeaBank"],
+        cimb: ["🏦 CIMB Niaga", "CIMB Niaga"],
+        danamon: ["🏦 Bank Danamon", "Bank Danamon"],
+        permata: ["🏦 Bank Permata", "Bank Permata"],
+        maybank: ["🏦 Maybank", "Maybank"],
+        bsi: ["🏦 Bank Syariah Indonesia", "BSI"],
+        ocbc: ["🏦 OCBC", "OCBC"],
+        blu: ["🏦 blu by BCA Digital", "blu"],
+        neo: ["🏦 Bank Neo Commerce", "Bank Neo Commerce"],
+        jago: ["🏦 Bank Jago", "Bank Jago"],
+        bjb: ["🏦 Bank BJB", "Bank BJB"],
+        jatim: ["🏦 Bank Jatim", "Bank Jatim"],
+        jateng: ["🏦 Bank Jateng", "Bank Jateng"],
+        sumut: ["🏦 Bank Sumut", "Bank Sumut"],
+        sumselbabel: ["🏦 Bank Sumsel Babel", "Bank Sumsel Babel"],
+        kalbar: ["🏦 Bank Kalbar", "Bank Kalbar"],
+        kaltimtara: ["🏦 Bank Kaltimtara", "Bank Kaltimtara"],
+        kalsel: ["🏦 Bank Kalsel", "Bank Kalsel"],
+        sulselbar: ["🏦 Bank Sulselbar", "Bank Sulselbar"],
+        dana: ["📱 DANA", "DANA"],
+        gopay: ["📱 GoPay", "GoPay"],
+        ovo: ["📱 OVO", "OVO"],
+        shopeepay: ["📱 ShopeePay", "ShopeePay"],
+        linkaja: ["📱 LinkAja", "LinkAja"],
+        isaku: ["📱 i.saku", "i.saku"],
+        sakuku: ["📱 Sakuku", "Sakuku"],
+        doku: ["📱 DOKU", "DOKU"],
+        flip: ["📱 Flip", "Flip"]
+    };
+
+    const info = dataPembayaran[metode];
+    if (!info) {
+        detail.innerHTML = "Metode pembayaran tidak tersedia.";
+        return;
+    }
+
+    const isWallet = ["dana","gopay","ovo","shopeepay","linkaja","isaku","sakuku","doku","flip"].includes(metode);
+    const nomorLabel = isWallet ? "Nomor HP / ID" : "Nomor Rekening";
+
+    detail.innerHTML = `
+        <div style="text-align:center;">
+            <h3 style="margin-top:0;">${info[0]}</h3>
+            <p style="margin-bottom:5px;">
+                Silakan ${isWallet ? "kirim pembayaran ke akun berikut:" : "transfer ke rekening berikut:"}
+            </p>
+
+            <p style="font-size:28px;font-weight:bold;letter-spacing:2px;margin:10px 0;">
+                123456789
+            </p>
+
+            <p style="margin:5px 0;">
+                <b>${nomorLabel}</b>
+            </p>
+
+            <p style="margin-top:15px;">
+                ${isWallet ? "Nama Akun" : "Atas Nama"}:
+                <b>SUBUR MUJUR TANI</b>
+            </p>
+
+            <p style="font-size:13px;color:#666;margin-top:15px;">
+                *Nomor ${isWallet ? "akun" : "rekening"} sementara: 123456789.
+                Nomor sebenarnya dapat diganti kembali nanti.
+            </p>
+        </div>
+    `;
+}
+</script>
 
 <!-- =========================
      CEK RESI
@@ -1527,21 +1630,7 @@ document.getElementById("kodePos")
 </script>
 
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyCAnApRscAHXJF-NWt3P_BivrvWzGt996U",
-  authDomain: "subur-mujur-tani-6ff54.firebaseapp.com",
-  databaseURL: "https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "subur-mujur-tani-6ff54",
-  storageBucket: "subur-mujur-tani-6ff54.firebasestorage.app",
-  messagingSenderId: "338009458768",
-  appId: "1:338009458768:web:c562a610cee4940b856955"
-};
-
-if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-}
-
-const database = firebase.database();
+// Firebase diinisialisasi oleh firebase.js
 
 function loadProduk() {
 
@@ -1603,101 +1692,639 @@ function loadProduk() {
 window.addEventListener("load", loadProduk);
 </script>
 
+
+
 <script>
-function pesanWhatsApp() {
+let linkBuktiPembayaran = "";
 
-    // KODE WHATSAPP DI SINI
+function previewBuktiPembayaran() {
+    const input = document.getElementById("buktiPembayaran");
+    const preview = document.getElementById("previewBuktiPembayaran");
 
+    if (!input.files || !input.files[0]) {
+        preview.innerHTML = "";
+        return;
+    }
+
+    const file = input.files[0];
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert("Ukuran bukti pembayaran maksimal 5 MB.");
+        input.value = "";
+        preview.innerHTML = "";
+        return;
+    }
+
+    if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `
+                <img src="${e.target.result}"
+                     alt="Preview bukti pembayaran"
+                     style="max-width:100%;max-height:300px;border-radius:8px;">
+                <p style="font-size:13px;">${file.name}</p>
+            `;
+        };
+        reader.readAsDataURL(file);
+    } else {
+        preview.innerHTML = `<p>📄 ${file.name}</p>`;
+    }
 }
-</script>
 
-<script>
-function pesanWhatsApp() {
+async function uploadBuktiPembayaran() {
+    const input = document.getElementById("buktiPembayaran");
+    const status = document.getElementById("statusUploadBukti");
 
-    const nama = document.getElementById("namaPembeli").value.trim();
-    const alamat = document.getElementById("alamat").value.trim();
-    const rt = document.getElementById("rt").value.trim();
-    const rw = document.getElementById("rw").value.trim();
-    const kodePos = document.getElementById("kodePos").value.trim();
-    const whatsapp = document.getElementById("whatsapp").value.trim();
-
-    if (!nama) {
-        alert("Nama pembeli belum diisi.");
+    if (!input.files || !input.files[0]) {
+        alert("Pilih bukti pembayaran terlebih dahulu.");
         return;
     }
 
-    if (!alamat) {
-        alert("Alamat belum diisi.");
+    const file = input.files[0];
+
+    if (file.size > 5 * 1024 * 1024) {
+        alert("Ukuran bukti pembayaran maksimal 5 MB.");
         return;
     }
 
-    if (!whatsapp) {
-        alert("Nomor WhatsApp belum diisi.");
+    // Pastikan Firebase Storage tersedia.
+    if (typeof firebase === "undefined") {
+        status.innerHTML = "❌ Firebase SDK belum termuat.";
         return;
     }
 
-    if (!keranjang || keranjang.length === 0) {
-        alert("Keranjang masih kosong.");
-        return;
+    try {
+        if (!firebase.apps || firebase.apps.length === 0) {
+            status.innerHTML = "❌ Firebase belum diinisialisasi.";
+            return;
+        }
+
+        const storageInstance = firebase.storage();
+        if (!storageInstance) {
+            status.innerHTML = "❌ Firebase Storage belum aktif di project.";
+            return;
+        }
+
+        status.innerHTML = "⏳ Sedang mengupload bukti pembayaran...";
+
+        const nama = document.getElementById("namaPembeli").value.trim() || "pembeli";
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const safeBuyer = nama.replace(/[^a-zA-Z0-9_-]/g, "_");
+        const path = "bukti-pembayaran/" + Date.now() + "_" + safeBuyer + "_" + safeName;
+
+        const snapshot = await storageInstance.ref(path).put(file);
+        linkBuktiPembayaran = await snapshot.ref.getDownloadURL();
+
+        status.innerHTML =
+            '✅ Bukti berhasil diupload. <a href="' +
+            linkBuktiPembayaran +
+            '" target="_blank" rel="noopener">Lihat bukti</a>';
+    } catch (error) {
+        console.error("Upload bukti pembayaran:", error);
+        linkBuktiPembayaran = "";
+
+        let pesanError = "Upload gagal.";
+        if (error && error.code === "storage/unauthorized") {
+            pesanError += " Aturan Firebase Storage belum mengizinkan upload.";
+        } else if (error && error.code === "storage/quota-exceeded") {
+            pesanError += " Kuota Firebase Storage terlampaui.";
+        } else if (error && error.message) {
+            pesanError += " " + error.message;
+        }
+
+        status.innerHTML = "❌ " + pesanError;
+    }
+}
+
+async function pesanWhatsApp() {
+    const get = id => (document.getElementById(id)?.value || "").trim();
+    const nama = get("namaPembeli");
+    const alamat = get("alamat");
+    const rt = get("rt");
+    const rw = get("rw");
+    const kodePos = get("kodePos");
+    const whatsapp = get("whatsapp");
+    const metode = document.getElementById("metodePembayaran")?.value || "";
+
+    if (!nama) return alert("Nama pembeli belum diisi.");
+    if (!alamat) return alert("Alamat belum diisi.");
+    if (!whatsapp) return alert("Nomor WhatsApp belum diisi.");
+    if (!metode) return alert("Pilih metode pembayaran terlebih dahulu.");
+    if (!keranjang || !keranjang.length) return alert("Keranjang masih kosong.");
+
+    const fileBukti = document.getElementById("buktiPembayaran");
+    if (!fileBukti?.files?.[0]) return alert("Silakan upload bukti pembayaran terlebih dahulu.");
+
+    if (!linkBuktiPembayaran) {
+        await uploadBuktiPembayaran();
+        if (!linkBuktiPembayaran) {
+            alert("Bukti pembayaran belum berhasil diupload. Pesanan belum dikirim ke WhatsApp.");
+            return;
+        }
     }
 
-    let pesan = "🌱 *PESANAN SUBUR MUJUR TANI*%0A%0A";
-
-    pesan += "*Data Pembeli*%0A";
-    pesan += "Nama: " + nama + "%0A";
-    pesan += "Alamat: " + alamat + "%0A";
-    pesan += "RT/RW: " + (rt || "-") + "/" + (rw || "-") + "%0A";
-    pesan += "Kode Pos: " + (kodePos || "-") + "%0A";
-    pesan += "WhatsApp: " + whatsapp + "%0A%0A";
-
-    pesan += "*Detail Pesanan*%0A";
+    const lines = [
+        "🌱 PESANAN SUBUR MUJUR TANI", "",
+        "Data Pembeli",
+        "Nama: " + nama,
+        "Alamat: " + alamat,
+        "RT/RW: " + (rt || "-") + "/" + (rw || "-"),
+        "Kode Pos: " + (kodePos || "-"),
+        "WhatsApp: " + whatsapp, "",
+        "Detail Pesanan"
+    ];
 
     keranjang.forEach((item, index) => {
         const jumlah = Number(item.jumlah || 1);
         const harga = Number(item.harga || 0);
-        const subtotal = jumlah * harga;
-
-        pesan +=
-            (index + 1) + ". " +
-            item.nama +
-            " x" + jumlah +
-            " = Rp " +
-            subtotal.toLocaleString("id-ID") +
-            "%0A";
+        lines.push((index + 1) + ". " + item.nama + " x" + jumlah + " = Rp " + (harga * jumlah).toLocaleString("id-ID"));
     });
 
-    const totalProduk = keranjang.reduce(
-        (total, item) =>
-            total +
-            Number(item.harga || 0) *
-            Number(item.jumlah || 0),
-        0
-    );
+    const totalProduk = keranjang.reduce((total, item) => total + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
+    lines.push("", "Metode Pembayaran: " + metode, "Total Produk: Rp " + totalProduk.toLocaleString("id-ID"), "Ongkir: Rp " + Number(ongkir || 0).toLocaleString("id-ID"), "Total Bayar: Rp " + (totalProduk + Number(ongkir || 0)).toLocaleString("id-ID"), "", "🧾 Bukti Pembayaran:", linkBuktiPembayaran);
 
-    pesan += "%0A";
-    pesan += "Total Produk: Rp " +
-        totalProduk.toLocaleString("id-ID") +
-        "%0A";
-
-    pesan += "Ongkir: Rp " +
-        Number(ongkir || 0).toLocaleString("id-ID") +
-        "%0A";
-
-    pesan += "Total Bayar: Rp " +
-        (totalProduk + Number(ongkir || 0))
-        .toLocaleString("id-ID") +
-        "%0A";
-
-    const nomorToko = "62859110011700";
-
-    const url =
-        "https://wa.me/" +
-        nomorToko +
-        "?text=" +
-        pesan;
-
-    window.open(url, "_blank");
+    const url = "https://wa.me/62859110011700?text=" + encodeURIComponent(lines.join("\n"));
+    window.open(url, "_blank", "noopener,noreferrer");
 }
+</script>
+
+
+
+<script>
+async function cekResi(){
+    const nomor = (document.getElementById("nomorResi")?.value || "").trim();
+    const kurir = (document.getElementById("kurirResi")?.value || "").trim();
+    const hasil = document.getElementById("hasilResi");
+    if(!nomor){ alert("Masukkan nomor resi terlebih dahulu."); return; }
+    if(!kurir){ alert("Pilih kurir terlebih dahulu."); return; }
+    hasil.innerHTML = "⏳ Mengecek resi...";
+    try{
+        const res = await fetch("/.netlify/functions/cekResi", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({waybill_id:nomor,courier_code:kurir})
+        });
+        const data = await res.json();
+        if(!res.ok || data.success === false) throw new Error(data.message || "Resi tidak ditemukan.");
+        const history = Array.isArray(data.history) ? data.history : [];
+        hasil.innerHTML = `
+            <div style="padding:15px;background:#e8f5e9;border-radius:10px;">
+                <b>Status:</b> ${finalEscape(data.status || "-")}<br>
+                <b>Kurir:</b> ${finalEscape(data.courier?.company || kurir)}<br>
+                <b>Resi:</b> ${finalEscape(data.waybill_id || nomor)}
+                ${data.link ? `<br><br><a href="${encodeURI(data.link)}" target="_blank" rel="noopener">🔗 Buka tracking kurir</a>` : ""}
+            </div>
+            <h4>Riwayat Pengiriman</h4>
+            ${history.length ? history.map(h=>`<div style="padding:10px;border-bottom:1px solid #ddd"><b>${finalEscape(h.status||"-")}</b><br>${finalEscape(h.note||"")}<br><small>${finalEscape(h.updated_at||"")}</small></div>`).join("") : "<p>Belum ada riwayat.</p>"}
+        `;
+    }catch(e){
+        console.error(e);
+        hasil.innerHTML = `<div style="padding:15px;background:#ffebee;color:#c62828;border-radius:10px;">❌ ${finalEscape(e.message)}</div>`;
+    }
+}
+</script>
+
+<script>
+/* =========================================================
+   FINAL CHECKOUT, INVOICE, STOK, ULASAN
+   Versi ini menggantikan fungsi checkout yang belum lengkap.
+========================================================= */
+
+let finalOrderProcessing = false;
+let finalLastOrderId = localStorage.getItem("smt_last_order_id") || "";
+let finalLinkBukti = "";
+
+function finalEscape(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function(c) {
+        return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c];
+    });
+}
+
+function finalGetTotals() {
+    const totalProduk = keranjang.reduce((sum, item) =>
+        sum + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
+    return {totalProduk, ongkir:Number(ongkir || 0), total:totalProduk + Number(ongkir || 0)};
+}
+
+/* Cek stok Firebase setiap kali tambah item */
+async function tambahKeranjang(produk) {
+    if (typeof produk === "string") {
+        try { produk = JSON.parse(produk); } catch(e) { return; }
+    }
+    if (!produk || !produk.id) return;
+
+    try {
+        const snap = await database.ref("produk/" + produk.id).once("value");
+        const current = snap.val();
+        if (!current) { alert("Produk sudah tidak tersedia."); return; }
+
+        const stok = Number(current.stok || 0);
+        if (stok <= 0) { alert("Stok produk habis."); return; }
+
+        const index = keranjang.findIndex(item => item.id === produk.id);
+        if (index >= 0) {
+            if (Number(keranjang[index].jumlah) >= stok) {
+                alert("Jumlah melebihi stok tersedia (" + stok + ").");
+                return;
+            }
+            keranjang[index].stok = stok;
+            keranjang[index].jumlah += 1;
+        } else {
+            keranjang.push({
+                id: produk.id,
+                nama: current.nama || produk.nama || "",
+                harga: Number(current.harga || produk.harga || 0),
+                gambar: current.gambar || produk.gambar || "",
+                stok: stok,
+                jumlah: 1,
+                berat: Number(current.berat || produk.berat || 1000)
+            });
+        }
+        simpanKeranjang();
+        renderKeranjang();
+    } catch(e) {
+        console.error(e);
+        alert("Gagal mengecek stok terbaru.");
+    }
+}
+
+/* Plus pada keranjang: selalu cek stok terbaru */
+async function tambahProduk(index) {
+    const item = keranjang[index];
+    if (!item) return;
+    try {
+        const snap = await database.ref("produk/" + item.id).once("value");
+        const p = snap.val();
+        const stok = Number(p && p.stok || 0);
+        if (!p || item.jumlah >= stok) {
+            alert("Stok tidak mencukupi. Stok tersedia: " + stok);
+            return;
+        }
+        item.stok = stok;
+        item.jumlah++;
+        simpanKeranjang();
+        renderKeranjang();
+    } catch(e) {
+        alert("Gagal mengecek stok.");
+    }
+}
+
+/* Bersihkan keranjang jika stok Firebase turun */
+async function finalSyncCartStock() {
+    for (let i = keranjang.length - 1; i >= 0; i--) {
+        const item = keranjang[i];
+        try {
+            const snap = await database.ref("produk/" + item.id).once("value");
+            const p = snap.val();
+            const stok = Number(p && p.stok || 0);
+            if (!p || stok <= 0) keranjang.splice(i,1);
+            else {
+                item.stok = stok;
+                if (item.jumlah > stok) item.jumlah = stok;
+            }
+        } catch(e) {}
+    }
+    simpanKeranjang();
+    renderKeranjang();
+}
+
+/* Simpan pesanan + kurangi stok secara atomik per produk.
+   Jika ada produk yang gagal, stok yang sudah dipotong dikembalikan. */
+async function simpanPesanan() {
+    if (finalOrderProcessing) return;
+    if (!window.database) { alert("Firebase Database belum siap."); return; }
+    if (!keranjang.length) { alert("Keranjang masih kosong."); return; }
+
+    const nama = (document.getElementById("namaPembeli")?.value || "").trim();
+    const alamat = (document.getElementById("alamat")?.value || "").trim();
+    const rt = (document.getElementById("rt")?.value || "").trim();
+    const rw = (document.getElementById("rw")?.value || "").trim();
+    const kodePos = (document.getElementById("kodePos")?.value || "").trim();
+    const whatsapp = (document.getElementById("whatsapp")?.value || "").trim();
+    const metodeEl = document.getElementById("metodePembayaran");
+    const metode = metodeEl ? metodeEl.value : "";
+
+    if (!nama || !alamat || !whatsapp) {
+        alert("Lengkapi nama, alamat, dan WhatsApp terlebih dahulu.");
+        return;
+    }
+    if (!metode) {
+        alert("Pilih metode pembayaran terlebih dahulu.");
+        return;
+    }
+
+    finalOrderProcessing = true;
+    const btn = Array.from(document.querySelectorAll("button")).find(b => b.textContent.includes("Simpan Pesanan"));
+    if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Menyimpan..."; }
+
+    const totals = finalGetTotals();
+    const orderKey = database.ref("pesanan").push().key;
+    const changed = [];
+
+    try {
+        /* Verifikasi dan kurangi setiap stok dengan transaction.
+           Transaction mencegah dua pembeli mengambil stok yang sama. */
+        for (const item of keranjang) {
+            const ref = database.ref("produk/" + item.id);
+            const result = await ref.transaction(function(current) {
+                if (current === null) return;
+                const stok = Number(current.stok || 0);
+                const jumlah = Number(item.jumlah || 0);
+                if (jumlah <= 0 || stok < jumlah) return;
+                current.stok = stok - jumlah;
+                return current;
+            });
+
+            if (!result.committed) {
+                throw new Error("Stok tidak cukup untuk produk: " + item.nama);
+            }
+            changed.push({id:item.id, jumlah:Number(item.jumlah || 0)});
+        }
+
+        const orderData = {
+            invoice: "SMT-" + Date.now(),
+            nama, alamat, rt, rw, kodePos, whatsapp,
+            produk: keranjang.map(item => ({
+                id:item.id, nama:item.nama, harga:Number(item.harga||0),
+                jumlah:Number(item.jumlah||0), berat:Number(item.berat||0),
+                subtotal:Number(item.harga||0)*Number(item.jumlah||0)
+            })),
+            totalProduk: totals.totalProduk,
+            ongkir: totals.ongkir,
+            total: totals.total,
+            metodePembayaran: metode,
+            kurir: document.getElementById("kurirOngkir")?.value || "",
+            layananPengiriman: document.getElementById("layananOngkir")?.selectedOptions?.[0]?.textContent?.trim() || "",
+            buktiPembayaran: finalLinkBukti || linkBuktiPembayaran || "",
+            status: "Menunggu Pembayaran",
+            tanggal: new Date().toLocaleString("id-ID"),
+            waktu: Date.now()
+        };
+
+        await database.ref("pesanan/" + orderKey).set(orderData);
+        await database.ref("pembayaran/" + orderKey).set({
+            nama: orderData.nama,
+            whatsapp: orderData.whatsapp,
+            total: orderData.total,
+            metodePembayaran: orderData.metodePembayaran,
+            buktiPembayaran: orderData.buktiPembayaran,
+            status: "Menunggu",
+            waktu: orderData.waktu
+        });
+
+        finalLastOrderId = orderKey;
+        localStorage.setItem("smt_last_order_id", orderKey);
+
+        keranjang = [];
+        simpanKeranjang();
+        renderKeranjang();
+
+        alert("✅ Pesanan berhasil disimpan. Stok otomatis sudah diperbarui.");
+        cetakInvoice(orderData);
+
+    } catch (error) {
+        console.error("Simpan pesanan:", error);
+
+        /* Rollback stok yang sempat berhasil dikurangi */
+        for (const c of changed) {
+            try {
+                await database.ref("produk/" + c.id).transaction(function(current) {
+                    if (current) current.stok = Number(current.stok || 0) + c.jumlah;
+                    return current;
+                });
+            } catch(e) { console.error("Rollback stok gagal", e); }
+        }
+
+        alert("❌ Pesanan tidak disimpan: " + error.message);
+    } finally {
+        finalOrderProcessing = false;
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.oldText || "📦 Simpan Pesanan"; }
+    }
+}
+
+function cetakInvoice(data) {
+    data = data || null;
+
+    if (!data && finalLastOrderId) {
+        database.ref("pesanan/" + finalLastOrderId).once("value").then(function(snap) {
+            if (!snap.exists()) {
+                alert("Pesanan belum tersimpan.");
+                return;
+            }
+            cetakInvoice(snap.val());
+        }).catch(function(error) {
+            console.error(error);
+            alert("Gagal mengambil data pesanan: " + error.message);
+        });
+        return;
+    }
+
+    if (!data) {
+        if (!keranjang.length) {
+            alert("Belum ada pesanan untuk dicetak.");
+            return;
+        }
+
+        const t = finalGetTotals();
+        data = {
+            invoice: "SMT-" + Date.now(),
+            nama: document.getElementById("namaPembeli")?.value || "",
+            alamat: document.getElementById("alamat")?.value || "",
+            whatsapp: document.getElementById("whatsapp")?.value || "",
+            rt: document.getElementById("rt")?.value || "",
+            rw: document.getElementById("rw")?.value || "",
+            kodePos: document.getElementById("kodePos")?.value || "",
+            metodePembayaran: document.getElementById("metodePembayaran")?.value || "-",
+            layananPengiriman: document.getElementById("layananPengiriman")?.value || "-",
+            produk: keranjang.map(function(item) {
+                return {
+                    nama: item.nama,
+                    jumlah: Number(item.jumlah || 0),
+                    harga: Number(item.harga || 0),
+                    subtotal: Number(item.harga || 0) * Number(item.jumlah || 0)
+                };
+            }),
+            totalProduk: t.totalProduk,
+            ongkir: t.ongkir,
+            total: t.total,
+            tanggal: new Date().toLocaleString("id-ID")
+        };
+    }
+
+    const nomor = data.invoice || data.nomorInvoice || ("SMT-" + Date.now());
+    const tanggal = data.tanggal || new Date().toLocaleString("id-ID");
+    const produk = Array.isArray(data.produk) ? data.produk : [];
+    const totalProduk = Number(data.totalProduk || 0);
+    const ongkirValue = Number(data.ongkir || 0);
+    const total = Number(data.total || (totalProduk + ongkirValue));
+
+    let rows = "";
+
+    produk.forEach(function(item) {
+        const harga = Number(item.harga || 0);
+        const qty = Number(item.jumlah || item.qty || 0);
+        const subtotal = item.subtotal != null
+            ? Number(item.subtotal)
+            : harga * qty;
+
+        rows +=
+            "<tr>" +
+            "<td>" + finalEscape(item.nama || "-") + "</td>" +
+            "<td class='center'>" + qty + "</td>" +
+            "<td class='num'>Rp " + harga.toLocaleString("id-ID") + "</td>" +
+            "<td class='num'>Rp " + subtotal.toLocaleString("id-ID") + "</td>" +
+            "</tr>";
+    });
+
+    if (!rows) {
+        rows =
+            "<tr><td colspan='4' class='center'>Tidak ada produk.</td></tr>";
+    }
+
+    const invoiceHtml =
+        "<!doctype html>" +
+        "<html lang='id'>" +
+        "<head>" +
+        "<meta charset='utf-8'>" +
+        "<meta name='viewport' content='width=device-width,initial-scale=1'>" +
+        "<title>Invoice " + finalEscape(nomor) + "</title>" +
+        "<style>" +
+        "html,body{margin:0;padding:0;background:#fff;color:#222;font-family:Arial,Helvetica,sans-serif;}" +
+        "body{width:100%;}" +
+        ".invoice{box-sizing:border-box;width:210mm;min-height:297mm;margin:0 auto;padding:15mm;background:#fff;}" +
+        ".header{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:3px solid #2e7d32;padding-bottom:14px;}" +
+        ".brand{font-size:28px;font-weight:700;color:#2e7d32;line-height:1.15;}" +
+        ".sub{font-size:14px;color:#555;margin-top:7px;}" +
+        ".title{font-size:32px;font-weight:700;color:#2e7d32;}" +
+        ".info{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px;}" +
+        ".box{border:1px solid #ddd;border-radius:8px;padding:13px;line-height:1.6;}" +
+        "table{width:100%;border-collapse:collapse;margin-top:22px;font-size:14px;}" +
+        "th{background:#f1f5f1;text-align:left;}" +
+        "th,td{padding:10px 8px;border-bottom:1px solid #ddd;}" +
+        ".num{text-align:right;}.center{text-align:center;}" +
+        ".summary{margin-left:auto;width:330px;max-width:100%;margin-top:18px;}" +
+        ".summary div{display:flex;justify-content:space-between;gap:20px;padding:6px 0;}" +
+        ".grand{font-size:20px;font-weight:700;border-top:2px solid #222;margin-top:7px;padding-top:10px;}" +
+        ".thanks{text-align:center;margin-top:35px;color:#555;}" +
+        ".actions{text-align:center;margin-top:25px;}" +
+        ".actions button{font-size:16px;padding:12px 20px;border:0;border-radius:7px;cursor:pointer;background:#2e7d32;color:#fff;}" +
+        "@media screen{body{background:#eee;}.invoice{margin:20px auto;box-shadow:0 2px 12px rgba(0,0,0,.12);}}" +
+        "@media print{@page{size:A4 portrait;margin:0;}body{background:#fff;}.invoice{margin:0;box-shadow:none;width:210mm;min-height:297mm;padding:15mm;}.actions{display:none;}}" +
+        "</style>" +
+        "</head>" +
+        "<body>" +
+        "<main class='invoice'>" +
+        "<div class='header'>" +
+        "<div><div class='brand'>🌱 SUBUR MUJUR TANI</div><div class='sub'>Pusat Bibit Tanaman Hortikultura Berkualitas</div></div>" +
+        "<div class='title'>INVOICE</div>" +
+        "</div>" +
+
+        "<div class='info'>" +
+        "<div class='box'><b>Informasi Pelanggan</b><br>" +
+        "Nama: " + finalEscape(data.nama || "-") + "<br>" +
+        "WhatsApp: " + finalEscape(data.whatsapp || "-") + "<br>" +
+        "Alamat: " + finalEscape(data.alamat || "-") + "<br>" +
+        "RT/RW: " + finalEscape(data.rt || "-") + " / " + finalEscape(data.rw || "-") + "<br>" +
+        "Kode Pos: " + finalEscape(data.kodePos || "-") +
+        "</div>" +
+
+        "<div class='box'><b>Detail Invoice</b><br>" +
+        "No. Invoice: " + finalEscape(nomor) + "<br>" +
+        "Tanggal: " + finalEscape(tanggal) + "<br>" +
+        "Pembayaran: " + finalEscape(data.metodePembayaran || "-") + "<br>" +
+        "Pengiriman: " + finalEscape(data.layananPengiriman || "-") +
+        "</div>" +
+        "</div>" +
+
+        "<table>" +
+        "<thead><tr><th>Produk</th><th class='center'>Qty</th><th class='num'>Harga</th><th class='num'>Subtotal</th></tr></thead>" +
+        "<tbody>" + rows + "</tbody>" +
+        "</table>" +
+
+        "<div class='summary'>" +
+        "<div><span>Total Produk</span><span>Rp " + totalProduk.toLocaleString("id-ID") + "</span></div>" +
+        "<div><span>Ongkir</span><span>Rp " + ongkirValue.toLocaleString("id-ID") + "</span></div>" +
+        "<div class='grand'><span>TOTAL</span><span>Rp " + total.toLocaleString("id-ID") + "</span></div>" +
+        "</div>" +
+
+        "<div class='thanks'>Terima kasih telah berbelanja di SUBUR MUJUR TANI.</div>" +
+        "<div class='actions'><button onclick='window.print()'>🖨️ Cetak / Simpan PDF</button></div>" +
+        "</main>" +
+        "" +
+        "</body></html>";
+
+    const blob = new Blob([invoiceHtml], {type:"text/html;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, "_blank");
+
+    if (!win) {
+        URL.revokeObjectURL(url);
+        alert("Izinkan pop-up browser untuk mencetak invoice.");
+        return;
+    }
+
+    setTimeout(function() {
+        URL.revokeObjectURL(url);
+    }, 60000);
+}
+
+async function kirimUlasan() {
+    const nama = document.getElementById("namaUlasan")?.value.trim();
+    const isi = document.getElementById("isiUlasan")?.value.trim();
+    const rating = Number(document.getElementById("rating")?.value || 5);
+    const file = document.getElementById("fotoUlasan")?.files?.[0];
+
+    if (!nama || !isi) { alert("Nama dan isi ulasan wajib diisi."); return; }
+
+    try {
+        let foto = "";
+        if (file) {
+            if (file.size > 5*1024*1024) throw new Error("Foto maksimal 5 MB.");
+            if (!firebase.storage) throw new Error("Firebase Storage belum aktif.");
+            const ref = firebase.storage().ref("foto-ulasan/" + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9._-]/g,"_"));
+            const up = await ref.put(file);
+            foto = await up.ref.getDownloadURL();
+        }
+        await database.ref("ulasan").push({
+            nama, isi, rating, foto, waktu:Date.now(),
+            tanggal:new Date().toLocaleString("id-ID")
+        });
+        document.getElementById("namaUlasan").value="";
+        document.getElementById("isiUlasan").value="";
+        document.getElementById("rating").value="5";
+        document.getElementById("fotoUlasan").value="";
+        alert("✅ Ulasan berhasil dikirim.");
+    } catch(e) {
+        console.error(e); alert("❌ Ulasan gagal dikirim: " + e.message);
+    }
+}
+
+function muatUlasan() {
+    database.ref("ulasan").on("value", function(snap) {
+        const data=snap.val()||{};
+        const ids=Object.keys(data);
+        const box=document.getElementById("daftarUlasan");
+        if(!ids.length) {
+            box.innerHTML="<p>Belum ada ulasan.</p>";
+            document.getElementById("jumlahUlasan").textContent="0";
+            document.getElementById("rataRating").textContent="0.0";
+            return;
+        }
+        const total=ids.reduce((a,id)=>a+Number(data[id].rating||0),0);
+        document.getElementById("jumlahUlasan").textContent=ids.length;
+        document.getElementById("rataRating").textContent=(total/ids.length).toFixed(1);
+        box.innerHTML=ids.sort((a,b)=>(data[b].waktu||0)-(data[a].waktu||0)).map(id=>{
+            const u=data[id];
+            return `<div style="border:1px solid #ddd;border-radius:12px;padding:15px;margin:10px 0">
+                <b>👤 ${finalEscape(u.nama||"Pelanggan")}</b>
+                <div style="color:#ff9800">${"⭐".repeat(Math.max(1,Math.min(5,Number(u.rating)||5)))}</div>
+                <small>${finalEscape(u.tanggal||"")}</small>
+                <p style="white-space:pre-wrap">${finalEscape(u.isi||"")}</p>
+                ${u.foto?`<img src="${encodeURI(u.foto)}" style="max-width:100%;max-height:250px;border-radius:8px">`:""}
+            </div>`;
+        }).join("");
+    });
+}
+document.addEventListener("DOMContentLoaded", muatUlasan);
 </script>
 
 </body>

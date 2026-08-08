@@ -313,11 +313,11 @@ hasil += `
 <p><b>Status:</b> ${data[id].status}</p>
 
 ${
-data[id].bukti
+data[id].buktiPembayaran
 ?
 `
 <img
-src="${data[id].bukti}"
+src="${data[id].buktiPembayaran}"
 style="
 width:250px;
 border-radius:10px;
@@ -513,7 +513,20 @@ id="stokProduk"
 
 placeholder="Jumlah stok"
 
+type="number"
+
+min="0"
 >
+
+<input
+id="beratProduk"
+type="number"
+placeholder="Berat produk (gram)"
+min="0"
+>
+
+
+
 <label>URL Gambar Produk</label>
 
 <input
@@ -525,14 +538,17 @@ oninput="previewGambar()">
 <br><br>
 
 <img
-id="previewProduk"
-src=""
-style="
-width:180px;
-display:none;
-border-radius:10px;
-border:1px solid #ddd;
-">
+    id="previewProduk"
+    src=""
+    style="
+        display:none;
+        width:150px;
+        height:150px;
+        object-fit:cover;
+        margin-top:10px;
+        border-radius:10px;
+    "
+>
 
 
 
@@ -638,6 +654,8 @@ border-radius:10px;
 
 <p>Stok : ${data[id].stok}</p>
 
+<p>Berat : ${data[id].berat || 0} gram</p>
+
 <button onclick="editProduk('${id}')">
 ✏️ Edit
 </button>
@@ -723,6 +741,9 @@ function editProduk(id){
         document.getElementById("namaProduk").value = data.nama || "";
         document.getElementById("hargaProduk").value = data.harga || "";
         document.getElementById("stokProduk").value = data.stok || "";
+
+        document.getElementById("beratProduk").value = data.berat || "";
+
         document.getElementById("gambarProduk").value = data.gambar || "";
 
         previewGambar();
@@ -921,41 +942,44 @@ document.getElementById(
 
 
 async function verifikasiBayar(id){
+    try {
+        const orderRef = database.ref("pesanan/" + id);
+        const snap = await orderRef.once("value");
+        const order = snap.val();
+        if (!order) { alert("Pesanan tidak ditemukan."); return; }
 
-    const bayarRef = database.ref("pembayaran/" + id);
-    const bayarSnap = await bayarRef.once("value");
-    const bayar = bayarSnap.val();
+        await orderRef.update({
+            status: "Lunas",
+            statusPembayaran: "Lunas",
+            dikonfirmasiPada: new Date().toLocaleString("id-ID")
+        });
 
-    if(!bayar || !bayar.produk){
-        alert("Data produk tidak ditemukan.");
-        return;
+        const pembayaranRef = database.ref("pembayaran/" + id);
+        const pembayaranSnap = await pembayaranRef.once("value");
+        if (pembayaranSnap.exists()) {
+            await pembayaranRef.update({status:"Lunas", dikonfirmasiPada:new Date().toLocaleString("id-ID")});
+        }
+        alert("✅ Pembayaran dikonfirmasi. Stok tidak dikurangi lagi.");
+    } catch(error) {
+        console.error(error);
+        alert("❌ Gagal mengonfirmasi pembayaran: " + error.message);
     }
-
-    const produkRef = database.ref("produk/" + bayar.produk);
-    const produkSnap = await produkRef.once("value");
-    const produk = produkSnap.val();
-
-    if(!produk){
-        alert("Produk tidak ditemukan.");
-        return;
-    }
-
-    if(produk.stok < bayar.jumlah){
-        alert("Stok tidak mencukupi.");
-        return;
-    }
-
-    await produkRef.update({
-        stok: produk.stok - bayar.jumlah
-    });
-
-    await bayarRef.update({
-        status: "Lunas"
-    });
-
-    alert("Pembayaran berhasil diverifikasi dan stok dikurangi.");
 }
 
+function tolakPembayaran(id){
+    const alasan = prompt("Alasan penolakan pembayaran (opsional):", "Bukti pembayaran belum valid");
+    if (alasan === null) return;
+    database.ref("pesanan/" + id).update({
+        status: "Pembayaran Ditolak",
+        statusPembayaran: "Ditolak",
+        alasanPenolakan: alasan,
+        ditolakPada: new Date().toLocaleString("id-ID")
+    }).then(function(){
+        alert("❌ Pembayaran ditolak.");
+    }).catch(function(error){
+        alert("Gagal menolak pembayaran: " + error.message);
+    });
+}
 
 </script>
 <!-- =========================
@@ -1190,6 +1214,25 @@ document.getElementById(
 
 
 
+
+<div class="box">
+<h2>⭐ Kelola Ulasan Pelanggan</h2>
+<p>Admin dapat menambahkan dan menghapus ulasan.</p>
+<input id="adminNamaUlasan" placeholder="Nama pelanggan">
+<select id="adminRatingUlasan">
+<option value="5">⭐⭐⭐⭐⭐ Sangat Puas</option>
+<option value="4">⭐⭐⭐⭐ Puas</option>
+<option value="3">⭐⭐⭐ Cukup</option>
+<option value="2">⭐⭐ Kurang</option>
+<option value="1">⭐ Buruk</option>
+</select>
+<textarea id="adminIsiUlasan" placeholder="Isi ulasan"></textarea>
+<input id="adminFotoUlasan" placeholder="URL foto ulasan (opsional)">
+<button onclick="adminTambahUlasan()">➕ Tambah Ulasan</button>
+<hr style="margin:25px 0">
+<div id="adminDaftarUlasan">Memuat ulasan...</div>
+</div>
+
 <!-- =========================
      LOGOUT ADMIN
 ========================= -->
@@ -1242,21 +1285,28 @@ async function tambahProduk(){
     try{
 
         const produk = {
-    nama: document.getElementById("namaProduk").value.trim(),
-    harga: parseInt(
-        document.getElementById("hargaProduk").value.replace(/\D/g, "")
-    ) || 0,
-    stok: parseInt(
-        document.getElementById("stokProduk").value
-    ) || 0,
-    gambar: document.getElementById("gambarProduk").value.trim()
-};
+            nama: document.getElementById("namaProduk").value.trim(),
+
+            harga: parseInt(
+                document.getElementById("hargaProduk").value.replace(/\D/g, "")
+            ) || 0,
+
+            stok: parseInt(
+                document.getElementById("stokProduk").value
+            ) || 0,
+
+            berat: parseInt(
+                document.getElementById("beratProduk").value
+            ) || 0,
+
+            gambar: document.getElementById("gambarProduk").value.trim()
+        };
 
         if(editID){
-          
-          console.log(produk);
 
-            await database.ref("produk/"+editID).update(produk);
+            console.log(produk);
+
+            await database.ref("produk/" + editID).update(produk);
 
             alert("Produk berhasil diperbarui");
 
@@ -1273,9 +1323,9 @@ async function tambahProduk(){
         document.getElementById("btnProduk").innerHTML = "➕ Tambah Produk";
 
         kosongkanForm();
-        
+
         document.getElementById("previewProduk").src = "";
-document.getElementById("previewProduk").style.display = "none";
+        document.getElementById("previewProduk").style.display = "none";
 
     }catch(err){
 
@@ -1289,21 +1339,24 @@ document.getElementById("previewProduk").style.display = "none";
 
 function previewGambar(){
 
-    const url = document.getElementById("gambarProduk").value;
-    const img = document.getElementById("previewProduk");
+    const url = document.getElementById("gambarProduk").value.trim();
+    const preview = document.getElementById("previewProduk");
 
-    if(url.trim()==""){
+    if(url){
 
-        img.style.display="none";
-        img.src="";
+        preview.src = url;
+        preview.style.display = "block";
+
+        preview.onerror = function(){
+            preview.style.display = "none";
+        };
 
     }else{
 
-        img.src=url;
-        img.style.display="block";
+        preview.src = "";
+        preview.style.display = "none";
 
     }
-
 }
 
 function kosongkanForm(){
@@ -1311,6 +1364,11 @@ function kosongkanForm(){
     document.getElementById("namaProduk").value = "";
     document.getElementById("hargaProduk").value = "";
     document.getElementById("stokProduk").value = "";
+    document.getElementById("namaProduk").value = "";
+document.getElementById("hargaProduk").value = "";
+document.getElementById("stokProduk").value = "";
+document.getElementById("beratProduk").value = "";
+document.getElementById("gambarProduk").value = "";
     document.getElementById("gambarProduk").value = "";
 
     document.getElementById("previewProduk").src = "";
@@ -1374,6 +1432,52 @@ Dashboard Administrator
 
 </div>
 
+
+
+<script>
+function adminEsc(v){
+ return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+}
+function adminRenderUlasan(data){
+ const box=document.getElementById("adminDaftarUlasan");
+ if(!box)return;
+ if(!data){box.innerHTML="<p>Belum ada ulasan.</p>";return;}
+ const ids=Object.keys(data).sort((a,b)=>(data[b].waktu||0)-(data[a].waktu||0));
+ box.innerHTML=ids.map(id=>{
+  const u=data[id];
+  return `<div class="card">
+    <b>👤 ${adminEsc(u.nama||"Pelanggan")}</b>
+    <div style="color:#ff9800">${"⭐".repeat(Math.max(1,Math.min(5,Number(u.rating)||5)))}</div>
+    <small>${adminEsc(u.tanggal||"")}</small>
+    <p style="white-space:pre-wrap">${adminEsc(u.isi||"")}</p>
+    ${u.foto?`<img src="${encodeURI(u.foto)}" style="width:150px;max-height:150px;object-fit:cover;border-radius:8px">`:""}
+    <br><br><button style="background:#c62828" onclick="adminHapusUlasan('${id}')">🗑️ Hapus</button>
+  </div>`;
+ }).join("");
+}
+database.ref("ulasan").on("value",s=>adminRenderUlasan(s.val()));
+async function adminTambahUlasan(){
+ const nama=document.getElementById("adminNamaUlasan").value.trim();
+ const rating=Number(document.getElementById("adminRatingUlasan").value);
+ const isi=document.getElementById("adminIsiUlasan").value.trim();
+ const foto=document.getElementById("adminFotoUlasan").value.trim();
+ const fotoValid = !foto || /^https?:\/\//i.test(foto);
+ if(!nama||!isi){alert("Nama dan isi ulasan wajib diisi.");return;}
+ if(!fotoValid){alert("URL foto ulasan harus diawali http:// atau https://");return;}
+ try{
+  await database.ref("ulasan").push({nama,rating,isi,foto,waktu:Date.now(),tanggal:new Date().toLocaleString("id-ID"),dibuatOlehAdmin:true});
+  document.getElementById("adminNamaUlasan").value="";
+  document.getElementById("adminIsiUlasan").value="";
+  document.getElementById("adminFotoUlasan").value="";
+  alert("✅ Ulasan berhasil ditambahkan.");
+ }catch(e){alert("❌ Gagal: "+e.message);}
+}
+async function adminHapusUlasan(id){
+ if(!confirm("Yakin ingin menghapus ulasan ini?"))return;
+ try{await database.ref("ulasan/"+id).remove();alert("✅ Ulasan dihapus.");}
+ catch(e){alert("❌ Gagal menghapus: "+e.message);}
+}
+</script>
 
 </body>
 
