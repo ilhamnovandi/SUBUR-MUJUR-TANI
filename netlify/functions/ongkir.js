@@ -1,9 +1,51 @@
+const https = require("https");
+
+function requestBiteship(apiKey, payload) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+
+    const req = https.request(
+      {
+        hostname: "api.biteship.com",
+        path: "/v1/rates/couriers",
+        method: "POST",
+        headers: {
+          "authorization": apiKey,
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(body),
+          "accept": "application/json"
+        },
+        timeout: 25000
+      },
+      (res) => {
+        let data = "";
+        res.setEncoding("utf8");
+        res.on("data", chunk => data += chunk);
+        res.on("end", () => {
+          let parsed;
+          try {
+            parsed = data ? JSON.parse(data) : {};
+          } catch {
+            parsed = { success: false, message: data || "Respons Biteship bukan JSON." };
+          }
+          resolve({ status: res.statusCode || 500, data: parsed });
+        });
+      }
+    );
+
+    req.on("timeout", () => req.destroy(new Error("Request ke Biteship timeout.")));
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 exports.handler = async (event) => {
   const headers = {
-    "Content-Type": "application/json",
+    "Content-Type": "application/json; charset=utf-8",
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "POST, OPTIONS"
   };
 
   if (event.httpMethod === "OPTIONS") {
@@ -14,15 +56,13 @@ exports.handler = async (event) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ success: false, message: "Method harus POST." }),
+      body: JSON.stringify({ success: false, message: "Method harus POST." })
     };
   }
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const { destination, destinationPostalCode, weight, courier, items } = body;
-
-    const apiKey = process.env.BITESHIP_API_KEY;
+    const apiKey = String(process.env.BITESHIP_API_KEY || "").trim();
     const originPostalCode = String(process.env.BITESHIP_ORIGIN_POSTAL_CODE || "").trim();
 
     if (!apiKey) {
@@ -31,112 +71,104 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: false,
-          message: "BITESHIP_API_KEY belum diatur di Netlify Environment Variables.",
-        }),
+          message: "BITESHIP_API_KEY belum tersedia pada Netlify Function."
+        })
       };
     }
 
-    if (!/^[0-9]{5}$/.test(originPostalCode)) {
+    if (!/^\d{5}$/.test(originPostalCode)) {
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           success: false,
-          message: "BITESHIP_ORIGIN_POSTAL_CODE belum diatur atau bukan kode pos 5 digit.",
-        }),
+          message: "BITESHIP_ORIGIN_POSTAL_CODE harus berupa kode pos 5 digit."
+        })
       };
     }
 
-    const finalDestinationPostalCode = String(
-      destinationPostalCode || destination || ""
+    const destinationPostalCode = String(
+      body.destinationPostalCode || body.destination || ""
     ).trim();
 
-    if (!/^[0-9]{5}$/.test(finalDestinationPostalCode)) {
+    if (!/^\d{5}$/.test(destinationPostalCode)) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           success: false,
-          message: "Kode Pos tujuan harus 5 angka.",
-        }),
+          message: "Kode Pos tujuan harus 5 angka."
+        })
       };
     }
 
-    const finalCourier = String(courier || "").trim().toLowerCase();
-    const totalWeight = Number(weight || 0);
-
-    if (!finalCourier || !Number.isFinite(totalWeight) || totalWeight <= 0) {
+    const courier = String(body.courier || "").trim().toLowerCase();
+    if (!courier) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({
-          success: false,
-          message: "Ekspedisi dan berat paket wajib diisi.",
-        }),
+        body: JSON.stringify({ success: false, message: "Ekspedisi wajib dipilih." })
       };
     }
 
-    const safeItems = Array.isArray(items) && items.length
-      ? items.map((item, index) => ({
-          name: String(item.name || `Produk ${index + 1}`),
+    const inputItems = Array.isArray(body.items) ? body.items : [];
+    const fallbackWeightKg = Number(body.weight || 0);
+    const fallbackWeightGram = Math.max(1, Math.round(fallbackWeightKg * 1000));
+
+    const items = inputItems.length
+      ? inputItems.map((item, i) => ({
+          name: String(item.name || `Produk ${i + 1}`),
           description: String(item.description || "Bibit tanaman"),
-          value: Math.max(0, Number(item.value || 0)),
+          category: "outdoor_gear",
+          value: Math.max(0, Math.round(Number(item.value || 0))),
           weight: Math.max(1, Math.round(Number(item.weight || 0))),
-          quantity: Math.max(1, Math.round(Number(item.quantity || 1))),
+          quantity: Math.max(1, Math.round(Number(item.quantity || 1)))
         }))
       : [{
           name: "Paket Bibit Tanaman",
           description: "Paket pesanan",
+          category: "outdoor_gear",
           value: 0,
-          weight: Math.max(1, Math.round(totalWeight * 1000)),
-          quantity: 1,
+          weight: fallbackWeightGram,
+          quantity: 1
         }];
 
     const payload = {
       origin_postal_code: Number(originPostalCode),
-      destination_postal_code: Number(finalDestinationPostalCode),
-      couriers: finalCourier,
-      items: safeItems,
+      destination_postal_code: Number(destinationPostalCode),
+      couriers: courier,
+      items
     };
 
-    const response = await fetch("https://api.biteship.com/v1/rates/couriers", {
-      method: "POST",
-      headers: {
-        "authorization": apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    const result = await requestBiteship(apiKey, payload);
 
-    const result = await response.json();
-
-    if (!response.ok || result.success === false) {
+    if (result.status < 200 || result.status >= 300 || result.data.success === false) {
       return {
-        statusCode: response.status || 400,
+        statusCode: result.status || 502,
         headers,
         body: JSON.stringify({
           success: false,
-          message: result.message || "Biteship gagal menghitung ongkir.",
-          biteship: result,
-        }),
+          message: result.data.message || "Biteship gagal menghitung ongkir.",
+          code: result.data.code || null,
+          biteship: result.data
+        })
       };
     }
 
-    const pricing = Array.isArray(result.pricing)
-      ? result.pricing.map((service) => ({
-          courier_code: service.courier_code || service.company || finalCourier,
-          courier_name: service.courier_name || service.company || finalCourier.toUpperCase(),
+    const pricing = Array.isArray(result.data.pricing)
+      ? result.data.pricing.map(service => ({
+          courier_code: service.courier_code || service.company || courier,
+          courier_name: service.courier_name || service.company || courier.toUpperCase(),
           courier_service_code: service.courier_service_code || service.type || "",
           courier_service_name: service.courier_service_name || "Layanan",
           price: Number(service.price ?? service.shipping_fee ?? 0),
-          duration: service.duration || (
-            service.shipment_duration_range
+          duration: service.duration ||
+            (service.shipment_duration_range
               ? `${service.shipment_duration_range} ${service.shipment_duration_unit || ""}`.trim()
-              : "-"
-          ),
+              : "-"),
           description: service.description || "",
           shipping_type: service.shipping_type || "parcel",
-          service_type: service.service_type || "",
+          service_type: service.service_type || ""
         }))
       : [];
 
@@ -146,19 +178,20 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         pricing,
-        origin: result.origin,
-        destination: result.destination,
-        biteship: result,
-      }),
+        origin: result.data.origin,
+        destination: result.data.destination
+      })
     };
   } catch (err) {
     return {
-      statusCode: 500,
+      statusCode: 502,
       headers,
       body: JSON.stringify({
         success: false,
-        message: err.message || "Terjadi kesalahan pada server ongkir.",
-      }),
+        message: err && err.message
+          ? `Gagal menghubungi Biteship: ${err.message}`
+          : "Gagal menghubungi Biteship."
+      })
     };
   }
 };
