@@ -63,6 +63,23 @@ exports.handler = async event => {
     if (!/^\d{5}$/.test(destination)) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Kode pos tujuan harus 5 digit."}) };
     if (!courier) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Ekspedisi belum dipilih."}) };
 
+    // Ekspedisi yang diizinkan tampil di website.
+    const allowedCouriers = new Set([
+      "jne", "jnt", "sicepat", "anteraja", "ninja",
+      "lion", "pos", "tiki", "wahana", "sap",
+      "idexpress", "rpx", "sentralcargo", "paxel", "deliveree"
+    ]);
+    if (!allowedCouriers.has(courier)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success:false,
+          message:"Ekspedisi tersebut tidak tersedia di website ini."
+        })
+      };
+    }
+
     const rawItems = Array.isArray(input.items) ? input.items : [];
     const totalWeight = Math.max(1, Math.round(Number(input.weight || 0) * 1000));
     const items = rawItems.length ? rawItems.map((item, i) => ({
