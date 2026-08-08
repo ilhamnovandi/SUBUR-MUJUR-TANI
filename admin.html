@@ -511,19 +511,24 @@ min="0"
 
 
 
-<label>URL Gambar Produk</label>
+<label>Gambar Produk</label>
 
 <input
-type="text"
-id="gambarProduk"
-placeholder="https://contoh.com/gambar.jpg"
-oninput="previewGambar()">
+type="file"
+id="fileGambarProduk"
+accept="image/*"
+onchange="pilihGambarProduk(event)">
 
-<br><br>
+<small style="display:block;margin-top:6px;color:#666;">
+Pilih gambar dari HP (JPG, PNG, WEBP, dll).
+</small>
+
+<br>
 
 <img
     id="previewProduk"
     src=""
+    alt="Preview gambar produk"
     style="
         display:none;
         width:150px;
@@ -533,6 +538,8 @@ oninput="previewGambar()">
         border-radius:10px;
     "
 >
+
+<input type="hidden" id="gambarProduk">
 
 
 
@@ -728,9 +735,21 @@ function editProduk(id){
 
         document.getElementById("beratProduk").value = data.berat || "";
 
+        gambarProdukLama = data.gambar || "";
         document.getElementById("gambarProduk").value = data.gambar || "";
+        fileGambarProduk = null;
 
-        previewGambar();
+        const fileInput = document.getElementById("fileGambarProduk");
+        if(fileInput) fileInput.value = "";
+
+        const preview = document.getElementById("previewProduk");
+        if(data.gambar){
+            preview.src = data.gambar;
+            preview.style.display = "block";
+        }else{
+            preview.src = "";
+            preview.style.display = "none";
+        }
 
         document.getElementById("btnProduk").innerHTML = "💾 Simpan Perubahan";
 
@@ -1262,14 +1281,82 @@ window.location="login.html";
 
 
 let editID = null;
+let fileGambarProduk = null;
+let gambarProdukLama = "";
+
+function pilihGambarProduk(event){
+    const file = event.target.files && event.target.files[0];
+    const preview = document.getElementById("previewProduk");
+
+    if(!file){
+        fileGambarProduk = null;
+        return;
+    }
+
+    if(!file.type.startsWith("image/")){
+        alert("❌ File yang dipilih harus berupa gambar.");
+        event.target.value = "";
+        fileGambarProduk = null;
+        return;
+    }
+
+    // Batas 5 MB agar upload dari HP lebih aman.
+    if(file.size > 5 * 1024 * 1024){
+        alert("❌ Ukuran gambar maksimal 5 MB.");
+        event.target.value = "";
+        fileGambarProduk = null;
+        return;
+    }
+
+    fileGambarProduk = file;
+
+    const reader = new FileReader();
+    reader.onload = function(e){
+        preview.src = e.target.result;
+        preview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+}
 
 async function tambahProduk(){
 
+    const btn = document.getElementById("btnProduk");
+
     try{
+        const nama = document.getElementById("namaProduk").value.trim();
+
+        if(!nama){
+            alert("❌ Nama produk wajib diisi.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = "⏳ Menyimpan...";
+
+        let gambar = gambarProdukLama || document.getElementById("gambarProduk").value.trim();
+
+        // Jika ada gambar baru, upload dulu ke Firebase Storage.
+        if(fileGambarProduk){
+            if(!storage){
+                throw new Error("Firebase Storage belum tersedia. Pastikan Storage sudah aktif di Firebase.");
+            }
+
+            btn.innerHTML = "⏳ Upload gambar...";
+
+            const safeName = fileGambarProduk.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+            const namaFile = "produk/" + Date.now() + "_" + safeName;
+
+            const snapshot = await storage.ref(namaFile).put(fileGambarProduk);
+            gambar = await snapshot.ref.getDownloadURL();
+        }
+
+        if(!gambar){
+            alert("❌ Silakan pilih gambar produk terlebih dahulu.");
+            return;
+        }
 
         const produk = {
-            nama: document.getElementById("namaProduk").value.trim(),
-
+            nama: nama,
             harga: parseInt(
                 document.getElementById("hargaProduk").value.replace(/\D/g, "")
             ) || 0,
@@ -1282,63 +1369,43 @@ async function tambahProduk(){
                 document.getElementById("beratProduk").value
             ) || 0,
 
-            gambar: document.getElementById("gambarProduk").value.trim()
+            gambar: gambar
         };
 
+        btn.innerHTML = "⏳ Menyimpan produk...";
+
         if(editID){
-
-            console.log(produk);
-
             await database.ref("produk/" + editID).update(produk);
-
-            alert("Produk berhasil diperbarui");
-
+            alert("✅ Produk berhasil diperbarui");
         }else{
-
             await database.ref("produk").push(produk);
-
-            alert("Produk berhasil ditambahkan");
-
+            alert("✅ Produk berhasil ditambahkan");
         }
 
         editID = null;
+        fileGambarProduk = null;
+        gambarProdukLama = "";
 
-        document.getElementById("btnProduk").innerHTML = "➕ Tambah Produk";
-
+        btn.innerHTML = "➕ Tambah Produk";
         kosongkanForm();
 
-        document.getElementById("previewProduk").src = "";
-        document.getElementById("previewProduk").style.display = "none";
-
     }catch(err){
-
         console.error(err);
-
-        alert(err.message);
-
+        alert("❌ Gagal menyimpan produk: " + (err.message || err));
+    }finally{
+        btn.disabled = false;
+        btn.innerHTML = editID ? "💾 Simpan Perubahan" : "➕ Tambah Produk";
     }
-
 }
 
 function previewGambar(){
-
+    // Kompatibilitas dengan kode lama.
     const url = document.getElementById("gambarProduk").value.trim();
     const preview = document.getElementById("previewProduk");
 
-    if(url){
-
+    if(url && !fileGambarProduk){
         preview.src = url;
         preview.style.display = "block";
-
-        preview.onerror = function(){
-            preview.style.display = "none";
-        };
-
-    }else{
-
-        preview.src = "";
-        preview.style.display = "none";
-
     }
 }
 
@@ -1347,16 +1414,17 @@ function kosongkanForm(){
     document.getElementById("namaProduk").value = "";
     document.getElementById("hargaProduk").value = "";
     document.getElementById("stokProduk").value = "";
-    document.getElementById("namaProduk").value = "";
-document.getElementById("hargaProduk").value = "";
-document.getElementById("stokProduk").value = "";
-document.getElementById("beratProduk").value = "";
-document.getElementById("gambarProduk").value = "";
+    document.getElementById("beratProduk").value = "";
     document.getElementById("gambarProduk").value = "";
+
+    const fileInput = document.getElementById("fileGambarProduk");
+    if(fileInput) fileInput.value = "";
+
+    fileGambarProduk = null;
+    gambarProdukLama = "";
 
     document.getElementById("previewProduk").src = "";
     document.getElementById("previewProduk").style.display = "none";
-
 }
 
 function filterPesanan(){
