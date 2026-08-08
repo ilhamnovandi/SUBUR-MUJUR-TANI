@@ -1,19 +1,20 @@
-const data = require("../data/kabupaten.json");
+const headers = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET, OPTIONS"
+};
 
 exports.handler = async (event) => {
-    const province = event.queryStringParameters.province;
-
-    const hasil = data.filter(item => item.province_id === province);
-
-    const options = hasil.map(item => `
-<option value="${item.id}">${item.name}</option>
-`).join("");
-
-    return {
-        statusCode: 200,
-        body: JSON.stringify({
-            success: true,
-            options
-        })
-    };
+  if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers, body: "" };
+  try {
+    const province = event.queryStringParameters?.province;
+    if (!province) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Parameter province wajib diisi."}) };
+    const response = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${encodeURIComponent(province)}.json`);
+    if (!response.ok) throw new Error(`Wilayah API HTTP ${response.status}`);
+    const data = await response.json();
+    return { statusCode:200, headers, body:JSON.stringify({success:true,data,options:data.map(x=>`<option value="${x.id}">${x.name}</option>`).join("")}) };
+  } catch(err) {
+    return { statusCode:502, headers, body:JSON.stringify({success:false,message:err.message}) };
+  }
 };
