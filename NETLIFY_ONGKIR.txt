@@ -1,11 +1,17 @@
-PENGATURAN NETLIFY UNTUK ONGKIR
+SETELAH PINDAH KE BITESHIP
 
-Tambahkan Environment Variables:
-1. BINDERBYTE_API_KEY = API key BinderByte kamu
-2. BINDERBYTE_ORIGIN = nama kota/kabupaten asal pengiriman, contoh: Cirebon
+Netlify Environment Variables:
+1. BITESHIP_API_KEY = API Key Biteship kamu
+2. BITESHIP_ORIGIN_POSTAL_CODE = kode pos toko (5 digit)
 
-Setelah menambahkan variable, lakukan deploy ulang.
-API key tidak lagi disimpan di index.html atau ongkir.js.
+Jangan masukkan API key ke index.html atau GitHub.
+Setelah variable dibuat, deploy ulang Netlify.
 
+Hitung ongkir menggunakan:
+POST https://api.biteship.com/v1/rates/couriers
 
-UPDATE: Daftar kurir pada bagian Lacak Pengiriman sudah disamakan dengan daftar kurir pada Pengiriman / Hitung Ongkir.
+Destination menggunakan kode pos pelanggan.
+Berat item dikirim dalam gram.
+
+Catatan:
+Cargo hanya muncul bila kurir/rute/berat memenuhi syarat kurir. Contoh JNE JTR dan SiCepat GOKIL umumnya punya batas minimum berat.

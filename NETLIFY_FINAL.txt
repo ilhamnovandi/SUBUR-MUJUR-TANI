@@ -1,18 +1,7 @@
-SUBUR MUJUR TANI - DEPLOY FINAL
+FINAL: WEBSITE MENGGUNAKAN BITESHIP UNTUK HITUNG ONGKIR
 
-1. Upload the CONTENTS of this folder to the ROOT of your GitHub repository.
-   netlify.toml, index.html and netlify/ must be at repository root.
+Environment Variable wajib:
+BITESHIP_API_KEY
+BITESHIP_ORIGIN_POSTAL_CODE
 
-2. Netlify Environment Variables:
-   BINDERBYTE_API_KEY = API key BinderByte kamu
-   BINDERBYTE_ORIGIN = kota/kabupaten asal pengiriman, contoh: Cirebon
-
-3. Deploy/redeploy after adding environment variables.
-
-Important:
-- Do NOT put BINDERBYTE_API_KEY in index.html or GitHub.
-- The regional functions no longer require local desa.json/kecamatan.json.
-  They load complete Indonesia region data from emsifa at runtime.
-- index.html already loads provinces/regencies/districts/villages from emsifa.
-- Ongkir uses /.netlify/functions/ongkir.
-- Tracking uses /.netlify/functions/cekResi.
+Pastikan keduanya tersedia untuk Functions di Netlify.

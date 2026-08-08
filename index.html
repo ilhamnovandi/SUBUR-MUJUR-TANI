@@ -611,11 +611,7 @@ Pilih Ekspedisi
 </div>
 
 <select id="kurirOngkir">
-
-<option value="">
-Pilih Ekspedisi
-</option>
-
+<option value="">Pilih Ekspedisi</option>
 <option value="jne">JNE / JNE Trucking (JTR)</option>
 <option value="jnt">J&T Express</option>
 <option value="sicepat">SiCepat / SiCepat GOKIL</option>
@@ -626,8 +622,11 @@ Pilih Ekspedisi
 <option value="tiki">TIKI / TIKI Trucking</option>
 <option value="wahana">Wahana</option>
 <option value="sap">SAP / SAP Cargo</option>
-<option value="ide">ID Express / ID Truck</option>
-
+<option value="idexpress">ID Express / ID Truck</option>
+<option value="rpx">RPX</option>
+<option value="sentralcargo">Sentral Cargo</option>
+<option value="paxel">Paxel / Paxel Big</option>
+<option value="deliveree">Deliveree Cargo</option>
 </select>
 
 <label>Layanan Pengiriman</label>
@@ -1345,8 +1344,8 @@ function tambahKeranjang(produk) {
 // KONFIGURASI
 // ===============================
 // Kode pos toko diatur aman di Netlify Environment Variable:
-// BINDERBYTE_ORIGIN diatur di Netlify Environment Variable.
-// BINDERBYTE_API_KEY juga disimpan di Netlify, bukan di file ini.
+// BITESHIP_ORIGIN_POSTAL_CODE diatur di Netlify Environment Variable.
+// BITESHIP_API_KEY juga disimpan di Netlify, bukan di file ini.
 let ongkir = 0;
 window.daftarLayanan = [];
 
@@ -1531,7 +1530,7 @@ function updateTotalBayar() {
 }
 
 // ===============================
-// HITUNG ONGKIR - BINDERBYTE
+// HITUNG ONGKIR - BITESHIP
 // ===============================
 async function hitungOngkirAPI() {
 
@@ -1566,18 +1565,22 @@ async function hitungOngkirAPI() {
         return;
     }
 
-    // BinderByte menggunakan berat dalam kilogram. Berat produk di website disimpan dalam gram.
     const totalBeratGram = keranjang.reduce((total, item) => {
         const beratGram = Number(item.berat || 1000);
         const jumlah = Number(item.jumlah || 1);
         return total + (beratGram * jumlah);
     }, 0);
 
-    const beratKg = Math.max(1, Math.ceil(totalBeratGram / 1000));
+    // Biteship menerima berat item dalam gram.
+    const beratGram = Math.max(1, Math.ceil(totalBeratGram));
 
-    // BinderByte membutuhkan asal dan tujuan berupa nama kota/kabupaten.
-    const origin = "";
-    const destination = document.getElementById("kabupaten")?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const items = keranjang.map(item => ({
+        name: String(item.nama || "Produk"),
+        description: "Bibit tanaman",
+        value: Math.max(0, Number(item.harga || 0)),
+        weight: Math.max(1, Math.ceil(Number(item.berat || 1000))),
+        quantity: Math.max(1, Number(item.jumlah || 1))
+    }));
 
     try {
 
@@ -1590,21 +1593,21 @@ async function hitungOngkirAPI() {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                origin,
-                destination,
-                weight: beratKg,
-                courier
+                destinationPostalCode,
+                weight: beratGram / 1000,
+                courier,
+                items
             })
         });
 
         const data = await res.json();
 
-        console.log("RESPON BINDERBYTE:", data);
+        console.log("RESPON BITESHIP:", data);
 
         if (!res.ok || data.success === false) {
             throw new Error(
                 data.message ||
-                "BinderByte gagal menghitung ongkir."
+                "Biteship gagal menghitung ongkir."
             );
         }
 
@@ -1629,7 +1632,7 @@ async function hitungOngkirAPI() {
 
     } catch (err) {
 
-        console.error("ERROR BINDERBYTE:", err);
+        console.error("ERROR BITESHIP:", err);
 
         hasilOngkir.innerHTML = `
             <div style="padding:15px;background:#ffebee;color:#c62828;border-radius:10px;">
@@ -1642,6 +1645,7 @@ async function hitungOngkirAPI() {
 
 // ===============================
 // PILIH EKSPEDISI
+
 // ===============================
 document.getElementById("kurirOngkir")
 .addEventListener("change", function () {
@@ -1664,7 +1668,7 @@ document.getElementById("kurirOngkir")
 });
 
 // ===============================
-// TAMPILKAN LAYANAN BINDERBYTE
+// TAMPILKAN LAYANAN BITESHIP
 // ===============================
 function isiLayanan() {
 
