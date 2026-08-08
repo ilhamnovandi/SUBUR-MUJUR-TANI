@@ -1345,9 +1345,10 @@ function pilihGambarProduk(event){
 }
 
 /* =========================================================
-   UPLOAD FIREBASE STORAGE DENGAN PROGRESS + TIMEOUT
-   Ini mencegah tombol "Upload gambar..." menggantung tanpa
-   pesan apabila Storage/Rules/koneksi bermasalah.
+   UPLOAD GAMBAR TANPA FIREBASE STORAGE
+   Gambar diperkecil di HP lalu disimpan sebagai data URL
+   di Firebase Realtime Database. Ini menghindari masalah
+   Firebase Storage yang berhenti di 0%.
 ========================================================= */
 function uploadGambarProdukFirebase(file){
     return new Promise((resolve, reject) => {
@@ -1356,97 +1357,77 @@ function uploadGambarProdukFirebase(file){
             return;
         }
 
-        if(!storage){
-            reject(new Error("Firebase Storage belum tersedia."));
-            return;
-        }
-
-        if(!firebase.auth().currentUser){
-            reject(new Error("Sesi login admin sudah berakhir. Silakan login kembali."));
-            return;
-        }
-
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const namaFile = "produk/" + Date.now() + "_" + safeName;
-        const storageRef = storage.ref().child(namaFile);
-
         const status = document.getElementById("uploadStatusProduk");
-        const startedAt = Date.now();
-        let finished = false;
+        if(status){
+            status.style.display = "block";
+            status.style.background = "#fff8e1";
+            status.style.color = "#8a6d00";
+            status.textContent = "⏳ Menyiapkan gambar...";
+        }
 
-        const selesai = (fn, value) => {
-            if(finished) return;
-            finished = true;
-            clearInterval(timer);
-            fn(value);
+        const reader = new FileReader();
+
+        reader.onerror = function(){
+            reject(new Error("Gagal membaca gambar dari HP."));
         };
 
-        const timer = setInterval(() => {
-            const detik = Math.floor((Date.now() - startedAt) / 1000);
+        reader.onload = function(e){
+            const img = new Image();
 
-            if(detik >= 60){
-                try { uploadTask.cancel(); } catch(e) {}
-                selesai(reject, new Error(
-                    "Upload melebihi 60 detik. Periksa koneksi internet dan Firebase Storage Rules."
-                ));
-            }
-        }, 1000);
+            img.onerror = function(){
+                reject(new Error("Format gambar tidak dapat diproses."));
+            };
 
-        let uploadTask;
-
-        try{
-            uploadTask = storageRef.put(file, {
-                contentType: file.type,
-                cacheControl: "public,max-age=31536000"
-            });
-        }catch(error){
-            selesai(reject, error);
-            return;
-        }
-
-        uploadTask.on(
-            firebase.storage.TaskEvent.STATE_CHANGED,
-
-            snapshot => {
-                const persen = snapshot.totalBytes
-                    ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
-                    : 0;
-
-                if(status){
-                    status.style.display = "block";
-                    status.style.background = "#fff8e1";
-                    status.style.color = "#8a6d00";
-                    status.textContent = "⏳ Upload gambar " + persen + "%...";
-                }
-            },
-
-            error => {
-                console.error("Firebase Storage upload error:", error);
-
-                let pesan = error && error.message ? error.message : "Upload gambar gagal.";
-
-                if(error && error.code === "storage/unauthorized"){
-                    pesan = "Firebase Storage menolak upload (storage/unauthorized). Periksa Storage Rules.";
-                }else if(error && error.code === "storage/canceled"){
-                    pesan = "Upload gambar dibatalkan.";
-                }else if(error && error.code === "storage/quota-exceeded"){
-                    pesan = "Kuota Firebase Storage sudah habis.";
-                }else if(error && error.code === "storage/retry-limit-exceeded"){
-                    pesan = "Koneksi upload terlalu lama. Silakan coba lagi.";
-                }
-
-                selesai(reject, new Error(pesan));
-            },
-
-            async () => {
+            img.onload = function(){
                 try{
-                    const url = await uploadTask.snapshot.ref.getDownloadURL();
-                    selesai(resolve, url);
+                    // Batasi ukuran agar aman disimpan di Realtime Database.
+                    const MAX_SIDE = 1000;
+                    let w = img.naturalWidth || img.width;
+                    let h = img.naturalHeight || img.height;
+
+                    if(w > MAX_SIDE || h > MAX_SIDE){
+                        const skala = Math.min(MAX_SIDE / w, MAX_SIDE / h);
+                        w = Math.max(1, Math.round(w * skala));
+                        h = Math.max(1, Math.round(h * skala));
+                    }
+
+                    const canvas = document.createElement("canvas");
+                    canvas.width = w;
+                    canvas.height = h;
+
+                    const ctx = canvas.getContext("2d", {alpha:false});
+                    if(!ctx) throw new Error("Browser HP tidak mendukung pemrosesan gambar.");
+
+                    // Latar putih untuk PNG transparan agar hasil JPEG tetap bagus.
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillRect(0, 0, w, h);
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    const dataUrl = canvas.toDataURL("image/jpeg", 0.78);
+
+                    if(!dataUrl || dataUrl.length < 100){
+                        throw new Error("Gambar gagal diproses.");
+                    }
+
+                    const ukuranKB = Math.round((dataUrl.length * 3 / 4) / 1024);
+
+                    if(status){
+                        status.style.display = "block";
+                        status.style.background = "#e8f5e9";
+                        status.style.color = "#1b5e20";
+                        status.textContent = "✅ Gambar siap disimpan (" + ukuranKB + " KB).";
+                    }
+
+                    resolve(dataUrl);
                 }catch(error){
-                    selesai(reject, error);
+                    reject(error);
                 }
-            }
-        );
+            };
+
+            img.src = e.target.result;
+        };
+
+        reader.readAsDataURL(file);
     });
 }
 
@@ -1473,18 +1454,11 @@ async function tambahProduk(){
 
         let gambar = gambarProdukLama || document.getElementById("gambarProduk").value.trim();
 
-        /* Upload gambar baru ke Firebase Storage */
+        /* Proses gambar langsung di HP, tanpa Firebase Storage */
         if(fileGambarProduk){
-            if(btn) btn.innerHTML = "⏳ Upload gambar...";
+            if(btn) btn.innerHTML = "⏳ Memproses gambar...";
 
             gambar = await uploadGambarProdukFirebase(fileGambarProduk);
-
-            if(status){
-                status.style.display = "block";
-                status.style.background = "#e8f5e9";
-                status.style.color = "#1b5e20";
-                status.textContent = "✅ Gambar berhasil di-upload.";
-            }
         }
 
         if(!gambar){
