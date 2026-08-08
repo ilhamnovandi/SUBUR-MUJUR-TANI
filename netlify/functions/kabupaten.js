@@ -1,4 +1,4 @@
-const data = require("../../data/kabupaten.json");
+const data = require("../data/kabupaten.json");
 
 exports.handler = async (event) => {
     const province = event.queryStringParameters.province;

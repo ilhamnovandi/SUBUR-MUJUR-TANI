@@ -1,4 +1,4 @@
-const data = require("../../data/kecamatan.json");
+const data = require("./kecamatan.json");
 
 exports.handler = async (event) => {
 
