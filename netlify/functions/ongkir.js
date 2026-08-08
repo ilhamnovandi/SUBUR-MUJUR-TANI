@@ -20,10 +20,10 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const { origin, destination, weight, courier } = body;
+    const { destination, destinationPostalCode, weight, courier, items } = body;
 
-    const apiKey = process.env.BINDERBYTE_API_KEY;
-    const originEnv = process.env.BINDERBYTE_ORIGIN;
+    const apiKey = process.env.BITESHIP_API_KEY;
+    const originPostalCode = String(process.env.BITESHIP_ORIGIN_POSTAL_CODE || "").trim();
 
     if (!apiKey) {
       return {
@@ -31,74 +31,114 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: false,
-          message: "BINDERBYTE_API_KEY belum diatur di Netlify Environment Variables.",
+          message: "BITESHIP_API_KEY belum diatur di Netlify Environment Variables.",
         }),
       };
     }
 
-    const finalOrigin = String(origin || originEnv || "").trim();
-    const finalDestination = String(destination || "").trim();
-    const courierAliases = { idexpress: "ide", id: "ide", jnt: "jnt" };
-    const finalCourier = courierAliases[String(courier || "").trim().toLowerCase()] || String(courier || "").trim().toLowerCase();
-    const finalWeight = Number(weight);
+    if (!/^[0-9]{5}$/.test(originPostalCode)) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          message: "BITESHIP_ORIGIN_POSTAL_CODE belum diatur atau bukan kode pos 5 digit.",
+        }),
+      };
+    }
 
-    if (!finalOrigin || !finalDestination || !finalCourier || !Number.isFinite(finalWeight) || finalWeight <= 0) {
+    const finalDestinationPostalCode = String(
+      destinationPostalCode || destination || ""
+    ).trim();
+
+    if (!/^[0-9]{5}$/.test(finalDestinationPostalCode)) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({
           success: false,
-          message: "Origin, destination, courier, dan weight wajib diisi dengan benar.",
+          message: "Kode Pos tujuan harus 5 angka.",
         }),
       };
     }
 
-    // BinderByte menerima request application/x-www-form-urlencoded.
-    const params = new URLSearchParams({
-      api_key: apiKey,
-      origin: finalOrigin,
-      destination: finalDestination,
-      weight: String(finalWeight),
-      courier: finalCourier,
-    });
+    const finalCourier = String(courier || "").trim().toLowerCase();
+    const totalWeight = Number(weight || 0);
 
-    const response = await fetch("https://api.binderbyte.com/v1/cost", {
+    if (!finalCourier || !Number.isFinite(totalWeight) || totalWeight <= 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          message: "Ekspedisi dan berat paket wajib diisi.",
+        }),
+      };
+    }
+
+    const safeItems = Array.isArray(items) && items.length
+      ? items.map((item, index) => ({
+          name: String(item.name || `Produk ${index + 1}`),
+          description: String(item.description || "Bibit tanaman"),
+          value: Math.max(0, Number(item.value || 0)),
+          weight: Math.max(1, Math.round(Number(item.weight || 0))),
+          quantity: Math.max(1, Math.round(Number(item.quantity || 1))),
+        }))
+      : [{
+          name: "Paket Bibit Tanaman",
+          description: "Paket pesanan",
+          value: 0,
+          weight: Math.max(1, Math.round(totalWeight * 1000)),
+          quantity: 1,
+        }];
+
+    const payload = {
+      origin_postal_code: Number(originPostalCode),
+      destination_postal_code: Number(finalDestinationPostalCode),
+      couriers: finalCourier,
+      items: safeItems,
+    };
+
+    const response = await fetch("https://api.biteship.com/v1/rates/couriers", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "authorization": apiKey,
+        "content-type": "application/json",
       },
-      body: params.toString(),
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
 
-    if (!response.ok || String(result.code) !== "200") {
+    if (!response.ok || result.success === false) {
       return {
         statusCode: response.status || 400,
         headers,
         body: JSON.stringify({
           success: false,
-          message: result.message || "BinderByte gagal menghitung ongkir.",
-          binderbyte: result,
+          message: result.message || "Biteship gagal menghitung ongkir.",
+          biteship: result,
         }),
       };
     }
 
-    // Ubah response BinderByte menjadi format yang dipakai index.html.
-    const pricing = [];
-    for (const courierResult of result.data?.results || []) {
-      for (const service of courierResult.costs || []) {
-        pricing.push({
-          courier_code: courierResult.code || finalCourier,
-          courier_name: courierResult.name || courierResult.code || finalCourier.toUpperCase(),
-          courier_service_code: service.service || "",
-          courier_service_name: service.service || "Layanan",
-          price: Number(service.cost || 0),
-          duration: service.etd || "-",
+    const pricing = Array.isArray(result.pricing)
+      ? result.pricing.map((service) => ({
+          courier_code: service.courier_code || service.company || finalCourier,
+          courier_name: service.courier_name || service.company || finalCourier.toUpperCase(),
+          courier_service_code: service.courier_service_code || service.type || "",
+          courier_service_name: service.courier_service_name || "Layanan",
+          price: Number(service.price ?? service.shipping_fee ?? 0),
+          duration: service.duration || (
+            service.shipment_duration_range
+              ? `${service.shipment_duration_range} ${service.shipment_duration_unit || ""}`.trim()
+              : "-"
+          ),
           description: service.description || "",
-        });
-      }
-    }
+          shipping_type: service.shipping_type || "parcel",
+          service_type: service.service_type || "",
+        }))
+      : [];
 
     return {
       statusCode: 200,
@@ -106,7 +146,9 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         success: true,
         pricing,
-        data: result.data,
+        origin: result.origin,
+        destination: result.destination,
+        biteship: result,
       }),
     };
   } catch (err) {
