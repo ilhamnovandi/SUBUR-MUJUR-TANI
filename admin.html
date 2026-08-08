@@ -312,22 +312,6 @@ hasil += `
 
 <p><b>Status:</b> ${data[id].status}</p>
 
-${
-data[id].buktiPembayaran
-?
-`
-<img
-src="${data[id].buktiPembayaran}"
-style="
-width:250px;
-border-radius:10px;
-margin-top:10px;
-">
-`
-:
-"<p>Belum ada bukti pembayaran</p>"
-}
-
 <br>
 
 <button onclick="verifikasiBayar('${id}')">
@@ -967,7 +951,7 @@ async function verifikasiBayar(id){
 }
 
 function tolakPembayaran(id){
-    const alasan = prompt("Alasan penolakan pembayaran (opsional):", "Bukti pembayaran belum valid");
+    const alasan = prompt("Alasan penolakan pembayaran (opsional):", "Pembayaran belum valid");
     if (alasan === null) return;
     database.ref("pesanan/" + id).update({
         status: "Pembayaran Ditolak",
@@ -1227,7 +1211,6 @@ document.getElementById(
 <option value="1">⭐ Buruk</option>
 </select>
 <textarea id="adminIsiUlasan" placeholder="Isi ulasan"></textarea>
-<input id="adminFotoUlasan" placeholder="URL foto ulasan (opsional)">
 <button onclick="adminTambahUlasan()">➕ Tambah Ulasan</button>
 <hr style="margin:25px 0">
 <div id="adminDaftarUlasan">Memuat ulasan...</div>
@@ -1435,47 +1418,99 @@ Dashboard Administrator
 
 
 <script>
+// ======================================
+// KELOLA ULASAN PELANGGAN
+// Ulasan dari index.html dan admin.html
+// menggunakan node Firebase yang sama: "ulasan"
+// ======================================
 function adminEsc(v){
- return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+    return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#039;"
+    }[c]));
 }
+
 function adminRenderUlasan(data){
- const box=document.getElementById("adminDaftarUlasan");
- if(!box)return;
- if(!data){box.innerHTML="<p>Belum ada ulasan.</p>";return;}
- const ids=Object.keys(data).sort((a,b)=>(data[b].waktu||0)-(data[a].waktu||0));
- box.innerHTML=ids.map(id=>{
-  const u=data[id];
-  return `<div class="card">
-    <b>👤 ${adminEsc(u.nama||"Pelanggan")}</b>
-    <div style="color:#ff9800">${"⭐".repeat(Math.max(1,Math.min(5,Number(u.rating)||5)))}</div>
-    <small>${adminEsc(u.tanggal||"")}</small>
-    <p style="white-space:pre-wrap">${adminEsc(u.isi||"")}</p>
-    ${u.foto?`<img src="${encodeURI(u.foto)}" style="width:150px;max-height:150px;object-fit:cover;border-radius:8px">`:""}
-    <br><br><button style="background:#c62828" onclick="adminHapusUlasan('${id}')">🗑️ Hapus</button>
-  </div>`;
- }).join("");
+    const box = document.getElementById("adminDaftarUlasan");
+    if (!box) return;
+
+    if (!data || typeof data !== "object") {
+        box.innerHTML = "<p>Belum ada ulasan.</p>";
+        return;
+    }
+
+    const ids = Object.keys(data).sort((a,b) =>
+        Number(data[b]?.waktu || 0) - Number(data[a]?.waktu || 0)
+    );
+
+    if (!ids.length) {
+        box.innerHTML = "<p>Belum ada ulasan.</p>";
+        return;
+    }
+
+    box.innerHTML = ids.map(id => {
+        const u = data[id] || {};
+        const rating = Math.max(1, Math.min(5, Number(u.rating) || 5));
+        const sumber = u.dibuatOlehAdmin ? "Admin" : "Pelanggan";
+
+        return `<div class="card" style="margin-bottom:15px">
+            <b>👤 ${adminEsc(u.nama || "Pelanggan")}</b>
+            <span style="font-size:12px;opacity:.7;margin-left:8px">(${sumber})</span>
+            <div style="color:#ff9800;margin:6px 0">${"⭐".repeat(rating)}</div>
+            <small>${adminEsc(u.tanggal || "")}</small>
+            <p style="white-space:pre-wrap">${adminEsc(u.isi || "")}</p>
+            <button type="button" style="background:#c62828" onclick="adminHapusUlasan('${adminEsc(id)}')">🗑️ Hapus</button>
+        </div>`;
+    }).join("");
 }
-database.ref("ulasan").on("value",s=>adminRenderUlasan(s.val()));
+
+// Dengarkan ulasan secara realtime.
+// Ulasan yang dikirim dari index.html otomatis muncul di sini.
+database.ref("ulasan").on("value", snapshot => {
+    adminRenderUlasan(snapshot.val());
+}, error => {
+    const box = document.getElementById("adminDaftarUlasan");
+    if (box) box.innerHTML = `<p style="color:#c62828">❌ Tidak dapat memuat ulasan: ${adminEsc(error.message)}</p>`;
+});
+
 async function adminTambahUlasan(){
- const nama=document.getElementById("adminNamaUlasan").value.trim();
- const rating=Number(document.getElementById("adminRatingUlasan").value);
- const isi=document.getElementById("adminIsiUlasan").value.trim();
- const foto=document.getElementById("adminFotoUlasan").value.trim();
- const fotoValid = !foto || /^https?:\/\//i.test(foto);
- if(!nama||!isi){alert("Nama dan isi ulasan wajib diisi.");return;}
- if(!fotoValid){alert("URL foto ulasan harus diawali http:// atau https://");return;}
- try{
-  await database.ref("ulasan").push({nama,rating,isi,foto,waktu:Date.now(),tanggal:new Date().toLocaleString("id-ID"),dibuatOlehAdmin:true});
-  document.getElementById("adminNamaUlasan").value="";
-  document.getElementById("adminIsiUlasan").value="";
-  document.getElementById("adminFotoUlasan").value="";
-  alert("✅ Ulasan berhasil ditambahkan.");
- }catch(e){alert("❌ Gagal: "+e.message);}
+    const nama = document.getElementById("adminNamaUlasan")?.value.trim();
+    const rating = Number(document.getElementById("adminRatingUlasan")?.value || 5);
+    const isi = document.getElementById("adminIsiUlasan")?.value.trim();
+
+    if (!nama || !isi) {
+        alert("Nama dan isi ulasan wajib diisi.");
+        return;
+    }
+
+    try {
+        await database.ref("ulasan").push({
+            nama,
+            rating,
+            isi,
+            waktu: Date.now(),
+            tanggal: new Date().toLocaleString("id-ID"),
+            dibuatOlehAdmin: true
+        });
+
+        document.getElementById("adminNamaUlasan").value = "";
+        document.getElementById("adminIsiUlasan").value = "";
+        document.getElementById("adminRatingUlasan").value = "5";
+        alert("✅ Ulasan berhasil ditambahkan.");
+    } catch(e) {
+        alert("❌ Gagal menambahkan ulasan: " + e.message);
+    }
 }
+
 async function adminHapusUlasan(id){
- if(!confirm("Yakin ingin menghapus ulasan ini?"))return;
- try{await database.ref("ulasan/"+id).remove();alert("✅ Ulasan dihapus.");}
- catch(e){alert("❌ Gagal menghapus: "+e.message);}
+    if (!id) return;
+    if (!confirm("Yakin ingin menghapus ulasan ini?")) return;
+
+    try {
+        await database.ref("ulasan/" + id).remove();
+        alert("✅ Ulasan berhasil dihapus.");
+    } catch(e) {
+        alert("❌ Gagal menghapus ulasan: " + e.message);
+    }
 }
 </script>
 

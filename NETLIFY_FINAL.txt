@@ -1,0 +1,12 @@
+DEPLOY FINAL SUBUR MUJUR TANI
+
+1. Upload isi folder ini ke ROOT repository GitHub (index.html sejajar dengan netlify.toml).
+2. Netlify: Import project dari GitHub. Build command kosong, Publish directory .
+3. Environment Variables:
+   BINDERBYTE_API_KEY = API key BinderByte baru kamu
+   BINDERBYTE_ORIGIN = nama kota/kabupaten asal toko, contoh Cirebon
+4. Deploy ulang setelah environment variable dibuat.
+5. Function ongkir: /.netlify/functions/ongkir
+6. Function lacak: /.netlify/functions/cekResi
+
+Daftar ekspedisi di Hitung Ongkir dan Lacak Pengiriman disamakan: JNE, J&T, SiCepat, AnterAja, Ninja, Lion, POS, TIKI, Wahana, SAP, ID Express.

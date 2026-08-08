@@ -1,0 +1,11 @@
+PENGATURAN NETLIFY UNTUK ONGKIR
+
+Tambahkan Environment Variables:
+1. BINDERBYTE_API_KEY = API key BinderByte kamu
+2. BINDERBYTE_ORIGIN = nama kota/kabupaten asal pengiriman, contoh: Cirebon
+
+Setelah menambahkan variable, lakukan deploy ulang.
+API key tidak lagi disimpan di index.html atau ongkir.js.
+
+
+UPDATE: Daftar kurir pada bagian Lacak Pengiriman sudah disamakan dengan daftar kurir pada Pengiriman / Hitung Ongkir.

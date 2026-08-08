@@ -447,12 +447,6 @@ id="isiUlasan"
 placeholder="Bagaimana pengalaman Anda?">
 </textarea>
 
-<label>Foto Tanaman (Opsional)</label>
-
-<input
-type="file"
-id="fotoUlasan"
-accept="image/*">
 
 <button onclick="kirimUlasan()">
 
@@ -622,57 +616,17 @@ Pilih Ekspedisi
 Pilih Ekspedisi
 </option>
 
-<option value="jne">
-JNE / JNE Trucking (JTR)
-</option>
-
-<option value="jnt">
-J&T Express
-</option>
-
-<option value="sicepat">
-SiCepat / SiCepat GOKIL
-</option>
-
-<option value="anteraja">
-AnterAja
-</option>
-
-<option value="ninja">
-Ninja Xpress
-</option>
-
-<option value="lion">
-Lion Parcel / Lion Big Pack
-</option>
-
-<option value="pos">
-POS Indonesia
-</option>
-
-<option value="tiki">
-TIKI / TIKI Trucking
-</option>
-
-<option value="wahana">
-Wahana
-</option>
-
-<option value="sap">
-SAP / SAP Cargo
-</option>
-
-<option value="idexpress">
-ID Express / ID Truck
-</option>
-
-<option value="sentralcargo">
-Sentral Cargo
-</option>
-
-<option value="rpx">
-RPX
-</option>
+<option value="jne">JNE / JNE Trucking (JTR)</option>
+<option value="jnt">J&T Express</option>
+<option value="sicepat">SiCepat / SiCepat GOKIL</option>
+<option value="anteraja">AnterAja</option>
+<option value="ninja">Ninja Xpress</option>
+<option value="lion">Lion Parcel / Lion Big Pack</option>
+<option value="pos">POS Indonesia</option>
+<option value="tiki">TIKI / TIKI Trucking</option>
+<option value="wahana">Wahana</option>
+<option value="sap">SAP / SAP Cargo</option>
+<option value="ide">ID Express / ID Truck</option>
 
 </select>
 
@@ -768,94 +722,154 @@ Rp
 
 <h2>💳 Pembayaran</h2>
 
-<label>Metode Pembayaran</label>
+<p style="color:#666;margin-top:-5px;">
+Klik <b>Pembayaran</b> untuk melihat semua bank. Setelah itu pilih bank untuk melihat nomor rekening dan QRIS.
+</p>
 
-<select id="metodePembayaran" onchange="tampilPembayaran()">
-<option value="">-- Pilih Metode Pembayaran --</option>
+<!-- Bank yang dipilih disimpan untuk pesanan -->
+<input type="hidden" id="metodePembayaran" value="">
 
-<optgroup label="🏦 Bank">
-<option value="bri">BRI</option>
-<option value="bca">BCA</option>
-<option value="mandiri">Bank Mandiri</option>
-<option value="bni">BNI</option>
-<option value="btn">BTN</option>
-<option value="seabank">SeaBank</option>
-<option value="cimb">CIMB Niaga</option>
-<option value="danamon">Bank Danamon</option>
-<option value="permata">Bank Permata</option>
-<option value="maybank">Maybank</option>
-<option value="bsi">Bank Syariah Indonesia (BSI)</option>
-<option value="ocbc">OCBC</option>
-<option value="blu">blu by BCA Digital</option>
-<option value="neo">Bank Neo Commerce</option>
-<option value="jago">Bank Jago</option>
-<option value="bjb">Bank BJB</option>
-<option value="jatim">Bank Jatim</option>
-<option value="jateng">Bank Jateng</option>
-<option value="sumut">Bank Sumut</option>
-<option value="sumselbabel">Bank Sumsel Babel</option>
-<option value="kalbar">Bank Kalbar</option>
-<option value="kaltimtara">Bank Kaltimtara</option>
-<option value="kalsel">Bank Kalsel</option>
-<option value="sulselbar">Bank Sulselbar</option>
-</optgroup>
+<button type="button" class="payment-main-toggle" onclick="toggleDaftarBank()">
+    <span>💳 Pembayaran</span><span class="payment-main-arrow" id="payment-main-arrow">⌄</span>
+</button>
 
-<optgroup label="📱 E-Wallet">
-<option value="dana">DANA</option>
-<option value="gopay">GoPay</option>
-<option value="ovo">OVO</option>
-<option value="shopeepay">ShopeePay</option>
-<option value="linkaja">LinkAja</option>
-<option value="isaku">i.saku</option>
-<option value="sakuku">Sakuku</option>
-<option value="doku">DOKU</option>
-<option value="flip">Flip</option>
-</optgroup>
-</select>
+<!-- =========================
+     PENGATURAN PEMBAYARAN
+     EDIT BAGIAN INI JIKA INGIN MENGGANTI DATA REKENING/QRIS
+========================= -->
+<script>
+// =========================
+// DATA PEMBAYARAN
+// Tambahkan bank baru di sini.
+// File QRIS mengikuti nama file yang ditulis pada properti qris.
+// Contoh BRI: qris: "BRI.JPG" lalu upload BRI.JPG ke folder yang sama dengan index.html.
+// =========================
+const DATA_PEMBAYARAN = {
+    bca: {
+        bank: "BCA",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BCA.JPG"
+    },
+    bri: {
+        bank: "BRI",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BRI.JPG"
+    },
+    bni: {
+        bank: "BNI",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BNI.JPG"
+    },
+    mandiri: {
+        bank: "Mandiri",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "MANDIRI.JPG"
+    },
+    btn: {
+        bank: "BTN",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BTN.JPG"
+    },
+    bsi: {
+        bank: "BSI",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BSI.JPG"
+    },
+    cimb: {
+        bank: "CIMB Niaga",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "CIMB.JPG"
+    },
+    permata: {
+        bank: "PermataBank",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "PERMATA.JPG"
+    },
+    danamon: {
+        bank: "Danamon",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "DANAMON.JPG"
+    },
+    muamalat: {
+        bank: "Bank Muamalat",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "MUAMALAT.JPG"
+    },
 
-<div id="detailPembayaran"
-style="
-background:#f5f5f5;
-padding:20px;
-border-radius:10px;
-margin-top:15px;
-">
+    // =========================
+    // E-WALLET
+    // Nama file QRIS mengikuti nama yang ditulis di properti qris.
+    // Contoh: DANA.JPG, OVO.JPG, GOPAY.JPG, SHOPEEPAY.JPG, LINKAJA.JPG.
+    // =========================
+    dana: {
+        bank: "DANA",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "DANA.JPG",
+        tipe: "ewallet"
+    },
+    ovo: {
+        bank: "OVO",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "OVO.JPG",
+        tipe: "ewallet"
+    },
+    gopay: {
+        bank: "GoPay",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "GOPAY.JPG",
+        tipe: "ewallet"
+    },
+    shopeepay: {
+        bank: "ShopeePay",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "SHOPEEPAY.JPG",
+        tipe: "ewallet"
+    },
+    linkaja: {
+        bank: "LinkAja",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "LINKAJA.JPG",
+        tipe: "ewallet"
+    },
+    isaku: {
+        bank: "iSaku",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "ISAKU.JPG",
+        tipe: "ewallet"
+    },
+    sakuku: {
+        bank: "Sakuku",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "SAKUKU.JPG",
+        tipe: "ewallet"
+    }
+};
+</script>
 
-Silakan pilih metode pembayaran.
-
+<div class="payment-bank-list" id="payment-bank-list">
+    <div class="payment-accordion" id="payment-accordion-list">
+        <!-- Semua bank dibuat otomatis dari DATA_PEMBAYARAN. -->
+    </div>
 </div>
 
 <hr style="margin:25px 0;">
-
-<div id="buktiPembayaranBox" style="
-background:#fff;
-border:1px solid #ddd;
-padding:18px;
-border-radius:10px;
-margin-bottom:18px;
-">
-    <h3 style="margin-top:0;">🧾 Bukti Pembayaran</h3>
-    <p style="font-size:14px;color:#666;">
-        Upload foto/screenshot bukti transfer. Setelah berhasil diupload,
-        link bukti akan otomatis dicantumkan saat pesanan dikirim ke WhatsApp.
-    </p>
-
-    <input
-        type="file"
-        id="buktiPembayaran"
-        accept="image/*,.pdf"
-        style="width:100%;padding:10px;box-sizing:border-box;"
-        onchange="previewBuktiPembayaran()"
-    >
-
-    <div id="previewBuktiPembayaran" style="margin-top:12px;"></div>
-
-    <button type="button" onclick="uploadBuktiPembayaran()" style="margin-top:10px;">
-        ☁️ Upload Bukti Pembayaran
-    </button>
-
-    <div id="statusUploadBukti" style="margin-top:10px;font-size:14px;"></div>
-</div>
 
 <button onclick="pesanWhatsApp()">
 💬 Kirim Pesanan ke WhatsApp
@@ -873,87 +887,207 @@ margin-bottom:18px;
 
 </section>
 
+<style>
+.payment-bank-list {
+    display: none;
+    margin-top: 8px;
+}
+
+.payment-bank-list.open {
+    display: block;
+}
+
+.payment-main-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #222;
+    padding: 15px 16px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    box-sizing: border-box;
+    margin-top: 12px;
+}
+
+.payment-main-toggle:hover {
+    background: #f7f7f7;
+}
+
+.payment-main-arrow {
+    font-size: 20px;
+    transition: transform .2s ease;
+}
+
+.payment-main-arrow.open {
+    transform: rotate(180deg);
+}
+
+.payment-accordion {
+    margin-top: 0;
+}
+
+.payment-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #ddd;
+    background: #fff;
+    color: #222;
+    padding: 15px 16px;
+    margin: 8px 0 0;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.payment-toggle:hover {
+    background: #f7f7f7;
+}
+
+.payment-arrow {
+    font-size: 20px;
+    transition: transform .2s ease;
+}
+
+.payment-arrow.open {
+    transform: rotate(180deg);
+}
+
+.payment-content {
+    display: none;
+    background: #f5f5f5;
+    border: 1px solid #e5e5e5;
+    border-top: 0;
+    padding: 15px 16px;
+    border-radius: 0 0 10px 10px;
+    margin-bottom: 8px;
+}
+
+.payment-content.open {
+    display: block;
+}
+
+.payment-content p {
+    margin: 8px 0;
+}
+
+.payment-note {
+    font-size: 13px;
+    color: #777;
+}
+
+.qris-placeholder {
+    text-align: center;
+    padding: 18px 10px;
+}
+
+.qris-placeholder strong {
+    display: block;
+    font-size: 20px;
+    margin-top: 5px;
+}
+
+.qris-image {
+    display: block;
+    width: min(280px, 90%);
+    max-height: 360px;
+    object-fit: contain;
+    margin: 15px auto;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.qris-placeholder p {
+    margin: 8px 0 4px;
+}
+
+.qris-placeholder small {
+    color: #777;
+}
+
+@media (max-width: 600px) {
+    .payment-toggle {
+        padding: 14px;
+        font-size: 15px;
+    }
+}
+</style>
+
 <script>
-function tampilPembayaran() {
-    const metode = document.getElementById("metodePembayaran").value;
-    const detail = document.getElementById("detailPembayaran");
+(function tampilkanDataPembayaran() {
+    const container = document.getElementById("payment-accordion-list");
+    if (!container || typeof DATA_PEMBAYARAN === "undefined") return;
 
-    if (!metode) {
-        detail.innerHTML = "Silakan pilih metode pembayaran.";
-        return;
+    Object.keys(DATA_PEMBAYARAN).forEach(function(key) {
+        const d = DATA_PEMBAYARAN[key];
+        const id = "bank-" + key;
+
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "payment-toggle";
+        button.setAttribute("onclick", "togglePembayaran('" + id + "')");
+        button.innerHTML = `<span>${d.tipe === "ewallet" ? "📱" : "🏦"} ${d.bank}</span><span class="payment-arrow" id="arrow-${id}">⌄</span>`;
+
+        const content = document.createElement("div");
+        content.id = "payment-" + id;
+        content.className = "payment-content";
+        content.innerHTML = `
+            <p><b>${d.tipe === "ewallet" ? "Nomor HP / Akun:" : "Nomor Rekening:"}</b> <span>${d.rekening || "Belum diisi"}</span></p>
+            <p><b>Atas Nama:</b> <span>${d.nama || "Belum diisi"}</span></p>
+            <div class="qris-placeholder">
+                <strong>QRIS ${d.bank}</strong>
+                <img src="${d.qris}" alt="QRIS ${d.bank}" class="qris-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p class="qris-error" style="display:none;">File QRIS belum tersedia. Upload <b>${d.qris}</b> ke folder yang sama dengan index.html.</p>
+                <p>Scan QRIS ${d.bank} untuk melakukan pembayaran.</p>
+            </div>
+        `;
+
+        container.appendChild(button);
+        container.appendChild(content);
+    });
+})();
+
+function toggleDaftarBank() {
+    const list = document.getElementById("payment-bank-list");
+    const arrow = document.getElementById("payment-main-arrow");
+    if (!list) return;
+    list.classList.toggle("open");
+    if (arrow) arrow.classList.toggle("open", list.classList.contains("open"));
+}
+
+function togglePembayaran(metode) {
+    const content = document.getElementById("payment-" + metode);
+    const arrow = document.getElementById("arrow-" + metode);
+    if (!content) return;
+    const sedangTerbuka = content.classList.contains("open");
+
+    document.querySelectorAll(".payment-content").forEach(function(el) {
+        el.classList.remove("open");
+    });
+    document.querySelectorAll(".payment-arrow").forEach(function(el) {
+        el.classList.remove("open");
+    });
+
+    if (!sedangTerbuka) {
+        content.classList.add("open");
+        if (arrow) arrow.classList.add("open");
+
+        // Simpan bank yang dipilih untuk data pesanan.
+        const key = metode.replace(/^bank-/, "");
+        const selected = DATA_PEMBAYARAN[key];
+        const metodeEl = document.getElementById("metodePembayaran");
+        if (metodeEl && selected) {
+            metodeEl.value = selected.bank;
+        }
     }
-
-    const dataPembayaran = {
-        bri: ["🏦 BRI", "Bank BRI"],
-        bca: ["🏦 BCA", "Bank BCA"],
-        mandiri: ["🏦 Bank Mandiri", "Bank Mandiri"],
-        bni: ["🏦 BNI", "Bank BNI"],
-        btn: ["🏦 BTN", "Bank BTN"],
-        seabank: ["🏦 SeaBank", "SeaBank"],
-        cimb: ["🏦 CIMB Niaga", "CIMB Niaga"],
-        danamon: ["🏦 Bank Danamon", "Bank Danamon"],
-        permata: ["🏦 Bank Permata", "Bank Permata"],
-        maybank: ["🏦 Maybank", "Maybank"],
-        bsi: ["🏦 Bank Syariah Indonesia", "BSI"],
-        ocbc: ["🏦 OCBC", "OCBC"],
-        blu: ["🏦 blu by BCA Digital", "blu"],
-        neo: ["🏦 Bank Neo Commerce", "Bank Neo Commerce"],
-        jago: ["🏦 Bank Jago", "Bank Jago"],
-        bjb: ["🏦 Bank BJB", "Bank BJB"],
-        jatim: ["🏦 Bank Jatim", "Bank Jatim"],
-        jateng: ["🏦 Bank Jateng", "Bank Jateng"],
-        sumut: ["🏦 Bank Sumut", "Bank Sumut"],
-        sumselbabel: ["🏦 Bank Sumsel Babel", "Bank Sumsel Babel"],
-        kalbar: ["🏦 Bank Kalbar", "Bank Kalbar"],
-        kaltimtara: ["🏦 Bank Kaltimtara", "Bank Kaltimtara"],
-        kalsel: ["🏦 Bank Kalsel", "Bank Kalsel"],
-        sulselbar: ["🏦 Bank Sulselbar", "Bank Sulselbar"],
-        dana: ["📱 DANA", "DANA"],
-        gopay: ["📱 GoPay", "GoPay"],
-        ovo: ["📱 OVO", "OVO"],
-        shopeepay: ["📱 ShopeePay", "ShopeePay"],
-        linkaja: ["📱 LinkAja", "LinkAja"],
-        isaku: ["📱 i.saku", "i.saku"],
-        sakuku: ["📱 Sakuku", "Sakuku"],
-        doku: ["📱 DOKU", "DOKU"],
-        flip: ["📱 Flip", "Flip"]
-    };
-
-    const info = dataPembayaran[metode];
-    if (!info) {
-        detail.innerHTML = "Metode pembayaran tidak tersedia.";
-        return;
-    }
-
-    const isWallet = ["dana","gopay","ovo","shopeepay","linkaja","isaku","sakuku","doku","flip"].includes(metode);
-    const nomorLabel = isWallet ? "Nomor HP / ID" : "Nomor Rekening";
-
-    detail.innerHTML = `
-        <div style="text-align:center;">
-            <h3 style="margin-top:0;">${info[0]}</h3>
-            <p style="margin-bottom:5px;">
-                Silakan ${isWallet ? "kirim pembayaran ke akun berikut:" : "transfer ke rekening berikut:"}
-            </p>
-
-            <p style="font-size:28px;font-weight:bold;letter-spacing:2px;margin:10px 0;">
-                123456789
-            </p>
-
-            <p style="margin:5px 0;">
-                <b>${nomorLabel}</b>
-            </p>
-
-            <p style="margin-top:15px;">
-                ${isWallet ? "Nama Akun" : "Atas Nama"}:
-                <b>SUBUR MUJUR TANI</b>
-            </p>
-
-            <p style="font-size:13px;color:#666;margin-top:15px;">
-                *Nomor ${isWallet ? "akun" : "rekening"} sementara: 123456789.
-                Nomor sebenarnya dapat diganti kembali nanti.
-            </p>
-        </div>
-    `;
 }
 </script>
 
@@ -972,43 +1106,20 @@ id="nomorResi"
 placeholder="Masukkan Nomor Resi">
 
 <select id="kurirResi">
-
 <option value="">
 Pilih Kurir
 </option>
-
-<option value="jne">
-JNE
-</option>
-
-<option value="jnt">
-J&T Express
-</option>
-
-<option value="jnt_cargo">
-J&T Cargo
-</option>
-
-<option value="sicepat">
-SiCepat
-</option>
-
-<option value="anteraja">
-AnterAja
-</option>
-
-<option value="ninja">
-Ninja Xpress
-</option>
-
-<option value="pos">
-POS Indonesia
-</option>
-
-<option value="tiki">
-TIKI
-</option>
-
+<option value="jne">JNE / JNE Trucking (JTR)</option>
+<option value="jnt">J&T Express</option>
+<option value="sicepat">SiCepat / SiCepat GOKIL</option>
+<option value="anteraja">AnterAja</option>
+<option value="ninja">Ninja Xpress</option>
+<option value="lion">Lion Parcel / Lion Big Pack</option>
+<option value="pos">POS Indonesia</option>
+<option value="tiki">TIKI / TIKI Trucking</option>
+<option value="wahana">Wahana</option>
+<option value="sap">SAP / SAP Cargo</option>
+<option value="ide">ID Express / ID Truck</option>
 </select>
 
 <button onclick="cekResi()">
@@ -1234,8 +1345,8 @@ function tambahKeranjang(produk) {
 // KONFIGURASI
 // ===============================
 // Kode pos toko diatur aman di Netlify Environment Variable:
-// BITESHIP_ORIGIN_POSTAL_CODE
-// API key Biteship juga disimpan di Netlify, bukan di file ini.
+// BINDERBYTE_ORIGIN diatur di Netlify Environment Variable.
+// BINDERBYTE_API_KEY juga disimpan di Netlify, bukan di file ini.
 let ongkir = 0;
 window.daftarLayanan = [];
 
@@ -1420,7 +1531,7 @@ function updateTotalBayar() {
 }
 
 // ===============================
-// HITUNG ONGKIR - BITESHIP
+// HITUNG ONGKIR - BINDERBYTE
 // ===============================
 async function hitungOngkirAPI() {
 
@@ -1455,19 +1566,23 @@ async function hitungOngkirAPI() {
         return;
     }
 
-    const items = keranjang.map(item => ({
-        name: item.nama || "Produk",
-        description: item.nama || "Produk pertanian",
-        category: "outdoor_gear",
-        value: Number(item.harga || 0),
-        quantity: Number(item.jumlah || 1),
-        weight: Number(item.berat || 1000)
-    }));
+    // BinderByte menggunakan berat dalam kilogram. Berat produk di website disimpan dalam gram.
+    const totalBeratGram = keranjang.reduce((total, item) => {
+        const beratGram = Number(item.berat || 1000);
+        const jumlah = Number(item.jumlah || 1);
+        return total + (beratGram * jumlah);
+    }, 0);
+
+    const beratKg = Math.max(1, Math.ceil(totalBeratGram / 1000));
+
+    // BinderByte membutuhkan asal dan tujuan berupa nama kota/kabupaten.
+    const origin = "";
+    const destination = document.getElementById("kabupaten")?.selectedOptions?.[0]?.textContent?.trim() || "";
 
     try {
 
         hasilOngkir.innerHTML =
-            "⏳ Menghitung ongkir dengan Biteship...";
+            "⏳ Menghitung ongkir...";
 
         const res = await fetch("/.netlify/functions/ongkir", {
             method: "POST",
@@ -1475,20 +1590,21 @@ async function hitungOngkirAPI() {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                destination_postal_code: Number(destinationPostalCode),
-                courier,
-                items
+                origin,
+                destination,
+                weight: beratKg,
+                courier
             })
         });
 
         const data = await res.json();
 
-        console.log("RESPON BITESHIP:", data);
+        console.log("RESPON BINDERBYTE:", data);
 
         if (!res.ok || data.success === false) {
             throw new Error(
                 data.message ||
-                "Biteship gagal menghitung ongkir."
+                "BinderByte gagal menghitung ongkir."
             );
         }
 
@@ -1513,7 +1629,7 @@ async function hitungOngkirAPI() {
 
     } catch (err) {
 
-        console.error("ERROR BITESHIP:", err);
+        console.error("ERROR BINDERBYTE:", err);
 
         hasilOngkir.innerHTML = `
             <div style="padding:15px;background:#ffebee;color:#c62828;border-radius:10px;">
@@ -1548,7 +1664,7 @@ document.getElementById("kurirOngkir")
 });
 
 // ===============================
-// TAMPILKAN LAYANAN BITESHIP
+// TAMPILKAN LAYANAN BINDERBYTE
 // ===============================
 function isiLayanan() {
 
@@ -1695,107 +1811,6 @@ window.addEventListener("load", loadProduk);
 
 
 <script>
-let linkBuktiPembayaran = "";
-
-function previewBuktiPembayaran() {
-    const input = document.getElementById("buktiPembayaran");
-    const preview = document.getElementById("previewBuktiPembayaran");
-
-    if (!input.files || !input.files[0]) {
-        preview.innerHTML = "";
-        return;
-    }
-
-    const file = input.files[0];
-
-    if (file.size > 5 * 1024 * 1024) {
-        alert("Ukuran bukti pembayaran maksimal 5 MB.");
-        input.value = "";
-        preview.innerHTML = "";
-        return;
-    }
-
-    if (file.type.startsWith("image/")) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            preview.innerHTML = `
-                <img src="${e.target.result}"
-                     alt="Preview bukti pembayaran"
-                     style="max-width:100%;max-height:300px;border-radius:8px;">
-                <p style="font-size:13px;">${file.name}</p>
-            `;
-        };
-        reader.readAsDataURL(file);
-    } else {
-        preview.innerHTML = `<p>📄 ${file.name}</p>`;
-    }
-}
-
-async function uploadBuktiPembayaran() {
-    const input = document.getElementById("buktiPembayaran");
-    const status = document.getElementById("statusUploadBukti");
-
-    if (!input.files || !input.files[0]) {
-        alert("Pilih bukti pembayaran terlebih dahulu.");
-        return;
-    }
-
-    const file = input.files[0];
-
-    if (file.size > 5 * 1024 * 1024) {
-        alert("Ukuran bukti pembayaran maksimal 5 MB.");
-        return;
-    }
-
-    // Pastikan Firebase Storage tersedia.
-    if (typeof firebase === "undefined") {
-        status.innerHTML = "❌ Firebase SDK belum termuat.";
-        return;
-    }
-
-    try {
-        if (!firebase.apps || firebase.apps.length === 0) {
-            status.innerHTML = "❌ Firebase belum diinisialisasi.";
-            return;
-        }
-
-        const storageInstance = firebase.storage();
-        if (!storageInstance) {
-            status.innerHTML = "❌ Firebase Storage belum aktif di project.";
-            return;
-        }
-
-        status.innerHTML = "⏳ Sedang mengupload bukti pembayaran...";
-
-        const nama = document.getElementById("namaPembeli").value.trim() || "pembeli";
-        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        const safeBuyer = nama.replace(/[^a-zA-Z0-9_-]/g, "_");
-        const path = "bukti-pembayaran/" + Date.now() + "_" + safeBuyer + "_" + safeName;
-
-        const snapshot = await storageInstance.ref(path).put(file);
-        linkBuktiPembayaran = await snapshot.ref.getDownloadURL();
-
-        status.innerHTML =
-            '✅ Bukti berhasil diupload. <a href="' +
-            linkBuktiPembayaran +
-            '" target="_blank" rel="noopener">Lihat bukti</a>';
-    } catch (error) {
-        console.error("Upload bukti pembayaran:", error);
-        linkBuktiPembayaran = "";
-
-        let pesanError = "Upload gagal.";
-        if (error && error.code === "storage/unauthorized") {
-            pesanError += " Aturan Firebase Storage belum mengizinkan upload.";
-        } else if (error && error.code === "storage/quota-exceeded") {
-            pesanError += " Kuota Firebase Storage terlampaui.";
-        } else if (error && error.message) {
-            pesanError += " " + error.message;
-        }
-
-        status.innerHTML = "❌ " + pesanError;
-    }
-}
-
 async function pesanWhatsApp() {
     const get = id => (document.getElementById(id)?.value || "").trim();
     const nama = get("namaPembeli");
@@ -1811,17 +1826,6 @@ async function pesanWhatsApp() {
     if (!whatsapp) return alert("Nomor WhatsApp belum diisi.");
     if (!metode) return alert("Pilih metode pembayaran terlebih dahulu.");
     if (!keranjang || !keranjang.length) return alert("Keranjang masih kosong.");
-
-    const fileBukti = document.getElementById("buktiPembayaran");
-    if (!fileBukti?.files?.[0]) return alert("Silakan upload bukti pembayaran terlebih dahulu.");
-
-    if (!linkBuktiPembayaran) {
-        await uploadBuktiPembayaran();
-        if (!linkBuktiPembayaran) {
-            alert("Bukti pembayaran belum berhasil diupload. Pesanan belum dikirim ke WhatsApp.");
-            return;
-        }
-    }
 
     const lines = [
         "🌱 PESANAN SUBUR MUJUR TANI", "",
@@ -1841,7 +1845,7 @@ async function pesanWhatsApp() {
     });
 
     const totalProduk = keranjang.reduce((total, item) => total + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
-    lines.push("", "Metode Pembayaran: " + metode, "Total Produk: Rp " + totalProduk.toLocaleString("id-ID"), "Ongkir: Rp " + Number(ongkir || 0).toLocaleString("id-ID"), "Total Bayar: Rp " + (totalProduk + Number(ongkir || 0)).toLocaleString("id-ID"), "", "🧾 Bukti Pembayaran:", linkBuktiPembayaran);
+    lines.push("", "Metode Pembayaran: " + metode, "Total Produk: Rp " + totalProduk.toLocaleString("id-ID"), "Ongkir: Rp " + Number(ongkir || 0).toLocaleString("id-ID"), "Total Bayar: Rp " + (totalProduk + Number(ongkir || 0)).toLocaleString("id-ID"));
 
     const url = "https://wa.me/62859110011700?text=" + encodeURIComponent(lines.join("\n"));
     window.open(url, "_blank", "noopener,noreferrer");
@@ -1860,21 +1864,27 @@ async function cekResi(){
     hasil.innerHTML = "⏳ Mengecek resi...";
     try{
         const res = await fetch("/.netlify/functions/cekResi", {
-            method:"POST", headers:{"Content-Type":"application/json"},
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
             body:JSON.stringify({waybill_id:nomor,courier_code:kurir})
         });
         const data = await res.json();
         if(!res.ok || data.success === false) throw new Error(data.message || "Resi tidak ditemukan.");
-        const history = Array.isArray(data.history) ? data.history : [];
+        const summary = data.data?.summary || data.summary || {};
+        const detail = data.data?.detail || data.detail || {};
+        const history = data.data?.history || data.history || [];
+        const status = summary.status || data.status || "-";
+        const courierName = summary.courier || kurir;
+        const awb = summary.awb || nomor;
         hasil.innerHTML = `
             <div style="padding:15px;background:#e8f5e9;border-radius:10px;">
-                <b>Status:</b> ${finalEscape(data.status || "-")}<br>
-                <b>Kurir:</b> ${finalEscape(data.courier?.company || kurir)}<br>
-                <b>Resi:</b> ${finalEscape(data.waybill_id || nomor)}
-                ${data.link ? `<br><br><a href="${encodeURI(data.link)}" target="_blank" rel="noopener">🔗 Buka tracking kurir</a>` : ""}
+                <b>Status:</b> ${finalEscape(status)}<br>
+                <b>Kurir:</b> ${finalEscape(courierName)}<br>
+                <b>Resi:</b> ${finalEscape(awb)}<br>
+                ${detail.origin || detail.destination ? `<b>Rute:</b> ${finalEscape(detail.origin || "-")} → ${finalEscape(detail.destination || "-")}` : ""}
             </div>
             <h4>Riwayat Pengiriman</h4>
-            ${history.length ? history.map(h=>`<div style="padding:10px;border-bottom:1px solid #ddd"><b>${finalEscape(h.status||"-")}</b><br>${finalEscape(h.note||"")}<br><small>${finalEscape(h.updated_at||"")}</small></div>`).join("") : "<p>Belum ada riwayat.</p>"}
+            ${history.length ? history.map(h=>`<div style="padding:10px;border-bottom:1px solid #ddd"><b>${finalEscape(h.date||"")}</b><br>${finalEscape(h.desc||h.note||"")}<br><small>${finalEscape(h.location||"")}</small></div>`).join("") : "<p>Belum ada riwayat.</p>"}
         `;
     }catch(e){
         console.error(e);
@@ -1891,7 +1901,6 @@ async function cekResi(){
 
 let finalOrderProcessing = false;
 let finalLastOrderId = localStorage.getItem("smt_last_order_id") || "";
-let finalLinkBukti = "";
 
 function finalEscape(value) {
     return String(value == null ? "" : value).replace(/[&<>"']/g, function(c) {
@@ -2054,7 +2063,6 @@ async function simpanPesanan() {
             metodePembayaran: metode,
             kurir: document.getElementById("kurirOngkir")?.value || "",
             layananPengiriman: document.getElementById("layananOngkir")?.selectedOptions?.[0]?.textContent?.trim() || "",
-            buktiPembayaran: finalLinkBukti || linkBuktiPembayaran || "",
             status: "Menunggu Pembayaran",
             tanggal: new Date().toLocaleString("id-ID"),
             waktu: Date.now()
@@ -2066,7 +2074,6 @@ async function simpanPesanan() {
             whatsapp: orderData.whatsapp,
             total: orderData.total,
             metodePembayaran: orderData.metodePembayaran,
-            buktiPembayaran: orderData.buktiPembayaran,
             status: "Menunggu",
             waktu: orderData.waktu
         });
@@ -2271,27 +2278,17 @@ async function kirimUlasan() {
     const nama = document.getElementById("namaUlasan")?.value.trim();
     const isi = document.getElementById("isiUlasan")?.value.trim();
     const rating = Number(document.getElementById("rating")?.value || 5);
-    const file = document.getElementById("fotoUlasan")?.files?.[0];
 
     if (!nama || !isi) { alert("Nama dan isi ulasan wajib diisi."); return; }
 
     try {
-        let foto = "";
-        if (file) {
-            if (file.size > 5*1024*1024) throw new Error("Foto maksimal 5 MB.");
-            if (!firebase.storage) throw new Error("Firebase Storage belum aktif.");
-            const ref = firebase.storage().ref("foto-ulasan/" + Date.now() + "_" + file.name.replace(/[^a-zA-Z0-9._-]/g,"_"));
-            const up = await ref.put(file);
-            foto = await up.ref.getDownloadURL();
-        }
         await database.ref("ulasan").push({
-            nama, isi, rating, foto, waktu:Date.now(),
+            nama, isi, rating, waktu:Date.now(),
             tanggal:new Date().toLocaleString("id-ID")
         });
         document.getElementById("namaUlasan").value="";
         document.getElementById("isiUlasan").value="";
         document.getElementById("rating").value="5";
-        document.getElementById("fotoUlasan").value="";
         alert("✅ Ulasan berhasil dikirim.");
     } catch(e) {
         console.error(e); alert("❌ Ulasan gagal dikirim: " + e.message);
@@ -2319,7 +2316,6 @@ function muatUlasan() {
                 <div style="color:#ff9800">${"⭐".repeat(Math.max(1,Math.min(5,Number(u.rating)||5)))}</div>
                 <small>${finalEscape(u.tanggal||"")}</small>
                 <p style="white-space:pre-wrap">${finalEscape(u.isi||"")}</p>
-                ${u.foto?`<img src="${encodeURI(u.foto)}" style="max-width:100%;max-height:250px;border-radius:8px">`:""}
             </div>`;
         }).join("");
     });
