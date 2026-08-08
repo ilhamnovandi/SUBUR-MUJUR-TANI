@@ -518,12 +518,16 @@ min="0"
 <input
 type="file"
 id="fileGambarProduk"
-accept="image/*"
+accept="image/jpeg,image/png,image/webp,image/gif"
 onchange="pilihGambarProduk(event)">
 
 <small style="display:block;margin-top:6px;color:#666;">
-Pilih gambar dari HP (JPG, PNG, WEBP, dll).
+Pilih gambar dari HP (JPG, PNG, WEBP, GIF). Maksimal 5 MB.
 </small>
+
+<div id="uploadStatusProduk"
+style="display:none;margin-top:10px;padding:10px;border-radius:8px;background:#f1f8e9;color:#1b5e20;font-weight:bold;">
+</div>
 
 <br>
 
@@ -1286,27 +1290,34 @@ let editID = null;
 let fileGambarProduk = null;
 let gambarProdukLama = "";
 
+/* =========================================================
+   PILIH + PREVIEW GAMBAR PRODUK
+========================================================= */
 function pilihGambarProduk(event){
     const file = event.target.files && event.target.files[0];
     const preview = document.getElementById("previewProduk");
+    const status = document.getElementById("uploadStatusProduk");
+
+    fileGambarProduk = null;
 
     if(!file){
-        fileGambarProduk = null;
+        if(preview){
+            preview.src = "";
+            preview.style.display = "none";
+        }
+        if(status) status.style.display = "none";
         return;
     }
 
-    if(!file.type.startsWith("image/")){
+    if(!file.type || !file.type.startsWith("image/")){
         alert("❌ File yang dipilih harus berupa gambar.");
         event.target.value = "";
-        fileGambarProduk = null;
         return;
     }
 
-    // Batas 5 MB agar upload dari HP lebih aman.
     if(file.size > 5 * 1024 * 1024){
         alert("❌ Ukuran gambar maksimal 5 MB.");
         event.target.value = "";
-        fileGambarProduk = null;
         return;
     }
 
@@ -1314,15 +1325,138 @@ function pilihGambarProduk(event){
 
     const reader = new FileReader();
     reader.onload = function(e){
-        preview.src = e.target.result;
-        preview.style.display = "block";
+        if(preview){
+            preview.src = e.target.result;
+            preview.style.display = "block";
+        }
+        if(status){
+            status.style.display = "block";
+            status.style.background = "#f1f8e9";
+            status.style.color = "#1b5e20";
+            status.textContent = "✅ Gambar siap di-upload: " + file.name;
+        }
+    };
+    reader.onerror = function(){
+        alert("❌ Gagal membaca gambar dari HP.");
+        event.target.value = "";
+        fileGambarProduk = null;
     };
     reader.readAsDataURL(file);
 }
 
+/* =========================================================
+   UPLOAD FIREBASE STORAGE DENGAN PROGRESS + TIMEOUT
+   Ini mencegah tombol "Upload gambar..." menggantung tanpa
+   pesan apabila Storage/Rules/koneksi bermasalah.
+========================================================= */
+function uploadGambarProdukFirebase(file){
+    return new Promise((resolve, reject) => {
+        if(!file){
+            reject(new Error("File gambar tidak ditemukan."));
+            return;
+        }
+
+        if(!storage){
+            reject(new Error("Firebase Storage belum tersedia."));
+            return;
+        }
+
+        if(!firebase.auth().currentUser){
+            reject(new Error("Sesi login admin sudah berakhir. Silakan login kembali."));
+            return;
+        }
+
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const namaFile = "produk/" + Date.now() + "_" + safeName;
+        const storageRef = storage.ref().child(namaFile);
+
+        const status = document.getElementById("uploadStatusProduk");
+        const startedAt = Date.now();
+        let finished = false;
+
+        const selesai = (fn, value) => {
+            if(finished) return;
+            finished = true;
+            clearInterval(timer);
+            fn(value);
+        };
+
+        const timer = setInterval(() => {
+            const detik = Math.floor((Date.now() - startedAt) / 1000);
+
+            if(detik >= 60){
+                try { uploadTask.cancel(); } catch(e) {}
+                selesai(reject, new Error(
+                    "Upload melebihi 60 detik. Periksa koneksi internet dan Firebase Storage Rules."
+                ));
+            }
+        }, 1000);
+
+        let uploadTask;
+
+        try{
+            uploadTask = storageRef.put(file, {
+                contentType: file.type,
+                cacheControl: "public,max-age=31536000"
+            });
+        }catch(error){
+            selesai(reject, error);
+            return;
+        }
+
+        uploadTask.on(
+            firebase.storage.TaskEvent.STATE_CHANGED,
+
+            snapshot => {
+                const persen = snapshot.totalBytes
+                    ? Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100)
+                    : 0;
+
+                if(status){
+                    status.style.display = "block";
+                    status.style.background = "#fff8e1";
+                    status.style.color = "#8a6d00";
+                    status.textContent = "⏳ Upload gambar " + persen + "%...";
+                }
+            },
+
+            error => {
+                console.error("Firebase Storage upload error:", error);
+
+                let pesan = error && error.message ? error.message : "Upload gambar gagal.";
+
+                if(error && error.code === "storage/unauthorized"){
+                    pesan = "Firebase Storage menolak upload (storage/unauthorized). Periksa Storage Rules.";
+                }else if(error && error.code === "storage/canceled"){
+                    pesan = "Upload gambar dibatalkan.";
+                }else if(error && error.code === "storage/quota-exceeded"){
+                    pesan = "Kuota Firebase Storage sudah habis.";
+                }else if(error && error.code === "storage/retry-limit-exceeded"){
+                    pesan = "Koneksi upload terlalu lama. Silakan coba lagi.";
+                }
+
+                selesai(reject, new Error(pesan));
+            },
+
+            async () => {
+                try{
+                    const url = await uploadTask.snapshot.ref.getDownloadURL();
+                    selesai(resolve, url);
+                }catch(error){
+                    selesai(reject, error);
+                }
+            }
+        );
+    });
+}
+
+/* =========================================================
+   TAMBAH / EDIT PRODUK
+========================================================= */
 async function tambahProduk(){
 
     const btn = document.getElementById("btnProduk");
+    const status = document.getElementById("uploadStatusProduk");
 
     try{
         const nama = document.getElementById("namaProduk").value.trim();
@@ -1332,24 +1466,25 @@ async function tambahProduk(){
             return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = "⏳ Menyimpan...";
+        if(btn){
+            btn.disabled = true;
+            btn.innerHTML = "⏳ Menyiapkan...";
+        }
 
         let gambar = gambarProdukLama || document.getElementById("gambarProduk").value.trim();
 
-        // Jika ada gambar baru, upload dulu ke Firebase Storage.
+        /* Upload gambar baru ke Firebase Storage */
         if(fileGambarProduk){
-            if(!storage){
-                throw new Error("Firebase Storage belum tersedia. Pastikan Storage sudah aktif di Firebase.");
+            if(btn) btn.innerHTML = "⏳ Upload gambar...";
+
+            gambar = await uploadGambarProdukFirebase(fileGambarProduk);
+
+            if(status){
+                status.style.display = "block";
+                status.style.background = "#e8f5e9";
+                status.style.color = "#1b5e20";
+                status.textContent = "✅ Gambar berhasil di-upload.";
             }
-
-            btn.innerHTML = "⏳ Upload gambar...";
-
-            const safeName = fileGambarProduk.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-            const namaFile = "produk/" + Date.now() + "_" + safeName;
-
-            const snapshot = await storage.ref(namaFile).put(fileGambarProduk);
-            gambar = await snapshot.ref.getDownloadURL();
         }
 
         if(!gambar){
@@ -1357,24 +1492,19 @@ async function tambahProduk(){
             return;
         }
 
+        const hargaInput = document.getElementById("hargaProduk").value || "";
+        const stokInput = document.getElementById("stokProduk").value || "";
+        const beratInput = document.getElementById("beratProduk").value || "";
+
         const produk = {
             nama: nama,
-            harga: parseInt(
-                document.getElementById("hargaProduk").value.replace(/\D/g, "")
-            ) || 0,
-
-            stok: parseInt(
-                document.getElementById("stokProduk").value
-            ) || 0,
-
-            berat: parseInt(
-                document.getElementById("beratProduk").value
-            ) || 0,
-
+            harga: parseInt(hargaInput.replace(/\D/g, ""), 10) || 0,
+            stok: parseInt(stokInput, 10) || 0,
+            berat: parseInt(beratInput, 10) || 0,
             gambar: gambar
         };
 
-        btn.innerHTML = "⏳ Menyimpan produk...";
+        if(btn) btn.innerHTML = "⏳ Menyimpan produk...";
 
         if(editID){
             await database.ref("produk/" + editID).update(produk);
@@ -1388,20 +1518,35 @@ async function tambahProduk(){
         fileGambarProduk = null;
         gambarProdukLama = "";
 
-        btn.innerHTML = "➕ Tambah Produk";
         kosongkanForm();
 
+        if(status){
+            status.style.display = "block";
+            status.style.background = "#e8f5e9";
+            status.style.color = "#1b5e20";
+            status.textContent = "✅ Produk berhasil disimpan.";
+        }
+
     }catch(err){
-        console.error(err);
-        alert("❌ Gagal menyimpan produk: " + (err.message || err));
+        console.error("Gagal menyimpan produk:", err);
+
+        if(status){
+            status.style.display = "block";
+            status.style.background = "#ffebee";
+            status.style.color = "#c62828";
+            status.textContent = "❌ " + (err.message || err);
+        }
+
+        alert("❌ Gagal menyimpan produk:\n\n" + (err.message || err));
     }finally{
-        btn.disabled = false;
-        btn.innerHTML = editID ? "💾 Simpan Perubahan" : "➕ Tambah Produk";
+        if(btn){
+            btn.disabled = false;
+            btn.innerHTML = editID ? "💾 Simpan Perubahan" : "➕ Tambah Produk";
+        }
     }
 }
 
 function previewGambar(){
-    // Kompatibilitas dengan kode lama.
     const url = document.getElementById("gambarProduk").value.trim();
     const preview = document.getElementById("previewProduk");
 
@@ -1425,8 +1570,12 @@ function kosongkanForm(){
     fileGambarProduk = null;
     gambarProdukLama = "";
 
-    document.getElementById("previewProduk").src = "";
-    document.getElementById("previewProduk").style.display = "none";
+    const preview = document.getElementById("previewProduk");
+    if(preview){
+        preview.src = "";
+        preview.style.display = "none";
+    }
+
 }
 
 function filterPesanan(){
