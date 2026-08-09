@@ -1,0 +1,15 @@
+# SUBUR MUJUR TANI
+
+Struktur tampilan dipisahkan seperti toko online:
+
+- `index.html` = Beranda
+- `produk.html` = Produk
+- `galeri.html` = Galeri
+- `checkout.html` = Keranjang + Checkout + Pengiriman + Ringkasan + Pembayaran
+- `login.html` = Admin
+- `netlify/functions/` = Netlify Functions
+- `data/` = data wilayah
+
+Keranjang tetap disimpan di localStorage sehingga berpindah halaman tidak menghilangkan isi keranjang.
+
+Upload file/folder ini ke repository GitHub dan commit langsung ke branch `main`. Jangan membuat branch `patch`.

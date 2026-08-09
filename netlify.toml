@@ -5,7 +5,15 @@
 [functions]
   node_bundler = "esbuild"
 
+# Endpoint API ongkir yang stabil untuk frontend.
+[[redirects]]
+  from = "/api/ongkir"
+  to = "/.netlify/functions/ongkir"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+  force = true
