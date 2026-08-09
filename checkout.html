@@ -634,7 +634,7 @@ body.page-checkout .box{margin-bottom:18px;}
 <a href="galeri.html">Galeri</a>
 <a href="checkout.html">Checkout</a>
 <a href="login.html">Admin</a>
-</nav><div class="page-title"><h2>🛒 Checkout</h2><p>Periksa keranjang, isi data pengiriman, pilih ekspedisi, dan lakukan pembayaran.</p></div>
+</nav><div class="page-title"><h2>🛒 Checkout</h2><p>Periksa keranjang, gunakan voucher, isi pengiriman, pilih pembayaran, dan lacak pesanan.</p></div>
 <section class="hero" id="home">
 <div>
 <h2>Tanam Kualitas.<br/>Panen Lebih Berarti.</h2>
@@ -877,6 +877,22 @@ Pilih Layanan
 </div>
 </div>
 </section>
+
+<!-- =========================
+     VOUCHER DISKON
+========================= -->
+<section class="container" id="voucherSection">
+<div class="box">
+<h2>🏷️ Voucher Diskon</h2>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+  <input id="voucherCode" placeholder="Masukkan kode voucher" style="flex:1;min-width:220px;text-transform:uppercase"/>
+  <button type="button" onclick="terapkanVoucher()" style="max-width:220px">🎟️ Gunakan Voucher</button>
+</div>
+<div id="voucherMessage" style="margin-top:8px;font-weight:700"></div>
+<div id="voucherApplied" style="margin-top:5px;color:#1b5e20"></div>
+</div>
+</section>
+
 <!-- =========================
      RINGKASAN PEMBAYARAN
 ========================= -->
@@ -896,7 +912,10 @@ Rp
 </span>
 </h3>
 <h3 style="color:#c62828;">
-Diskon : -Rp <span id="totalDiskon">0</span>
+Diskon Produk : -Rp <span id="totalDiskon">0</span>
+</h3>
+<h3 style="color:#8a5a00;">
+Voucher : -Rp <span id="totalVoucher">0</span>
 </h3>
 <h3>
 
@@ -2673,5 +2692,31 @@ function muatUlasan() {
 }
 document.addEventListener("DOMContentLoaded", muatUlasan);
 </script>
+
+<!-- =========================
+     STATUS, PELACAKAN & RIWAYAT
+========================= -->
+<section class="container" id="trackingBox">
+<div class="box">
+<h2>🔎 Lacak Pesanan</h2>
+<p>Masukkan nomor invoice dan 4 digit terakhir nomor WhatsApp.</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">
+  <input id="trackingInvoice" placeholder="Contoh: SMT-123456789"/>
+  <input id="trackingLast4" maxlength="4" inputmode="numeric" placeholder="4 digit terakhir WhatsApp"/>
+</div>
+<button type="button" onclick="cekStatusPesanan()">🔎 Cek Status Pesanan</button>
+<div id="hasilTracking" style="margin-top:12px"></div>
+</div>
+</section>
+
+<section class="container" id="riwayatSection">
+<div class="box">
+<h2>📋 Riwayat Pesanan</h2>
+<div id="pesananTersimpan"></div>
+<div id="riwayatPesanan">Memuat riwayat...</div>
+</div>
+</section>
+
+<script src="fitur-toko.js"></script>
 </body>
 </html>

@@ -368,38 +368,42 @@ document.getElementById(
 ========================= */
 
 
-function ubahStatus(id){
+async function ubahStatus(id){
+    const status = prompt("Masukkan status pesanan:\n\nMenunggu Pembayaran\nDiproses\nDikirim\nSelesai");
+    if(!status) return;
 
+    try {
+        const ref = database.ref("pesanan/" + id);
+        const snap = await ref.once("value");
+        const order = snap.val();
+        if(!order) return alert("Pesanan tidak ditemukan.");
 
+        await ref.update({
+            status: status,
+            statusTerakhirDiperbarui: new Date().toLocaleString("id-ID")
+        });
 
-let status = prompt(
-
-"Masukkan status pesanan:\n\nMenunggu\nDiproses\nDikirim\nSelesai"
-
-);
-
-
-
-if(status){
-
-
-database.ref(
-
-"pesanan/" + id
-
-)
-
-.update({
-
-status:status
-
-});
-
-
-}
-
-
-
+        if(order.invoice){
+            const trackRef = database.ref("pelacakan/" + order.invoice);
+            const trackSnap = await trackRef.once("value");
+            const track = trackSnap.val() || {};
+            const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
+            history.push({status: status, waktu: new Date().toLocaleString("id-ID")});
+            await trackRef.update({
+                invoice: order.invoice,
+                nama: order.nama || "",
+                total: Number(order.total || 0),
+                status: status,
+                resi: order.resi || track.resi || "",
+                whatsappLast4: String(order.whatsapp || "").replace(/\D/g, "").slice(-4),
+                updatedAt: new Date().toLocaleString("id-ID"),
+                riwayatStatus: history.slice(-20)
+            });
+        }
+        alert("✅ Status pesanan diperbarui.");
+    } catch(e) {
+        alert("❌ Gagal mengubah status: " + e.message);
+    }
 }
 
 
@@ -412,38 +416,28 @@ status:status
 ========================= */
 
 
-function tambahResi(id){
+async function tambahResi(id){
+    const resi = prompt("Masukkan nomor resi");
+    if(!resi) return;
 
+    try {
+        const ref = database.ref("pesanan/" + id);
+        const snap = await ref.once("value");
+        const order = snap.val();
+        if(!order) return alert("Pesanan tidak ditemukan.");
 
+        await ref.update({resi: resi, statusTerakhirDiperbarui:new Date().toLocaleString("id-ID")});
 
-let resi = prompt(
-
-"Masukkan nomor resi"
-
-);
-
-
-
-if(resi){
-
-
-database.ref(
-
-"pesanan/" + id
-
-)
-
-.update({
-
-resi:resi
-
-});
-
-
-}
-
-
-
+        if(order.invoice){
+            await database.ref("pelacakan/" + order.invoice).update({
+                resi: resi,
+                updatedAt: new Date().toLocaleString("id-ID")
+            });
+        }
+        alert("✅ Nomor resi disimpan.");
+    } catch(e) {
+        alert("❌ Gagal menyimpan resi: " + e.message);
+    }
 }
 
 
@@ -971,6 +965,24 @@ async function verifikasiBayar(id){
             dikonfirmasiPada: new Date().toLocaleString("id-ID")
         });
 
+        if (order.invoice) {
+            const trackRef = database.ref("pelacakan/" + order.invoice);
+            const trackSnap = await trackRef.once("value");
+            const track = trackSnap.val() || {};
+            const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
+            history.push({status:"Lunas", waktu:new Date().toLocaleString("id-ID")});
+            await trackRef.update({
+                invoice: order.invoice,
+                nama: order.nama || "",
+                total: Number(order.total || 0),
+                status: "Lunas",
+                resi: order.resi || "",
+                whatsappLast4: String(order.whatsapp || "").replace(/\D/g, "").slice(-4),
+                updatedAt: new Date().toLocaleString("id-ID"),
+                riwayatStatus: history.slice(-20)
+            });
+        }
+
         const pembayaranRef = database.ref("pembayaran/" + id);
         const pembayaranSnap = await pembayaranRef.once("value");
         if (pembayaranSnap.exists()) {
@@ -986,12 +998,27 @@ async function verifikasiBayar(id){
 function tolakPembayaran(id){
     const alasan = prompt("Alasan penolakan pembayaran (opsional):", "Pembayaran belum valid");
     if (alasan === null) return;
-    database.ref("pesanan/" + id).update({
-        status: "Pembayaran Ditolak",
-        statusPembayaran: "Ditolak",
-        alasanPenolakan: alasan,
-        ditolakPada: new Date().toLocaleString("id-ID")
-    }).then(function(){
+    database.ref("pesanan/" + id).once("value").then(async function(snap){
+        const order = snap.val() || {};
+        await database.ref("pesanan/" + id).update({
+            status: "Pembayaran Ditolak",
+            statusPembayaran: "Ditolak",
+            alasanPenolakan: alasan,
+            ditolakPada: new Date().toLocaleString("id-ID")
+        });
+
+        if(order.invoice){
+            const trackRef = database.ref("pelacakan/" + order.invoice);
+            const trackSnap = await trackRef.once("value");
+            const track = trackSnap.val() || {};
+            const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
+            history.push({status:"Pembayaran Ditolak", waktu:new Date().toLocaleString("id-ID")});
+            await trackRef.update({
+                status:"Pembayaran Ditolak",
+                updatedAt:new Date().toLocaleString("id-ID"),
+                riwayatStatus:history.slice(-20)
+            });
+        }
         alert("❌ Pembayaran ditolak.");
     }).catch(function(error){
         alert("Gagal menolak pembayaran: " + error.message);
@@ -1726,6 +1753,37 @@ async function adminHapusUlasan(id){
 }
 </script>
 
+
+<!-- =========================
+     VOUCHER DISKON
+========================= -->
+<div class="box">
+<h2>🏷️ Kelola Voucher Diskon</h2>
+<p>Buat voucher persen atau nominal tetap. Minimum pembelian dapat diatur per voucher.</p>
+
+<input id="voucherAdminCode" placeholder="Kode voucher, contoh: HEMAT10" style="text-transform:uppercase">
+
+<select id="voucherAdminType">
+  <option value="percent">Persentase (%)</option>
+  <option value="fixed">Potongan Nominal (Rp)</option>
+</select>
+
+<input id="voucherAdminValue" type="number" min="1" placeholder="Nilai diskon">
+<input id="voucherAdminMin" type="number" min="0" placeholder="Minimum pembelian (Rp)">
+<input id="voucherAdminMax" type="number" min="0" placeholder="Maksimal potongan (Rp, opsional)">
+<label style="display:block;margin:8px 0">Berlaku sampai (opsional)</label>
+<input id="voucherAdminExpiry" type="datetime-local">
+<label style="display:block;margin:8px 0">
+  <input id="voucherAdminActive" type="checkbox" checked style="width:auto"> Voucher aktif
+</label>
+<button type="button" onclick="adminSimpanVoucher()">💾 Simpan Voucher</button>
+
+<hr style="margin:20px 0">
+<h3>Daftar Voucher</h3>
+<div id="daftarVoucherAdmin">Memuat voucher...</div>
+</div>
+
+<script src="fitur-toko.js"></script>
 </body>
 
 

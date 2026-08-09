@@ -1,0 +1,29 @@
+FITUR TAMBAHAN SUBUR MUJUR TANI
+
+1. Voucher diskon:
+   - Admin > Kelola Voucher Diskon
+   - Persen atau nominal tetap
+   - Minimum pembelian
+   - Maksimal potongan
+   - Masa berlaku
+   - Aktif/nonaktif
+
+2. Stok otomatis:
+   - Tetap memakai transaksi Firebase saat pesanan disimpan.
+   - Stok dicek ulang sebelum item ditambahkan dan sebelum pesanan disimpan.
+
+3. Status pesanan:
+   - Admin dapat mengubah status.
+   - Status disalin ke node pelacakan.
+   - Riwayat status disimpan.
+
+4. Notifikasi/WhatsApp:
+   - Tombol WhatsApp untuk mengirim pesanan/status.
+   - Untuk notifikasi WhatsApp otomatis tanpa klik pengguna, dibutuhkan WhatsApp Business API/provider.
+
+5. Riwayat & tracking:
+   - Riwayat 20 pesanan terakhir disimpan di perangkat pelanggan.
+   - Pelacakan memakai invoice + 4 digit terakhir WhatsApp.
+   - Nomor resi dan status tampil di tracking.
+
+Jangan menghapus netlify/functions atau netlify.toml.
