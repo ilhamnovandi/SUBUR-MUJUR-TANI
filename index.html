@@ -513,6 +513,73 @@ body{background:#f5f6f2}
   .pm-mobile-nav b{display:block;font-size:18px;line-height:20px}
 }
 
+
+/* ===== COMPACT HEADER SEARCH — tidak mengganggu konten ===== */
+.pm-shopbar{
+  position:relative;
+  top:auto;
+  padding:7px 3%;
+  box-shadow:0 2px 10px rgba(0,0,0,.04);
+}
+.pm-shoprow{
+  max-width:900px;
+  gap:8px;
+  justify-content:center;
+}
+.pm-brand-mini{display:none}
+.pm-search{flex:0 1 520px}
+.pm-search input{
+  height:38px!important;
+  padding:8px 40px 8px 13px!important;
+  border-radius:10px!important;
+  font-size:13px!important;
+}
+.pm-search button{
+  width:32px;
+  height:32px;
+  right:3px;
+  top:3px;
+  border-radius:8px;
+  font-size:14px;
+}
+.pm-cart-btn{
+  width:40px!important;
+  height:38px!important;
+  padding:0!important;
+  border-radius:10px!important;
+  display:flex!important;
+  align-items:center;
+  justify-content:center;
+  font-size:17px!important;
+  position:relative;
+}
+.pm-cart-label{display:none}
+.pm-cart-count{
+  position:absolute;
+  right:-4px;
+  top:-5px;
+  min-width:16px;
+  height:16px;
+  font-size:9px;
+  margin:0;
+  border:1px solid var(--pm-gold);
+}
+.pm-cats{max-width:900px;margin:6px auto 0;gap:5px}
+.pm-cat{padding:5px 10px;font-size:11px}
+@media(max-width:768px){
+  .pm-shopbar{
+    top:auto;
+    padding:6px 10px;
+  }
+  .pm-shoprow{gap:6px}
+  .pm-search{flex:1}
+  .pm-search input{height:34px!important;font-size:12px!important}
+  .pm-search button{width:28px;height:28px;top:3px}
+  .pm-cart-btn{width:36px!important;height:34px!important;font-size:16px!important}
+  .pm-cart-count{min-width:15px;height:15px;font-size:8px}
+  .pm-cats{margin-top:5px}
+  .pm-cat{padding:4px 9px;font-size:10px}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -593,13 +660,12 @@ body.page-checkout .box{margin-bottom:18px;}
 </div>
 <div class="pm-shopbar">
 <div class="pm-shoprow">
-<div class="pm-brand-mini">SUBUR MUJUR</div>
 <div class="pm-search">
-<input aria-label="Cari produk" id="pmSearch" placeholder="Cari bibit, tanaman, atau produk..." type="search"/>
-<button onclick="pmApplySearch()" type="button">🔍</button>
+<input aria-label="Cari produk" id="pmSearch" placeholder="Cari bibit..." type="search"/>
+<button onclick="pmApplySearch()" type="button" aria-label="Cari">🔍</button>
 </div>
-<button class="pm-cart-btn" onclick="document.getElementById('keranjang').scrollIntoView({behavior:'smooth'})" type="button">
-      🛒 <span class="pm-cart-label">Keranjang</span><span class="pm-cart-count" id="pmCartCount">0</span>
+<button class="pm-cart-btn" onclick="document.getElementById('keranjang').scrollIntoView({behavior:'smooth'})" type="button" aria-label="Keranjang">
+      🛒<span class="pm-cart-count" id="pmCartCount">0</span>
 </button>
 </div>
 <div class="pm-cats" id="pmCategories">
