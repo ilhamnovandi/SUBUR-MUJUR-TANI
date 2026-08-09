@@ -484,17 +484,23 @@ placeholder="Nama bibit"
 
 
 <input
-
 id="hargaProduk"
-
-placeholder="Harga produk"
-
+placeholder="Harga normal produk"
 >
 
-
+<input
+id="diskonProduk"
+type="number"
+min="0"
+max="100"
+step="1"
+placeholder="Diskon (%) contoh: 10"
+>
+<small style="display:block;margin-top:6px;color:#666;">
+Isi 0 jika tidak ada diskon. Maksimal 100%.
+</small>
 
 <input
-
 id="stokProduk"
 
 placeholder="Jumlah stok"
@@ -647,7 +653,8 @@ border-radius:10px;
 
 <h3>${data[id].nama}</h3>
 
-<p>Harga : Rp ${Number(data[id].harga).toLocaleString("id-ID")}</p>
+<p>Harga : Rp ${Number(data[id].harga || 0).toLocaleString("id-ID")}</p>
+${Number(data[id].diskon || 0) > 0 ? `<p style="color:#c62828;font-weight:700;">Diskon : ${Number(data[id].diskon || 0)}% → Rp ${Math.round(Number(data[id].harga || 0) * (1 - Number(data[id].diskon || 0) / 100)).toLocaleString("id-ID")}</p>` : "<p>Diskon : Tidak ada</p>"}
 
 <p>Stok : ${data[id].stok}</p>
 
@@ -737,6 +744,7 @@ function editProduk(id){
 
         document.getElementById("namaProduk").value = data.nama || "";
         document.getElementById("hargaProduk").value = data.harga || "";
+        document.getElementById("diskonProduk").value = data.diskon || "";
         document.getElementById("stokProduk").value = data.stok || "";
 
         document.getElementById("beratProduk").value = data.berat || "";
@@ -1467,12 +1475,22 @@ async function tambahProduk(){
         }
 
         const hargaInput = document.getElementById("hargaProduk").value || "";
+        const diskonInput = document.getElementById("diskonProduk").value || "";
         const stokInput = document.getElementById("stokProduk").value || "";
         const beratInput = document.getElementById("beratProduk").value || "";
 
+        const hargaNormal = parseInt(hargaInput.replace(/\D/g, ""), 10) || 0;
+        const diskon = Math.min(100, Math.max(0, parseInt(diskonInput, 10) || 0));
+
+        if (hargaNormal <= 0) {
+            alert("❌ Harga produk harus lebih dari 0.");
+            return;
+        }
+
         const produk = {
             nama: nama,
-            harga: parseInt(hargaInput.replace(/\D/g, ""), 10) || 0,
+            harga: hargaNormal,
+            diskon: diskon,
             stok: parseInt(stokInput, 10) || 0,
             berat: parseInt(beratInput, 10) || 0,
             gambar: gambar
@@ -1534,6 +1552,7 @@ function kosongkanForm(){
 
     document.getElementById("namaProduk").value = "";
     document.getElementById("hargaProduk").value = "";
+    document.getElementById("diskonProduk").value = "";
     document.getElementById("stokProduk").value = "";
     document.getElementById("beratProduk").value = "";
     document.getElementById("gambarProduk").value = "";
