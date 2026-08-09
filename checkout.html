@@ -1517,22 +1517,26 @@ function angkaUang(value) {
 }
 
 function hargaItem(item) {
+    // Terima semua nama field harga yang pernah dipakai oleh versi website.
     const hargaAsli = angkaUang(
         item?.hargaAsli ?? item?.harga_normal ?? item?.hargaNormal ??
-        item?.hargaProduk ?? item?.harga_produk ?? item?.price ?? item?.originalPrice ?? 0
+        item?.hargaProduk ?? item?.harga_produk ?? item?.price ??
+        item?.originalPrice ?? item?.unitPrice ?? item?.hargaSatuan ?? 0
     );
+
     let harga = angkaUang(
         item?.harga ?? item?.hargaJual ?? item?.harga_jual ??
-        item?.hargaFinal ?? item?.harga_final ?? item?.price_after_discount ?? item?.salePrice ?? 0
+        item?.hargaFinal ?? item?.harga_final ?? item?.price_after_discount ??
+        item?.salePrice ?? item?.unitPriceAfterDiscount ?? item?.subtotalPrice ?? 0
     );
-    const diskon = Math.min(100, Math.max(0, angkaUang(item?.diskon ?? item?.discount ?? 0)));
 
-    // Data keranjang lama kadang menyimpan harga jual sebagai 0, sementara
-    // harga asli tetap ada. Pulihkan harga jual dari harga asli + diskon.
+    const diskon = Math.min(100, Math.max(0, angkaUang(
+        item?.diskon ?? item?.discount ?? item?.discountPercent ?? 0
+    )));
+
     if (harga <= 0 && hargaAsli > 0) {
         harga = Math.round(hargaAsli * (1 - diskon / 100));
     }
-    // Bila tidak ada diskon dan harga jual kosong, harga asli adalah harga jual.
     if (harga <= 0 && hargaAsli > 0 && diskon === 0) harga = hargaAsli;
 
     return { harga, hargaAsli: hargaAsli || harga, diskon };
@@ -1776,47 +1780,63 @@ async function sinkronkanHargaKeranjang() {
     }
 
     const db = (window.FirebaseApp && window.FirebaseApp.database) || window.database;
-    if (!db) {
-        updateTotalBayar();
-        return;
-    }
+
+    // Hitung dulu dari data yang tersimpan di keranjang supaya Ringkasan
+    // langsung terisi walaupun Firebase belum selesai dimuat.
+    renderKeranjang();
+    updateTotalBayar();
+
+    if (!db) return;
 
     try {
-        const snap = await db.ref("produk").once("value");
-        const semuaProduk = snap.val() || {};
+        // Jangan membaca seluruh /produk sekaligus. Beberapa Firebase Rules
+        // mengizinkan baca per-ID tetapi menolak read pada parent /produk.
+        // Produk yang ada di keranjang dibaca satu per satu.
         let berubah = false;
+        const hasil = await Promise.all(keranjang.map(async (item) => {
+            const id = item?.id != null ? String(item.id) : "";
+            if (!id) return item;
 
-        keranjang = keranjang.map(item => {
-            const p = semuaProduk[String(item.id)];
-            if (!p) return item;
+            try {
+                const snap = await db.ref("produk").child(id).once("value");
+                const p = snap.val();
+                if (!p) return item;
 
-            const hargaAsli = angkaUang(p.harga);
-            const diskon = Math.min(100, Math.max(0, angkaUang(p.diskon ?? p.discount ?? 0)));
-            const harga = hargaAsli > 0
-                ? Math.round(hargaAsli * (1 - diskon / 100))
-                : hargaItem(item).harga;
+                const hargaAsli = angkaUang(p.harga ?? p.hargaAsli ?? item.hargaAsli ?? item.harga);
+                const diskon = Math.min(100, Math.max(0, angkaUang(p.diskon ?? p.discount ?? item.diskon ?? 0)));
+                const harga = hargaAsli > 0
+                    ? Math.round(hargaAsli * (1 - diskon / 100))
+                    : hargaItem(item).harga;
+                const berat = Math.max(1, angkaUang(p.berat ?? item.berat ?? 1000));
+                const stok = Math.max(0, Number(p.stok ?? item.stok ?? 0));
 
-            const berat = angkaUang(p.berat ?? item.berat ?? 1000);
-            const stok = Number(p.stok ?? item.stok ?? 0);
+                if (Number(item.harga) !== harga || Number(item.hargaAsli) !== hargaAsli ||
+                    Number(item.diskon) !== diskon || Number(item.berat) !== berat || Number(item.stok) !== stok) {
+                    berubah = true;
+                }
 
-            if (Number(item.harga) !== harga || Number(item.hargaAsli) !== hargaAsli ||
-                Number(item.diskon) !== diskon || Number(item.berat) !== berat || Number(item.stok) !== stok) {
-                berubah = true;
+                return {
+                    ...item,
+                    id: id,
+                    nama: p.nama || item.nama || "",
+                    gambar: p.gambar || item.gambar || "",
+                    harga: harga,
+                    hargaAsli: hargaAsli || hargaItem(item).hargaAsli,
+                    diskon: diskon,
+                    berat: berat,
+                    stok: stok
+                };
+            } catch (e) {
+                // Jangan membuat total menjadi 0 hanya karena satu produk
+                // gagal dibaca. Data lokal tetap dipakai sebagai fallback.
+                console.warn("Gagal membaca produk", id, e);
+                return item;
             }
+        }));
 
-            return {
-                ...item,
-                nama: p.nama || item.nama || "",
-                gambar: p.gambar || item.gambar || "",
-                harga: harga,
-                hargaAsli: hargaAsli || hargaItem(item).hargaAsli,
-                diskon: diskon,
-                berat: berat || 1000,
-                stok: stok
-            };
-        });
-
+        keranjang = hasil.map(normalisasiItemKeranjang).filter(Boolean);
         if (berubah) simpanKeranjang();
+
         renderKeranjang();
         updateTotalBayar();
     } catch (err) {
@@ -1829,7 +1849,6 @@ async function sinkronkanHargaKeranjang() {
 // UPDATE TOTAL BAYAR
 // ==========================
 function updateTotalBayar() {
-
     pastikanKeranjangArray();
 
     let totalProduk = 0;
@@ -1837,9 +1856,12 @@ function updateTotalBayar() {
 
     keranjang.forEach(item => {
         const infoHarga = hargaItem(item);
-        const jumlah = Math.max(1, angkaUang(item.jumlah || 1));
-        totalProduk += infoHarga.harga * jumlah;
-        totalDiskon += Math.max(0, infoHarga.hargaAsli - infoHarga.harga) * jumlah;
+        const jumlah = Math.max(1, angkaUang(item.jumlah ?? item.qty ?? item.quantity ?? 1));
+        const harga = infoHarga.harga;
+        const hargaAsli = infoHarga.hargaAsli;
+
+        totalProduk += harga * jumlah;
+        totalDiskon += Math.max(0, hargaAsli - harga) * jumlah;
     });
 
     const totalHargaEl = document.getElementById("totalHarga");
@@ -1849,17 +1871,24 @@ function updateTotalBayar() {
     const totalBayarEl = document.getElementById("totalBayar");
     const ongkirEl = document.getElementById("ongkir");
 
-    const nilaiOngkir = Math.max(0, angkaUang(ongkir));
-    const totalVoucherEl = document.getElementById("totalVoucher");
+    // Ringkasan selalu memakai nilai ongkir aktif yang sama dengan bagian
+    // Data Pembeli/Pengiriman, bukan angka terpisah.
+    const domOngkir = ongkirEl ? angkaUang(ongkirEl.textContent) : 0;
+    const nilaiOngkir = Math.max(0, angkaUang(ongkir) || domOngkir);
+    if (nilaiOngkir !== ongkir) ongkir = nilaiOngkir;
+
     const nilaiVoucher = Math.max(0, angkaUang(window.totalVoucher || 0));
     const totalAkhir = Math.max(0, totalProduk - nilaiVoucher + nilaiOngkir);
 
     if (totalHargaEl) totalHargaEl.innerHTML = totalProduk.toLocaleString("id-ID");
     if (totalProdukEl) totalProdukEl.innerHTML = totalProduk.toLocaleString("id-ID");
     if (totalDiskonEl) totalDiskonEl.innerHTML = totalDiskon.toLocaleString("id-ID");
+    const totalVoucherEl = document.getElementById("totalVoucher");
     if (totalVoucherEl) totalVoucherEl.innerHTML = nilaiVoucher.toLocaleString("id-ID");
     if (totalOngkirEl) totalOngkirEl.innerHTML = nilaiOngkir.toLocaleString("id-ID");
-    if (ongkirEl) ongkirEl.innerHTML = "Rp " + nilaiOngkir.toLocaleString("id-ID");
+    if (ongkirEl && angkaUang(ongkirEl.textContent) !== nilaiOngkir) {
+        ongkirEl.innerHTML = "Rp " + nilaiOngkir.toLocaleString("id-ID");
+    }
     if (totalBayarEl) totalBayarEl.innerHTML = totalAkhir.toLocaleString("id-ID");
 }
 
