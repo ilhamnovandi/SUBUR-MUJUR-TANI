@@ -13,8 +13,21 @@
   }[c]));
   const rupiah = (n) => Number(n || 0).toLocaleString("id-ID");
   const now = () => new Date().toLocaleString("id-ID");
-  const getCart = () => Array.isArray(window.keranjang) ? window.keranjang : [];
-  const getOngkir = () => Number(window.ongkir || 0);
+  // checkout.html mendeklarasikan keranjang/ongkir sebagai global var.
+  // Jangan hanya membaca window.* karena versi lama memakai let sehingga
+  // nilainya berada di global lexical scope dan bukan property window.
+  const getCart = () => {
+    try {
+      if (typeof keranjang !== "undefined" && Array.isArray(keranjang)) return keranjang;
+    } catch (_) {}
+    return Array.isArray(window.keranjang) ? window.keranjang : [];
+  };
+  const getOngkir = () => {
+    try {
+      if (typeof ongkir !== "undefined" && Number.isFinite(Number(ongkir))) return Number(ongkir);
+    } catch (_) {}
+    return Number(window.ongkir || localStorage.getItem("smt_ongkir") || 0);
+  };
 
   /* =========================
      VOUCHER CHECKOUT
@@ -31,8 +44,19 @@
   };
 
   function productTotal() {
-    return getCart().reduce((sum, item) =>
-      sum + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
+    return getCart().reduce((sum, item) => {
+      // Gunakan helper checkout jika tersedia agar harga lama/stale/format
+      // rupiah tetap dihitung sama dengan Ringkasan Pembayaran utama.
+      let harga = 0;
+      try {
+        if (typeof hargaItem === "function") harga = Number(hargaItem(item)?.harga || 0);
+        else harga = Number(item.harga || 0);
+      } catch (_) {
+        harga = Number(item.harga || 0);
+      }
+      const jumlah = Math.max(1, Number(item.jumlah || item.qty || item.quantity || 1));
+      return sum + Math.max(0, harga) * jumlah;
+    }, 0);
   }
 
   function calculateVoucherDiscount(v) {

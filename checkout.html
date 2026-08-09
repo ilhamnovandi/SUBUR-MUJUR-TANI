@@ -1567,7 +1567,7 @@ function normalisasiKeranjang(value) {
     return values.every(v => v && typeof v === "object") ? values.map(normalisasiItemKeranjang).filter(Boolean) : [];
 }
 
-let keranjang;
+var keranjang;
 try {
     keranjang = normalisasiKeranjang(JSON.parse(localStorage.getItem("keranjang") || "[]"));
 } catch (e) {
@@ -1598,7 +1598,7 @@ simpanKeranjang();
 // Kode pos toko diatur aman di Netlify Environment Variable:
 // BITESHIP_ORIGIN_POSTAL_CODE diatur di Netlify Environment Variable.
 // BITESHIP_API_KEY juga disimpan di Netlify, bukan di file ini.
-let ongkir = angkaUang(localStorage.getItem("smt_ongkir") || 0);
+var ongkir = angkaUang(localStorage.getItem("smt_ongkir") || 0);
 window.daftarLayanan = [];
 
 // ==========================
