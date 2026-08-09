@@ -590,9 +590,11 @@ body.page-checkout .box{margin-bottom:18px;}
 
 /* Konten promosi + identitas besar hanya untuk halaman Home.
    Halaman Produk, Galeri, dan Checkout tetap ringkas dan fokus pada kontennya. */
+body:not(.page-home) .pm-shopbar,
 body:not(.page-home) .pm-promo,
 body:not(.page-home) > header,
-body:not(.page-home) .pm-mobile-nav{
+body:not(.page-home) .pm-mobile-nav,
+body:not(.page-home) .pm-float-cart{
   display:none!important;
 }
 

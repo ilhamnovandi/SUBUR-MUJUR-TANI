@@ -590,9 +590,11 @@ body.page-checkout .box{margin-bottom:18px;}
 
 /* Konten promosi + identitas besar hanya untuk halaman Home.
    Halaman Produk, Galeri, dan Checkout tetap ringkas dan fokus pada kontennya. */
+body:not(.page-home) .pm-shopbar,
 body:not(.page-home) .pm-promo,
 body:not(.page-home) > header,
-body:not(.page-home) .pm-mobile-nav{
+body:not(.page-home) .pm-mobile-nav,
+body:not(.page-home) .pm-float-cart{
   display:none!important;
 }
 
@@ -1515,12 +1517,24 @@ function angkaUang(value) {
 }
 
 function hargaItem(item) {
-    const hargaAsli = angkaUang(item?.hargaAsli ?? item?.harga_normal ?? item?.price ?? 0);
-    let harga = angkaUang(item?.harga ?? item?.hargaJual ?? item?.harga_jual ?? item?.price_after_discount ?? 0);
+    const hargaAsli = angkaUang(
+        item?.hargaAsli ?? item?.harga_normal ?? item?.hargaNormal ??
+        item?.hargaProduk ?? item?.harga_produk ?? item?.price ?? item?.originalPrice ?? 0
+    );
+    let harga = angkaUang(
+        item?.harga ?? item?.hargaJual ?? item?.harga_jual ??
+        item?.hargaFinal ?? item?.harga_final ?? item?.price_after_discount ?? item?.salePrice ?? 0
+    );
     const diskon = Math.min(100, Math.max(0, angkaUang(item?.diskon ?? item?.discount ?? 0)));
-    // Migrasi data lama: bila harga jual tersimpan 0 tetapi harga asli ada,
-    // hitung kembali harga setelah diskon agar total belanja tidak menjadi Rp 0.
-    if (harga <= 0 && hargaAsli > 0) harga = Math.round(hargaAsli * (1 - diskon / 100));
+
+    // Data keranjang lama kadang menyimpan harga jual sebagai 0, sementara
+    // harga asli tetap ada. Pulihkan harga jual dari harga asli + diskon.
+    if (harga <= 0 && hargaAsli > 0) {
+        harga = Math.round(hargaAsli * (1 - diskon / 100));
+    }
+    // Bila tidak ada diskon dan harga jual kosong, harga asli adalah harga jual.
+    if (harga <= 0 && hargaAsli > 0 && diskon === 0) harga = hargaAsli;
+
     return { harga, hargaAsli: hargaAsli || harga, diskon };
 }
 
@@ -1670,8 +1684,12 @@ function renderKeranjang() {
 
 }
 
-window.addEventListener("load", renderKeranjang);
-window.addEventListener("load", function(){ updateTotalBayar(); });
+window.addEventListener("load", function(){
+    renderKeranjang();
+    updateTotalBayar();
+    // Tunggu Firebase lalu sinkronkan harga berdasarkan ID produk.
+    setTimeout(sinkronkanHargaKeranjang, 250);
+});
 
 // ==========================
 // AKSI KERANJANG
@@ -1742,6 +1760,69 @@ function kosongkanKeranjang() {
     if (ongkirEl) ongkirEl.innerHTML = "Rp 0";
 
     updateTotalBayar();
+}
+
+// ==========================
+// SINKRONKAN HARGA KERANJANG DENGAN FIREBASE
+// ==========================
+// Memperbaiki keranjang lama yang menyimpan harga jual 0/stale.
+// Harga selalu diambil dari data produk terbaru sehingga Ringkasan
+// Pembayaran tidak lagi menampilkan Rp 0 ketika isi keranjang sudah ada.
+async function sinkronkanHargaKeranjang() {
+    pastikanKeranjangArray();
+    if (!keranjang.length) {
+        updateTotalBayar();
+        return;
+    }
+
+    const db = (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+    if (!db) {
+        updateTotalBayar();
+        return;
+    }
+
+    try {
+        const snap = await db.ref("produk").once("value");
+        const semuaProduk = snap.val() || {};
+        let berubah = false;
+
+        keranjang = keranjang.map(item => {
+            const p = semuaProduk[String(item.id)];
+            if (!p) return item;
+
+            const hargaAsli = angkaUang(p.harga);
+            const diskon = Math.min(100, Math.max(0, angkaUang(p.diskon ?? p.discount ?? 0)));
+            const harga = hargaAsli > 0
+                ? Math.round(hargaAsli * (1 - diskon / 100))
+                : hargaItem(item).harga;
+
+            const berat = angkaUang(p.berat ?? item.berat ?? 1000);
+            const stok = Number(p.stok ?? item.stok ?? 0);
+
+            if (Number(item.harga) !== harga || Number(item.hargaAsli) !== hargaAsli ||
+                Number(item.diskon) !== diskon || Number(item.berat) !== berat || Number(item.stok) !== stok) {
+                berubah = true;
+            }
+
+            return {
+                ...item,
+                nama: p.nama || item.nama || "",
+                gambar: p.gambar || item.gambar || "",
+                harga: harga,
+                hargaAsli: hargaAsli || hargaItem(item).hargaAsli,
+                diskon: diskon,
+                berat: berat || 1000,
+                stok: stok
+            };
+        });
+
+        if (berubah) simpanKeranjang();
+        renderKeranjang();
+        updateTotalBayar();
+    } catch (err) {
+        console.warn("Sinkronisasi harga keranjang gagal, gunakan data lokal:", err);
+        updateTotalBayar();
+    }
 }
 
 // ==========================
@@ -2258,9 +2339,12 @@ function finalEscape(value) {
 
 function finalGetTotals() {
     pastikanKeranjangArray();
-    const totalProduk = keranjang.reduce((sum, item) =>
-        sum + Number(item.harga || 0) * Number(item.jumlah || 0), 0);
-    return {totalProduk, ongkir:Number(ongkir || 0), total:totalProduk + Number(ongkir || 0)};
+    const totalProduk = keranjang.reduce((sum, item) => {
+        const h = hargaItem(item);
+        return sum + h.harga * Math.max(1, angkaUang(item.jumlah || 1));
+    }, 0);
+    const nilaiOngkir = Math.max(0, angkaUang(ongkir));
+    return {totalProduk, ongkir:nilaiOngkir, total:totalProduk + nilaiOngkir};
 }
 
 /* Cek stok Firebase setiap kali tambah item.
