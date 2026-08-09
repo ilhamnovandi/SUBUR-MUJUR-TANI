@@ -7,7 +7,23 @@
 (function () {
   "use strict";
 
-  const db = () => (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+  // Ambil instance Realtime Database dari semua jalur yang mungkin.
+  // admin.html memakai const database (global lexical scope), yang tidak
+  // otomatis menjadi window.database. Karena itu fallback ke firebase.database().
+  const db = () => {
+    try {
+      if (window.FirebaseApp && window.FirebaseApp.database) return window.FirebaseApp.database;
+    } catch (_) {}
+    try {
+      if (window.database) return window.database;
+    } catch (_) {}
+    try {
+      if (typeof firebase !== "undefined" && firebase.apps && firebase.apps.length) {
+        return firebase.database();
+      }
+    } catch (_) {}
+    return null;
+  };
   const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, c => ({
     "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
   }[c]));
@@ -388,8 +404,16 @@
      ADMIN VOUCHER
   ========================= */
   async function adminSimpanVoucher() {
-    const database = db();
-    if (!database) return alert("Firebase belum siap.");
+    // Firebase pada admin sudah diinisialisasi sebelum fitur-toko.js dimuat,
+    // tetapi tetap beri waktu singkat bila browser sedang menyelesaikan init.
+    let database = db();
+    if (!database) {
+      for (let i = 0; i < 20 && !database; i++) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        database = db();
+      }
+    }
+    if (!database) return alert("Firebase tidak dapat terhubung. Periksa koneksi internet lalu coba lagi.");
     const codeEl = document.getElementById("voucherAdminCode");
     const code = (codeEl?.value || "").trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
     const type = document.getElementById("voucherAdminType")?.value || "percent";
