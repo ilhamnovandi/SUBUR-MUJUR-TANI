@@ -580,6 +580,16 @@ body{background:#f5f6f2}
   .pm-cats{margin-top:5px}
   .pm-cat{padding:4px 9px;font-size:10px}
 }
+
+@media(max-width:768px){
+  .pm-shopbar{padding:6px 8px;}
+  .pm-shoprow{gap:6px;}
+  .pm-brand-mini{font-size:12px;}
+  .pm-search input{padding:9px 38px 9px 10px!important;font-size:12px!important;}
+  .pm-search button{width:32px;height:32px;top:3px;right:3px;}
+  .pm-cart-btn{padding:8px 9px!important;border-radius:11px!important;}
+  .pm-cart-label{display:none!important;}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -644,6 +654,14 @@ body.page-checkout #pembayaran{display:block!important;}
 
 body.page-checkout .container{max-width:1000px;}
 body.page-checkout .box{margin-bottom:18px;}
+
+/* Konten promosi + identitas besar hanya untuk halaman Home.
+   Halaman Produk, Galeri, dan Checkout tetap ringkas dan fokus pada kontennya. */
+body:not(.page-home) .pm-promo,
+body:not(.page-home) > header,
+body:not(.page-home) .pm-mobile-nav{
+  display:none!important;
+}
 
 .page-title{
   max-width:1000px;margin:25px auto 5px;padding:0 5%;
@@ -889,7 +907,8 @@ gap:10px;
 <label>Ongkir</label>
 <h4 id="ongkir">Rp 0</h4>
 </div>
-<input id="kodePos" placeholder="Kode Pos"/>
+<label for="kodePos">Kode Pos <span style="color:#c62828;font-size:13px;font-weight:800;">* wajib di isi</span></label>
+<input id="kodePos" placeholder="Kode Pos (wajib di isi)" inputmode="numeric" maxlength="5" autocomplete="postal-code" required/>
 <input id="whatsapp" placeholder="Nomor WhatsApp"/>
 </div>
 </section>
