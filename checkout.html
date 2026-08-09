@@ -605,7 +605,53 @@ body:not(.page-home) .pm-float-cart{
 .page-title p{color:#6d766f;margin:0;}
 
 .pm-float-cart{z-index:1001!important;}
-</style></head>
+</style>
+<style id="smt-cart-shopee-style">
+/* ===== KERANJANG GAYA MARKETPLACE / SHOPEE ===== */
+#keranjang .box{padding:0!important;overflow:visible;background:transparent!important;border-top:0!important;box-shadow:none!important}
+#keranjang .box>h2{display:flex;align-items:center;gap:8px;background:#fff;padding:18px 18px;margin:0 0 10px;border-radius:16px 16px 0 0;font-size:22px;border-bottom:1px solid #eee}
+#keranjang .box>hr,#keranjang .box>h3{display:none!important}
+#isiKeranjang{display:flex;flex-direction:column;gap:10px}
+.smt-cart-item{background:#fff;border:1px solid #ecebe6;border-radius:14px;padding:14px;display:grid;grid-template-columns:28px 88px minmax(0,1fr);gap:12px;align-items:start;box-shadow:0 3px 12px rgba(8,47,35,.045)}
+.smt-cart-check{width:20px;height:20px;margin:3px 0 0;accent-color:#ee4d2d;cursor:pointer}
+.smt-cart-img{width:88px;height:88px;object-fit:cover;border-radius:10px;background:#f5f5f5;border:1px solid #eee}
+.smt-cart-main{min-width:0}
+.smt-cart-name{font-size:16px;font-weight:750;line-height:1.35;color:#1d2a23;margin:0 0 7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.smt-cart-meta{font-size:12px;color:#777;margin-bottom:7px}
+.smt-cart-price{font-size:17px;font-weight:850;color:#d33b26;margin:0 0 9px}
+.smt-cart-old{font-size:11px;color:#999;text-decoration:line-through;margin-right:6px;font-weight:500}
+.smt-cart-badge{font-size:10px;font-weight:800;background:#fff0ec;color:#ee4d2d;border-radius:3px;padding:3px 5px;margin-left:4px}
+.smt-cart-bottom{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.smt-cart-subtotal{font-size:15px;font-weight:850;color:#17231d}
+.smt-cart-actions{display:flex;align-items:center;gap:9px}
+.smt-qty{display:flex;align-items:center;border:1px solid #ddd;border-radius:7px;overflow:hidden;background:#fff}
+.smt-qty button{width:32px;height:30px!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:#fff!important;color:#333!important;box-shadow:none!important;font-size:18px!important;font-weight:500!important}
+.smt-qty span{min-width:32px;text-align:center;font-size:13px;font-weight:700}
+.smt-delete{border:0!important;background:transparent!important;color:#777!important;padding:5px!important;margin:0!important;box-shadow:none!important;font-size:12px!important;width:auto!important}
+.smt-delete:hover{color:#ee4d2d!important;background:#fff!important;box-shadow:none!important}
+.smt-cart-empty{background:#fff;border-radius:14px;padding:40px 20px;text-align:center;color:#777;border:1px solid #eee}
+.smt-cart-info{display:flex;justify-content:space-between;gap:10px;padding:10px 4px 2px;color:#777;font-size:12px}
+.smt-cart-bar{position:sticky;bottom:0;z-index:990;background:rgba(255,255,255,.97);backdrop-filter:blur(10px);border-top:1px solid #ddd;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;box-shadow:0 -4px 16px rgba(0,0,0,.08)}
+.smt-select-all{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}
+.smt-select-all input{width:19px!important;height:19px!important;margin:0!important;accent-color:#ee4d2d}
+.smt-cart-totalbox{margin-left:auto;text-align:right;line-height:1.15}
+.smt-cart-totalbox small{display:block;color:#777;font-size:10px}
+.smt-cart-totalbox strong{display:block;color:#ee4d2d;font-size:18px}
+.smt-checkout-now{border:0!important;background:#ee4d2d!important;color:#fff!important;border-radius:7px!important;padding:12px 18px!important;margin:0!important;width:auto!important;min-width:125px;box-shadow:none!important;font-size:14px!important;font-weight:800!important}
+.smt-checkout-now:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){
+  .smt-cart-item{grid-template-columns:23px 72px minmax(0,1fr);gap:9px;padding:11px}
+  .smt-cart-img{width:72px;height:72px}
+  .smt-cart-name{font-size:14px}
+  .smt-cart-price{font-size:15px}
+  .smt-cart-bottom{align-items:flex-end}
+  .smt-cart-subtotal{font-size:14px}
+  .smt-cart-bar{padding:9px 10px;gap:7px}
+  .smt-cart-totalbox strong{font-size:16px}
+  .smt-checkout-now{min-width:110px;padding:11px 12px!important;font-size:13px!important}
+}
+</style>
+</head>
 <body class="page-checkout">
 <div class="pm-topbar">
 <span>🌿 Bibit pilihan untuk kebun yang lebih produktif</span>
@@ -1607,85 +1653,120 @@ window.daftarLayanan = [];
 
 function renderKeranjang() {
     pastikanKeranjangArray();
-
     const isi = document.getElementById("isiKeranjang");
-
     if (!isi) return;
 
-    if (keranjang.length === 0) {
+    // Simpan status pilihan hanya untuk tampilan keranjang. Checkout lama
+    // tetap memakai seluruh isi keranjang sehingga tidak mengubah alur pesanan.
+    window.smtSelectedCart = Array.isArray(window.smtSelectedCart)
+        ? window.smtSelectedCart.filter(i => i >= 0 && i < keranjang.length)
+        : keranjang.map((_, i) => i);
+    const selectedSet = new Set(window.smtSelectedCart);
 
-        isi.innerHTML = "Keranjang masih kosong.";
-
+    if (!keranjang.length) {
+        isi.innerHTML = `<div class="smt-cart-empty">🛒<br><b>Keranjang masih kosong.</b><br><small>Tambahkan bibit pilihan Anda dari halaman Produk.</small></div>`;
         document.getElementById("totalHarga").innerHTML = "0";
         document.getElementById("totalBerat").innerHTML = "0";
         updateTotalBayar();
         if (typeof pmUpdateCartCount === "function") pmUpdateCartCount();
+        smtRenderCartBar();
         return;
     }
 
-    isi.innerHTML = "";
-
     let totalHarga = 0;
     let totalBerat = 0;
+    let selectedTotal = 0;
+    let selectedCount = 0;
 
-    keranjang.forEach((item, index) => {
-
+    isi.innerHTML = keranjang.map((item, index) => {
         const infoHarga = hargaItem(item);
         const harga = infoHarga.harga;
         const hargaAsli = infoHarga.hargaAsli;
         const diskon = infoHarga.diskon;
         const jumlah = Math.max(1, angkaUang(item.jumlah || 1));
         const subtotal = harga * jumlah;
-
         totalHarga += subtotal;
-
         totalBerat += angkaUang(item.berat) * jumlah;
+        if (selectedSet.has(index)) { selectedTotal += subtotal; selectedCount += jumlah; }
 
-        isi.innerHTML += `
-        <div style="display:flex;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #ddd;">
+        const gambar = finalEscape(item.gambar || "");
+        const nama = finalEscape(item.nama || "Produk");
+        const priceHtml = diskon > 0 && hargaAsli > harga
+            ? `<span class="smt-cart-old">Rp ${hargaAsli.toLocaleString("id-ID")}</span><span class="smt-cart-badge">-${diskon}%</span><br><span>Rp ${harga.toLocaleString("id-ID")}</span>`
+            : `Rp ${harga.toLocaleString("id-ID")}`;
 
-            <img src="${item.gambar}"
-                 style="width:70px;height:70px;object-fit:cover;border-radius:8px;">
-
-            <div style="flex:1">
-
-                <b>${item.nama}</b><br>
-                ${diskon > 0 && hargaAsli > harga ? `<span style="text-decoration:line-through;color:#888;font-size:13px;">Rp ${hargaAsli.toLocaleString("id-ID")}</span> <b style="color:#c62828;">-${diskon}%</b><br>` : ""}
-                <b>Rp ${harga.toLocaleString("id-ID")}</b><br>
-
-                Jumlah :
-                <button onclick="kurangProduk(${index})">-</button>
-
-                <b>${item.jumlah}</b>
-
-                <button onclick="tambahProduk(${index})">+</button>
-
+        return `
+        <article class="smt-cart-item">
+            <input class="smt-cart-check" type="checkbox" ${selectedSet.has(index) ? "checked" : ""}
+                   aria-label="Pilih ${nama}" onchange="smtToggleCart(${index}, this.checked)">
+            <img class="smt-cart-img" src="${gambar}" alt="${nama}" loading="lazy">
+            <div class="smt-cart-main">
+                <h3 class="smt-cart-name">${nama}</h3>
+                <div class="smt-cart-meta">🌱 Bibit tanaman • Berat ${angkaUang(item.berat).toLocaleString("id-ID")} gram</div>
+                <div class="smt-cart-price">${priceHtml}</div>
+                <div class="smt-cart-bottom">
+                    <strong class="smt-cart-subtotal">Subtotal Rp ${subtotal.toLocaleString("id-ID")}</strong>
+                    <div class="smt-cart-actions">
+                        <div class="smt-qty" aria-label="Jumlah produk">
+                            <button type="button" onclick="kurangProduk(${index})" aria-label="Kurangi">−</button>
+                            <span>${jumlah}</span>
+                            <button type="button" onclick="tambahProduk(${index})" aria-label="Tambah">+</button>
+                        </div>
+                        <button type="button" class="smt-delete" onclick="hapusProduk(${index})">Hapus</button>
+                    </div>
+                </div>
             </div>
+        </article>`;
+    }).join("");
 
-            <div>
-
-                <b>Rp ${subtotal.toLocaleString("id-ID")}</b><br>
-
-                <button onclick="hapusProduk(${index})">
-                    🗑 Hapus
-                </button>
-
-            </div>
-
-        </div>
-        `;
-
-    });
-
-    document.getElementById("totalHarga").innerHTML =
-        totalHarga.toLocaleString("id-ID");
-
-    document.getElementById("totalBerat").innerHTML =
-        totalBerat.toLocaleString("id-ID");
-
+    document.getElementById("totalHarga").innerHTML = totalHarga.toLocaleString("id-ID");
+    document.getElementById("totalBerat").innerHTML = totalBerat.toLocaleString("id-ID");
+    window.smtSelectedTotal = selectedTotal;
+    window.smtSelectedCount = selectedCount;
     updateTotalBayar();
+    smtRenderCartBar();
     if (typeof pmUpdateCartCount === "function") pmUpdateCartCount();
+}
 
+function smtToggleCart(index, checked) {
+    const current = new Set(Array.isArray(window.smtSelectedCart) ? window.smtSelectedCart : keranjang.map((_, i) => i));
+    if (checked) current.add(index); else current.delete(index);
+    window.smtSelectedCart = [...current].filter(i => i >= 0 && i < keranjang.length);
+    smtRenderCartBar();
+}
+
+function smtToggleAll(checked) {
+    window.smtSelectedCart = checked ? keranjang.map((_, i) => i) : [];
+    renderKeranjang();
+}
+
+function smtRenderCartBar() {
+    let bar = document.getElementById("smtCartBar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "smtCartBar";
+        bar.className = "smt-cart-bar";
+        const box = document.querySelector("#keranjang .box");
+        if (box) box.appendChild(bar);
+    }
+    const selected = Array.isArray(window.smtSelectedCart) ? window.smtSelectedCart : [];
+    const allSelected = keranjang.length > 0 && selected.length === keranjang.length;
+    const total = selected.reduce((sum, i) => {
+        const item = keranjang[i];
+        if (!item) return sum;
+        return sum + hargaItem(item).harga * Math.max(1, angkaUang(item.jumlah || 1));
+    }, 0);
+    const count = selected.reduce((sum, i) => sum + (keranjang[i] ? Math.max(1, angkaUang(keranjang[i].jumlah || 1)) : 0), 0);
+    bar.innerHTML = `
+      <label class="smt-select-all">
+        <input type="checkbox" ${allSelected ? "checked" : ""} ${!keranjang.length ? "disabled" : ""} onchange="smtToggleAll(this.checked)">
+        <span>Semua</span>
+      </label>
+      <div class="smt-cart-totalbox">
+        <small>${count} produk dipilih</small>
+        <strong>Rp ${total.toLocaleString("id-ID")}</strong>
+      </div>
+      <button type="button" class="smt-checkout-now" ${count ? "" : "disabled"} onclick="document.getElementById('checkout')?.scrollIntoView({behavior:'smooth',block:'start'})">Checkout</button>`;
 }
 
 window.addEventListener("load", function(){
