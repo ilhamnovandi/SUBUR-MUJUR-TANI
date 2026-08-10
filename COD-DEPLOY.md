@@ -58,3 +58,8 @@ Before production, replace the staging/test API key with the production key and 
 
 ## 7. Important limitation
 COD availability depends on the Biteship account and selected courier/service. A service must report COD support, and the Biteship account must be enabled for that courier's COD feature.
+
+## 8. Webhook validation fix
+The public webhook function now accepts GET, HEAD, OPTIONS, and POST validation requests.
+An empty POST body and an empty/neutral JSON validation payload return HTTP 200 (`ok`).
+Only real webhook events require the configured signature and are forwarded to the background processor.
