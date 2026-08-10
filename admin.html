@@ -682,6 +682,20 @@ placeholder="Berat produk (gram)"
 min="0"
 >
 
+<div id="varianProdukBox" style="margin-top:18px;padding:15px;border:1px solid #d8e5d8;border-radius:12px;background:#f8fcf7;">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+    <div>
+      <b style="color:#0b3d2e;">📦 Pilihan / Varian Produk</b>
+      <div style="font-size:12px;color:#666;margin-top:4px;">
+        Contoh: Batang Besar, Batang Kecil, Stek. Setiap pilihan bisa punya harga, berat, dan stok berbeda.
+      </div>
+    </div>
+    <button type="button" onclick="tambahBarisVarian()" style="padding:8px 12px;">➕ Tambah</button>
+  </div>
+  <div id="daftarVarianProduk" style="margin-top:12px;"></div>
+</div>
+
+
 
 
 <label>Gambar Produk</label>
@@ -824,6 +838,11 @@ ${Number(data[id].diskon || 0) > 0 ? `<p style="color:#c62828;font-weight:700;">
 <p>Stok : ${data[id].stok}</p>
 
 <p>Berat : ${data[id].berat || 0} gram</p>
+${Array.isArray(data[id].variants) && data[id].variants.length ? `
+<div style="margin:8px 0;padding:8px;background:#f6faf5;border-radius:8px;">
+  <b>📦 Pilihan:</b>
+  ${data[id].variants.map(v => `<div style="font-size:13px;margin-top:4px;">• ${v.nama} — Rp ${Number(v.harga||0).toLocaleString("id-ID")} — ${Number(v.berat||0)} g — stok ${Number(v.stok||0)}</div>`).join("")}
+</div>` : ""}
 
 <button onclick="editProduk('${id}')">
 ✏️ Edit
@@ -913,6 +932,8 @@ function editProduk(id){
         document.getElementById("stokProduk").value = data.stok || "";
 
         document.getElementById("beratProduk").value = data.berat || "";
+
+        renderVarianProduk(Array.isArray(data.variants) ? data.variants : []);
 
         gambarProdukLama = data.gambar || "";
         document.getElementById("gambarProduk").value = data.gambar || "";
@@ -1687,13 +1708,21 @@ async function tambahProduk(){
             return;
         }
 
+        const daftarVarian = bacaVarianProduk();
+        const stokDasar = parseInt(stokInput, 10) || 0;
+        const beratDasar = parseInt(beratInput, 10) || 0;
+        const stokFinal = daftarVarian.length
+            ? daftarVarian.reduce((total, v) => total + Number(v.stok || 0), 0)
+            : stokDasar;
+
         const produk = {
             nama: nama,
             harga: hargaNormal,
             diskon: diskon,
-            stok: parseInt(stokInput, 10) || 0,
-            berat: parseInt(beratInput, 10) || 0,
-            gambar: gambar
+            stok: stokFinal,
+            berat: beratDasar,
+            gambar: gambar,
+            variants: daftarVarian
         };
 
         if(btn) btn.innerHTML = "⏳ Menyimpan produk...";
@@ -1756,6 +1785,8 @@ function kosongkanForm(){
     document.getElementById("stokProduk").value = "";
     document.getElementById("beratProduk").value = "";
     document.getElementById("gambarProduk").value = "";
+    const daftarVarian = document.getElementById("daftarVarianProduk");
+    if(daftarVarian) daftarVarian.innerHTML = "";
 
     const fileInput = document.getElementById("fileGambarProduk");
     if(fileInput) fileInput.value = "";
@@ -1770,6 +1801,77 @@ function kosongkanForm(){
     }
 
 }
+
+
+/* =========================================================
+   VARIAN PRODUK
+   Setiap varian menyimpan harga, berat, stok, dan ID sendiri.
+========================================================= */
+let adminVariants = [];
+
+function adminEscVar(v){
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
+        return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c];
+    });
+}
+
+function tambahBarisVarian(data){
+    data = data || {};
+    const id = data.id || ("v" + Date.now() + Math.random().toString(36).slice(2,7));
+    const box = document.getElementById("daftarVarianProduk");
+    if(!box) return;
+
+    const row = document.createElement("div");
+    row.className = "smt-varian-row";
+    row.dataset.id = id;
+    row.style.cssText = "display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:9px;align-items:center;";
+    row.innerHTML = `
+      <input class="varianNama" placeholder="Nama pilihan" value="${adminEscVar(data.nama || "")}">
+      <input class="varianHarga" type="number" min="0" placeholder="Harga" value="${Number(data.harga || 0) || ""}">
+      <input class="varianBerat" type="number" min="0" placeholder="Berat (g)" value="${Number(data.berat || 0) || ""}">
+      <input class="varianStok" type="number" min="0" placeholder="Stok" value="${Number(data.stok || 0) || ""}">
+      <button type="button" onclick="this.closest('.smt-varian-row').remove()" style="padding:8px 10px;">🗑</button>
+    `;
+    box.appendChild(row);
+}
+
+function renderVarianProduk(list){
+    const box = document.getElementById("daftarVarianProduk");
+    if(!box) return;
+    box.innerHTML = "";
+    (Array.isArray(list) ? list : []).forEach(v => tambahBarisVarian(v));
+}
+
+function bacaVarianProduk(){
+    const rows = Array.from(document.querySelectorAll("#daftarVarianProduk .smt-varian-row"));
+    const variants = [];
+    rows.forEach((row, i) => {
+        const nama = (row.querySelector(".varianNama")?.value || "").trim();
+        const harga = Number(row.querySelector(".varianHarga")?.value || 0);
+        const berat = Number(row.querySelector(".varianBerat")?.value || 0);
+        const stok = Number(row.querySelector(".varianStok")?.value || 0);
+        if(!nama) return;
+        if(harga <= 0){
+            throw new Error("Harga varian \"" + nama + "\" harus lebih dari 0.");
+        }
+        variants.push({
+            id: row.dataset.id || ("v" + Date.now() + "_" + i),
+            nama: nama,
+            harga: Math.round(harga),
+            berat: Math.max(0, Math.round(berat)),
+            stok: Math.max(0, Math.round(stok))
+        });
+    });
+    return variants;
+}
+
+/* Mulai dengan dua contoh baris hanya ketika belum ada varian. */
+window.addEventListener("load", function(){
+    const box = document.getElementById("daftarVarianProduk");
+    if(box && !box.children.length) {
+        // Tidak wajib memakai varian; admin dapat menambahkannya sendiri.
+    }
+});
 
 function filterPesanan(){
 
@@ -2040,6 +2142,34 @@ async function adminHapusUlasan(id){
       }; r.readAsDataURL(file);
     });
   }
+  async function fileToDataUrl(blob){
+    return new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=()=>resolve(r.result);
+      r.onerror=()=>reject(new Error("Gagal membaca gambar."));
+      r.readAsDataURL(blob);
+    });
+  }
+
+  async function uploadPostImage(blob,fileName,st){
+    // Utamakan Firebase Storage, tetapi jangan biarkan proses publikasi macet
+    // jika Storage sedang bermasalah/aturan Storage menolak upload.
+    if(st){
+      try{
+        const path="berandaPosts/"+Date.now()+"_"+fileName.replace(/[^a-zA-Z0-9._-]/g,"_");
+        const uploadTask=st.ref(path).put(blob,{contentType:"image/jpeg"});
+        const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Upload gambar ke Storage timeout")),12000));
+        const snap=await Promise.race([uploadTask,timeout]);
+        return await snap.ref.getDownloadURL();
+      }catch(storageError){
+        console.warn("Upload Storage gagal, menggunakan penyimpanan cadangan:",storageError);
+      }
+    }
+    // Cadangan: gambar terkompresi disimpan langsung pada node postingan.
+    // Ukuran gambar sudah diperkecil oleh compressImage agar aman untuk RTDB.
+    return await fileToDataUrl(blob);
+  }
+
   window.publikasikanBerandaPost=async function(){
     const db=dbAdmin(), st=storageAdmin();
     if(!db){alert("❌ Firebase belum siap. Tunggu sebentar lalu coba lagi.");return;}
@@ -2048,37 +2178,42 @@ async function adminHapusUlasan(id){
     const product=getSelectedPostProduct();
     if(!text && !file && !product){alert("Tulis kata-kata, pilih foto, atau pilih produk terlebih dahulu.");return;}
     if(file && file.size>5*1024*1024){alert("Ukuran foto maksimal 5 MB.");return;}
+
     const btn=document.querySelector('#kelolaPostingan .post-actions button:first-child');
     if(btn){btn.disabled=true;btn.textContent="⏳ Mempublikasikan...";}
-    setPostStatus("Sedang menyiapkan postingan...");
+    setPostStatus(file ? "📷 Menyiapkan gambar..." : "💾 Menyimpan postingan...");
+
     try{
       let image="";
       if(file){
         const blob=await compressImage(file);
-        if(st){
-          const path="berandaPosts/"+Date.now()+"_"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-          const snap=await st.ref(path).put(blob,{contentType:"image/jpeg"});
-          image=await snap.ref.getDownloadURL();
-        } else {
-          // Fallback agar postingan tetap bisa disimpan bila Storage belum tersedia.
-          image=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
-        }
+        setPostStatus("💾 Menyimpan postingan...");
+        image=await uploadPostImage(blob,file.name,st);
       }
-      await db.ref("berandaPosts").push({
+
+      const postData={
         text,
         image,
-        productId: product ? product.id : "",
+        productId: product ? String(product.id) : "",
         productName: product ? product.nama : "",
         createdAt:Date.now(),
         tanggal:new Date().toLocaleString("id-ID"),
         dibuatOleh:"Admin"
-      });
-      setPostStatus("✅ Postingan berhasil dipublikasikan dan akan muncul di Beranda.",true);
+      };
+
+      await db.ref("berandaPosts").push(postData);
+      setPostStatus("✅ Postingan berhasil dipublikasikan dan sudah tersimpan di Beranda.",true);
       window.resetBerandaPost();
-      setPostStatus("✅ Postingan berhasil dipublikasikan dan akan muncul di Beranda.",true);
+      setPostStatus("✅ Postingan berhasil dipublikasikan dan sudah tersimpan di Beranda.",true);
       muatPostinganAdmin();
-    }catch(e){console.error(e);setPostStatus("❌ Gagal mempublikasikan: "+(e.message||e),false);alert("❌ Gagal mempublikasikan postingan: "+(e.message||e));}
-    finally{if(btn){btn.disabled=false;btn.textContent="📤 Publikasikan";}}
+    }catch(e){
+      console.error("Gagal mempublikasikan postingan:",e);
+      const msg=e?.message||String(e);
+      setPostStatus("❌ Gagal mempublikasikan: "+msg,false);
+      alert("❌ Gagal mempublikasikan postingan:\n\n"+msg);
+    }finally{
+      if(btn){btn.disabled=false;btn.textContent="📤 Publikasikan";}
+    }
   };
   window.hapusBerandaPost=async function(id){
     const db=dbAdmin(); if(!db||!id)return;

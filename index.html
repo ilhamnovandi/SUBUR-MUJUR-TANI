@@ -2248,7 +2248,8 @@ function pmRenderProducts(){
         const harga = Math.round(hargaAsli * (1 - diskon / 100));
         const safe = JSON.stringify({
             id:id, nama:p.nama, harga:harga, hargaAsli:hargaAsli, diskon:diskon, gambar:p.gambar,
-            stok:stok, berat:Number(p.berat || 1000)
+            stok:stok, berat:Number(p.berat || 1000),
+            variants:Array.isArray(p.variants) ? p.variants : []
         }).replace(/'/g, "&apos;");
 
         const badge = diskon > 0 ? `-${diskon}%` : (stok > 0 ? "Pilihan" : "Habis");
@@ -2700,17 +2701,28 @@ async function simpanPesanan() {
             const ref = db.ref("produk/" + item.id);
             const result = await ref.transaction(function(current) {
                 if (current === null) return;
-                const stok = Number(current.stok || 0);
                 const jumlah = Number(item.jumlah || 0);
-                if (jumlah <= 0 || stok < jumlah) return;
-                current.stok = stok - jumlah;
+                if (jumlah <= 0) return;
+
+                if (item.variantId && Array.isArray(current.variants)) {
+                    const vi = current.variants.findIndex(v => String(v.id) === String(item.variantId));
+                    if (vi < 0) return;
+                    const stokVarian = Number(current.variants[vi].stok || 0);
+                    if (stokVarian < jumlah) return;
+                    current.variants[vi].stok = stokVarian - jumlah;
+                    current.stok = current.variants.reduce((sum,v) => sum + Number(v.stok || 0), 0);
+                } else {
+                    const stok = Number(current.stok || 0);
+                    if (stok < jumlah) return;
+                    current.stok = stok - jumlah;
+                }
                 return current;
             });
 
             if (!result.committed) {
                 throw new Error("Stok tidak cukup untuk produk: " + item.nama);
             }
-            changed.push({id:item.id, jumlah:Number(item.jumlah || 0)});
+            changed.push({id:item.id, variantId:item.variantId || "", jumlah:Number(item.jumlah || 0)});
         }
 
         const orderData = {
@@ -2720,6 +2732,8 @@ async function simpanPesanan() {
                 id:item.id, nama:item.nama, harga:Number(item.harga||0),
                 hargaAsli:Number(item.hargaAsli || item.harga || 0),
                 diskon:Number(item.diskon || 0),
+                variantId:item.variantId || "",
+                variantNama:item.variantNama || "",
                 jumlah:Number(item.jumlah||0), berat:Number(item.berat||0),
                 subtotal:Number(item.harga||0)*Number(item.jumlah||0)
             })),
@@ -2761,7 +2775,16 @@ async function simpanPesanan() {
         for (const c of changed) {
             try {
                 await db.ref("produk/" + c.id).transaction(function(current) {
-                    if (current) current.stok = Number(current.stok || 0) + c.jumlah;
+                    if (!current) return current;
+                    if (c.variantId && Array.isArray(current.variants)) {
+                        const vi = current.variants.findIndex(v => String(v.id) === String(c.variantId));
+                        if (vi >= 0) {
+                            current.variants[vi].stok = Number(current.variants[vi].stok || 0) + Number(c.jumlah || 0);
+                            current.stok = current.variants.reduce((sum,v) => sum + Number(v.stok || 0), 0);
+                        }
+                    } else {
+                        current.stok = Number(current.stok || 0) + Number(c.jumlah || 0);
+                    }
                     return current;
                 });
             } catch(e) { console.error("Rollback stok gagal", e); }
@@ -3027,5 +3050,284 @@ function renderHomeSocialPosts(data){
   if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",start); else start();
 })();
 </script>
+
+<!-- =========================================================
+     VARIAN PRODUK / PILIHAN HARGA & BERAT
+========================================================= -->
+<style>
+#smtVariantModal{
+  position:fixed;inset:0;background:rgba(0,0,0,.58);z-index:999999;
+  display:none;align-items:flex-end;justify-content:center;
+}
+#smtVariantModal .smt-vm-card{
+  width:min(720px,100%);max-height:88vh;overflow:auto;background:#fff;
+  border-radius:22px 22px 0 0;padding:20px;box-sizing:border-box;
+  box-shadow:0 -10px 40px rgba(0,0,0,.2);
+}
+.smt-vm-head{display:flex;justify-content:space-between;gap:15px;align-items:flex-start}
+.smt-vm-close{border:0;background:#f1f1f1;border-radius:50%;width:42px;height:42px;font-size:25px;cursor:pointer}
+.smt-vm-product{display:flex;gap:12px;align-items:center;margin:10px 0 16px}
+.smt-vm-product img{width:72px;height:72px;object-fit:cover;border-radius:12px}
+.smt-vm-option{
+  display:flex;justify-content:space-between;gap:10px;align-items:center;
+  width:100%;text-align:left;padding:14px;margin:8px 0;border:2px solid #e5e5e5;
+  background:#fff;border-radius:14px;cursor:pointer;
+}
+.smt-vm-option:hover{border-color:#268a4b;background:#f7fff8}
+.smt-vm-option .smt-v-price{font-weight:800;font-size:17px;color:#d84315}
+.smt-vm-option .smt-v-meta{font-size:13px;color:#666;margin-top:4px}
+.smt-vm-option[disabled]{opacity:.45;cursor:not-allowed}
+@media(max-width:600px){
+  #smtVariantModal .smt-vm-card{padding:16px}
+  .smt-vm-option{padding:12px}
+}
+</style>
+
+<div id="smtVariantModal" aria-hidden="true">
+  <div class="smt-vm-card">
+    <div class="smt-vm-head">
+      <div>
+        <h2 id="smtVariantTitle" style="margin:0 0 4px;">Pilih Pilihan</h2>
+        <small id="smtVariantSubtitle" style="color:#666;">Pilih ukuran/jenis yang tersedia</small>
+      </div>
+      <button type="button" class="smt-vm-close" onclick="smtCloseVariantModal()">×</button>
+    </div>
+    <div id="smtVariantProduct" class="smt-vm-product"></div>
+    <div id="smtVariantOptions"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const ORIGINAL_ADD = window.tambahKeranjang;
+  const ORIGINAL_BUY = window.beliSekarang;
+  const ORIGINAL_PLUS = window.tambahProduk;
+  const ORIGINAL_SYNC = window.finalSyncCartStock;
+
+  function smtDb(){
+    return (window.FirebaseApp && window.FirebaseApp.database) || window.database;
+  }
+  function smtEsc(v){
+    return String(v == null ? "" : v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
+  }
+  function smtVariants(p){
+    return Array.isArray(p && p.variants) ? p.variants.filter(v=>v && v.nama) : [];
+  }
+  function smtCartKey(id, variantId){
+    return String(id) + (variantId ? "::" + String(variantId) : "");
+  }
+
+  window.smtCloseVariantModal = function(){
+    const m=document.getElementById("smtVariantModal");
+    if(m){m.style.display="none";m.setAttribute("aria-hidden","true");}
+    window.smtVariantPending=null;
+  };
+
+  async function smtGetCurrent(id){
+    const db=smtDb();
+    if(!db) throw new Error("Firebase Database belum siap.");
+    const snap=await db.ref("produk").child(String(id)).once("value");
+    if(!snap.exists()) throw new Error("Produk tidak ditemukan.");
+    return snap.val();
+  }
+
+  function smtOpenVariantModal(product, mode){
+    const variants=smtVariants(product);
+    if(!variants.length) return false;
+
+    window.smtVariantPending={product:product,mode:mode};
+    const modal=document.getElementById("smtVariantModal");
+    const title=document.getElementById("smtVariantTitle");
+    const sub=document.getElementById("smtVariantSubtitle");
+    const info=document.getElementById("smtVariantProduct");
+    const options=document.getElementById("smtVariantOptions");
+
+    title.textContent=mode==="buy" ? "Pilih varian sebelum beli" : "Pilih varian";
+    sub.textContent="Harga dan berat mengikuti pilihan yang Anda pilih.";
+
+    info.innerHTML=`
+      <img src="${smtEsc(product.gambar||"")}" alt="">
+      <div><b>${smtEsc(product.nama||"Produk")}</b><br>
+      <small>Pilih salah satu pilihan di bawah</small></div>`;
+
+    options.innerHTML=variants.map((v,i)=>{
+      const stok=Number(v.stok||0), harga=Number(v.harga||0), berat=Number(v.berat||0);
+      return `<button type="button" class="smt-vm-option" ${stok<=0?"disabled":""}
+        onclick="smtPilihVarian(${i})">
+        <span><b>${smtEsc(v.nama)}</b>
+          <div class="smt-v-meta">⚖️ ${berat.toLocaleString("id-ID")} gram · Stok ${stok}</div>
+        </span>
+        <span class="smt-v-price">Rp ${harga.toLocaleString("id-ID")}</span>
+      </button>`;
+    }).join("");
+
+    modal.style.display="flex";
+    modal.setAttribute("aria-hidden","false");
+    return true;
+  }
+
+  window.smtPilihVarian=async function(index){
+    const pending=window.smtVariantPending;
+    if(!pending) return;
+    const variants=smtVariants(pending.product);
+    const v=variants[index];
+    if(!v) return;
+    smtCloseVariantModal();
+
+    if(pending.mode==="buy"){
+      const ok=await smtAddVariant(pending.product,v);
+      if(ok){
+        localStorage.setItem("smt_buy_now_key", smtCartKey(pending.product.id,v.id));
+        window.location.href="checkout.html#checkout";
+      }
+    }else{
+      await smtAddVariant(pending.product,v);
+    }
+  };
+
+  async function smtAddVariant(product, variant){
+    const db=smtDb();
+    if(!db){alert("Firebase Database belum siap. Silakan refresh halaman.");return false;}
+    try{
+      const id=String(product.id);
+      const snap=await db.ref("produk").child(id).once("value");
+      const current=snap.val();
+      const variants=Array.isArray(current && current.variants) ? current.variants : [];
+      const v=variants.find(x=>String(x.id)===String(variant.id));
+      if(!v){alert("Varian tersebut sudah tidak tersedia.");return false;}
+
+      const stok=Number(v.stok||0);
+      if(stok<=0){alert("Stok varian \""+(v.nama||"")+"\" habis.");return false;}
+
+      pastikanKeranjangArray();
+      const key=smtCartKey(id,v.id);
+      const existingIndex=keranjang.findIndex(item=>String(item.cartKey||smtCartKey(item.id,item.variantId))===key);
+
+      if(existingIndex>=0){
+        const item=keranjang[existingIndex];
+        if(Number(item.jumlah||0)>=stok){
+          alert("Jumlah melebihi stok varian tersedia ("+stok+").");
+          return false;
+        }
+        item.stok=stok;
+        item.harga=Number(v.harga||0);
+        item.hargaAsli=Number(v.harga||0);
+        item.diskon=0;
+        item.berat=Number(v.berat||0);
+        item.variantNama=v.nama||"";
+        item.jumlah=Number(item.jumlah||0)+1;
+      }else{
+        keranjang.push({
+          id:id,
+          cartKey:key,
+          variantId:String(v.id),
+          variantNama:v.nama||"",
+          nama:(current.nama||product.nama||"") + " - " + (v.nama||""),
+          harga:Number(v.harga||0),
+          hargaAsli:Number(v.harga||0),
+          diskon:0,
+          gambar:current.gambar||product.gambar||"",
+          stok:stok,
+          jumlah:1,
+          berat:Number(v.berat||0)
+        });
+      }
+      simpanKeranjang();
+      renderKeranjang();
+      if(typeof pmUpdateCartCount==="function") pmUpdateCartCount();
+      return true;
+    }catch(e){
+      console.error(e);
+      alert("Gagal menambahkan varian: "+(e.message||e));
+      return false;
+    }
+  }
+
+  window.tambahKeranjang=async function(product){
+    if(typeof product==="string"){
+      try{product=JSON.parse(product)}catch(e){alert("Data produk tidak valid.");return;}
+    }
+    if(!product || !product.id){alert("Produk tidak valid.");return;}
+    if(smtVariants(product).length){
+      smtOpenVariantModal(product,"cart");
+      return;
+    }
+    return ORIGINAL_ADD ? ORIGINAL_ADD(product) : undefined;
+  };
+
+  window.beliSekarang=async function(product){
+    if(typeof product==="string"){
+      try{product=JSON.parse(product)}catch(e){alert("Data produk tidak valid.");return;}
+    }
+    if(!product || !product.id){alert("Produk tidak valid.");return;}
+    if(smtVariants(product).length){
+      smtOpenVariantModal(product,"buy");
+      return;
+    }
+    return ORIGINAL_BUY ? ORIGINAL_BUY(product) : undefined;
+  };
+
+  window.tambahProduk=async function(index){
+    pastikanKeranjangArray();
+    const item=keranjang[index];
+    if(!item){return;}
+    if(!item.variantId){
+      return ORIGINAL_PLUS ? ORIGINAL_PLUS(index) : undefined;
+    }
+    const db=smtDb();
+    try{
+      const snap=await db.ref("produk").child(String(item.id)).once("value");
+      const p=snap.val();
+      const v=Array.isArray(p && p.variants) ? p.variants.find(x=>String(x.id)===String(item.variantId)) : null;
+      if(!v){alert("Varian sudah tidak tersedia.");return;}
+      const stok=Number(v.stok||0);
+      if(Number(item.jumlah||0)>=stok){alert("Stok varian habis.");return;}
+      item.stok=stok;
+      item.harga=Number(v.harga||0);
+      item.hargaAsli=Number(v.harga||0);
+      item.berat=Number(v.berat||0);
+      item.jumlah=Number(item.jumlah||0)+1;
+      simpanKeranjang();renderKeranjang();
+    }catch(e){alert("Gagal mengecek stok varian.");}
+  };
+
+  window.smtVariantSyncCartStock=async function(){
+    pastikanKeranjangArray();
+    const db=smtDb();
+    if(!db)return;
+    for(let i=keranjang.length-1;i>=0;i--){
+      const item=keranjang[i];
+      try{
+        const snap=await db.ref("produk").child(String(item.id)).once("value");
+        const p=snap.val();
+        if(!p){keranjang.splice(i,1);continue;}
+        if(item.variantId){
+          const v=Array.isArray(p.variants) ? p.variants.find(x=>String(x.id)===String(item.variantId)) : null;
+          if(!v || Number(v.stok||0)<=0){keranjang.splice(i,1);continue;}
+          item.stok=Number(v.stok||0);
+          item.harga=Number(v.harga||0);
+          item.hargaAsli=Number(v.harga||0);
+          item.diskon=0;
+          item.berat=Number(v.berat||0);
+          item.variantNama=v.nama||item.variantNama||"";
+          item.nama=(p.nama||item.nama||"") + " - " + item.variantNama;
+          if(item.jumlah>item.stok)item.jumlah=item.stok;
+        }
+      }catch(e){}
+    }
+    simpanKeranjang();renderKeranjang();
+  };
+
+  window.addEventListener("load",function(){
+    // Jangan mengubah produk tanpa varian. Varian lama otomatis tetap kompatibel.
+    setTimeout(window.smtVariantSyncCartStock,300);
+  });
+
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape") smtCloseVariantModal();
+  });
+})();
+</script>
+
 </body>
 </html>

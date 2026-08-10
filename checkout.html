@@ -1699,14 +1699,16 @@ function renderKeranjang() {
        Setelah dipakai, mode ini tetap dipertahankan selama halaman checkout
        aktif agar render ulang tidak memilih semua produk kembali. */
     if (!window.smtBuyNowHandled) {
+        const buyNowKey = localStorage.getItem("smt_buy_now_key");
         const buyNowId = localStorage.getItem("smt_buy_now_id");
-        if (buyNowId) {
-            const buyIndex = keranjang.findIndex(item => String(item.id) === String(buyNowId));
-            if (buyIndex >= 0) {
-                window.smtSelectedCart = [buyIndex];
-                window.smtBuyNowHandled = true;
-                localStorage.removeItem("smt_buy_now_id");
-            }
+        const buyIndex = buyNowKey
+            ? keranjang.findIndex(item => String(item.cartKey || (String(item.id) + (item.variantId ? "::" + item.variantId : ""))) === String(buyNowKey))
+            : keranjang.findIndex(item => String(item.id) === String(buyNowId));
+        if ((buyNowKey || buyNowId) && buyIndex >= 0) {
+            window.smtSelectedCart = [buyIndex];
+            window.smtBuyNowHandled = true;
+            localStorage.removeItem("smt_buy_now_key");
+            localStorage.removeItem("smt_buy_now_id");
         }
     }
     window.smtSelectedCart = Array.isArray(window.smtSelectedCart)
@@ -2699,17 +2701,28 @@ async function simpanPesanan() {
             const ref = db.ref("produk/" + item.id);
             const result = await ref.transaction(function(current) {
                 if (current === null) return;
-                const stok = Number(current.stok || 0);
                 const jumlah = Number(item.jumlah || 0);
-                if (jumlah <= 0 || stok < jumlah) return;
-                current.stok = stok - jumlah;
+                if (jumlah <= 0) return;
+
+                if (item.variantId && Array.isArray(current.variants)) {
+                    const vi = current.variants.findIndex(v => String(v.id) === String(item.variantId));
+                    if (vi < 0) return;
+                    const stokVarian = Number(current.variants[vi].stok || 0);
+                    if (stokVarian < jumlah) return;
+                    current.variants[vi].stok = stokVarian - jumlah;
+                    current.stok = current.variants.reduce((sum,v) => sum + Number(v.stok || 0), 0);
+                } else {
+                    const stok = Number(current.stok || 0);
+                    if (stok < jumlah) return;
+                    current.stok = stok - jumlah;
+                }
                 return current;
             });
 
             if (!result.committed) {
                 throw new Error("Stok tidak cukup untuk produk: " + item.nama);
             }
-            changed.push({id:item.id, jumlah:Number(item.jumlah || 0)});
+            changed.push({id:item.id, variantId:item.variantId || "", jumlah:Number(item.jumlah || 0)});
         }
 
         const orderData = {
@@ -2719,6 +2732,8 @@ async function simpanPesanan() {
                 id:item.id, nama:item.nama, harga:Number(item.harga||0),
                 hargaAsli:Number(item.hargaAsli || item.harga || 0),
                 diskon:Number(item.diskon || 0),
+                variantId:item.variantId || "",
+                variantNama:item.variantNama || "",
                 jumlah:Number(item.jumlah||0), berat:Number(item.berat||0),
                 subtotal:Number(item.harga||0)*Number(item.jumlah||0)
             })),
@@ -2760,7 +2775,16 @@ async function simpanPesanan() {
         for (const c of changed) {
             try {
                 await db.ref("produk/" + c.id).transaction(function(current) {
-                    if (current) current.stok = Number(current.stok || 0) + c.jumlah;
+                    if (!current) return current;
+                    if (c.variantId && Array.isArray(current.variants)) {
+                        const vi = current.variants.findIndex(v => String(v.id) === String(c.variantId));
+                        if (vi >= 0) {
+                            current.variants[vi].stok = Number(current.variants[vi].stok || 0) + Number(c.jumlah || 0);
+                            current.stok = current.variants.reduce((sum,v) => sum + Number(v.stok || 0), 0);
+                        }
+                    } else {
+                        current.stok = Number(current.stok || 0) + Number(c.jumlah || 0);
+                    }
                     return current;
                 });
             } catch(e) { console.error("Rollback stok gagal", e); }
@@ -3025,3 +3049,56 @@ window.addEventListener("load", function(){
 
 </body>
 </html>
+<script>
+/* Dukungan varian pada keranjang checkout */
+(function(){
+  function db(){ return (window.FirebaseApp && window.FirebaseApp.database) || window.database; }
+  const OLD_PLUS=window.tambahProduk;
+  const OLD_SYNC=window.finalSyncCartStock;
+
+  window.tambahProduk=async function(index){
+    pastikanKeranjangArray();
+    const item=keranjang[index];
+    if(!item)return;
+    if(!item.variantId){ return OLD_PLUS ? OLD_PLUS(index) : undefined; }
+    try{
+      const snap=await db().ref("produk/"+String(item.id)).once("value");
+      const p=snap.val();
+      const v=Array.isArray(p&&p.variants) ? p.variants.find(x=>String(x.id)===String(item.variantId)) : null;
+      if(!v){alert("Varian sudah tidak tersedia.");return;}
+      const stok=Number(v.stok||0);
+      if(Number(item.jumlah||0)>=stok){alert("Stok varian habis.");return;}
+      item.stok=stok;
+      item.harga=Number(v.harga||0);
+      item.hargaAsli=Number(v.harga||0);
+      item.berat=Number(v.berat||0);
+      item.jumlah=Number(item.jumlah||0)+1;
+      simpanKeranjang();renderKeranjang();
+    }catch(e){alert("Gagal mengecek stok varian.");}
+  };
+
+  window.finalSyncCartStock=async function(){
+    pastikanKeranjangArray();
+    const d=db(); if(!d)return;
+    for(let i=keranjang.length-1;i>=0;i--){
+      const item=keranjang[i];
+      if(!item.variantId)continue;
+      try{
+        const snap=await d.ref("produk/"+String(item.id)).once("value");
+        const p=snap.val();
+        const v=Array.isArray(p&&p.variants) ? p.variants.find(x=>String(x.id)===String(item.variantId)) : null;
+        if(!v || Number(v.stok||0)<=0){keranjang.splice(i,1);continue;}
+        item.stok=Number(v.stok||0);
+        item.harga=Number(v.harga||0);
+        item.hargaAsli=Number(v.harga||0);
+        item.diskon=0;
+        item.berat=Number(v.berat||0);
+        item.variantNama=v.nama||item.variantNama||"";
+        item.nama=(p.nama||item.nama||"")+" - "+item.variantNama;
+        if(item.jumlah>item.stok)item.jumlah=item.stok;
+      }catch(e){}
+    }
+    simpanKeranjang();renderKeranjang();
+  };
+})();
+</script>
