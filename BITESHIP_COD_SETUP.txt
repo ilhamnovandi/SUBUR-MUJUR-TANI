@@ -59,7 +59,7 @@ Di Integrasi > Webhook > Tambah Webhook:
 4) Alur
 
 Checkout COD -> pesanan Firebase -> Admin "Konfirmasi COD & Buat Pengiriman"
--> Netlify Function -> Biteship /v1/orders -> resi/tracking ID masuk Firebase
+-> Netlify Function -> Biteship /v1/orders -> status "Dikemas" + resi/tracking ID masuk Firebase
 -> webhook Biteship -> status pengiriman otomatis diperbarui.
 
 5) Catatan testing
@@ -69,3 +69,14 @@ Mode Testing Biteship harus tetap aktif saat pengujian. Order test tidak dipicku
 
 
 Perbaikan webhook: endpoint sekarang menerima GET dan POST kosong dengan HTTP 200 agar validasi saat membuat webhook Biteship berhasil. Request webhook nyata tetap memerlukan signature secret.
+
+
+6) Arsitektur webhook setelah perbaikan
+- /.netlify/functions/biteship-webhook = endpoint publik yang cepat.
+- GET -> 200 OK.
+- POST kosong -> 200 OK.
+- POST JSON valid untuk validasi awal -> 200 OK.
+- Webhook nyata -> signature diverifikasi, lalu diteruskan ke Background Function.
+- /.netlify/functions/biteship-webhook-background = pemrosesan Firebase.
+- Background Function memakai BITESHIP_WEBHOOK_SIGNATURE_SECRET sebagai token internal.
+- Tujuannya agar proses Firebase tidak menghambat respons endpoint Biteship.

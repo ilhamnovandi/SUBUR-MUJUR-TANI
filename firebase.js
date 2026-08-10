@@ -13,11 +13,11 @@ const firebaseConfig = {
 };
 
 if (typeof firebase === "undefined") {
-    console.error("Firebase belum dimuat.");
-} else {
-    if (firebase.apps.length === 0) {
-        firebase.initializeApp(firebaseConfig);
-    }
+    throw new Error("Firebase belum dimuat. Pastikan library Firebase dipasang sebelum firebase.js.");
+}
+
+if (firebase.apps.length === 0) {
+    firebase.initializeApp(firebaseConfig);
 }
 
 const auth = firebase.auth();

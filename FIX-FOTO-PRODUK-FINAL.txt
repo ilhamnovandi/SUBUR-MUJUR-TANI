@@ -1,0 +1,24 @@
+PERBAIKAN FOTO PRODUK - FINAL
+
+Perubahan utama:
+1. Pemilih foto produk sekarang dibuat sama seperti pemilih foto Postingan Beranda:
+   input type=file berada DI DALAM label.
+2. Ada dua pemilih:
+   - Pilih Foto Produk
+   - Tambah Foto
+   Keduanya memanggil fungsi pilihGambarProduk yang sama.
+3. Maksimal 6 foto.
+4. Preview muncul segera setelah event change dari galeri HP.
+5. Foto dapat dihapus dari preview.
+6. Upload produk mencoba Firebase Storage dengan timeout.
+7. Jika Storage gagal, sistem menggunakan data URL sebagai cadangan agar proses tetap dapat menyimpan foto.
+8. Tidak mengubah sistem produk, varian, checkout, ongkir, atau Biteship.
+
+SETELAH DEPLOY:
+- Refresh halaman Admin.
+- Jika browser masih memakai versi lama, gunakan hard refresh / hapus cache situs.
+- Buka Tambah Produk.
+- Tekan Pilih Foto Produk.
+- Pilih foto.
+- Preview harus langsung muncul.
+- Tekan Tambah Foto untuk foto berikutnya sampai maksimal 6.

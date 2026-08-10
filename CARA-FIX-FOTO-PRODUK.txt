@@ -1,0 +1,24 @@
+PERBAIKAN FOTO PRODUK - MAKSIMAL 6 FOTO
+========================================
+
+Perbaikan pada admin.html:
+1. Tombol "Pilih Foto Produk" sekarang memakai <label for="fileGambarProduk">.
+   Ini lebih stabil di browser Android dibanding overlay input transparan.
+2. Tombol "Tambah Foto" memakai input file yang sama.
+3. Maksimal 6 foto.
+4. Bisa pilih beberapa sekaligus jika HP mendukung multiple selection.
+5. Jika HP hanya memilih 1 foto, tekan "Tambah Foto" lagi.
+6. Preview muncul segera setelah foto dipilih.
+7. Setiap preview memiliki tombol X untuk menghapus.
+8. Foto pertama menjadi foto utama.
+9. Object URL preview tidak lagi langsung di-revoke sebelum gambar tampil.
+10. Upload memakai Firebase Storage dan URL-nya disimpan di Realtime Database.
+
+PENTING FIREBASE STORAGE
+========================
+File storage.rules disertakan sebagai referensi. Jika Firebase Storage kamu
+mengembalikan storage/unauthorized saat klik "Tambah Produk", buka Firebase
+Console > Storage > Rules dan pastikan pengguna admin yang login memiliki izin
+write. Aturan contoh ada di storage.rules.
+
+Jangan mengganti Realtime Database Rules hanya untuk masalah foto.
