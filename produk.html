@@ -2101,6 +2101,89 @@ function pmMatchesCategory(p){
     return /bibit|tanaman|pohon|hias|herbal/.test(text);
 }
 
+function pmProductImages(p){
+    const list = Array.isArray(p && p.gambarList) ? p.gambarList.filter(Boolean) : [];
+    if(!list.length && p && p.gambar) list.push(p.gambar);
+    return list;
+}
+
+window.smtGalleryState = {images:[], index:0, product:null};
+
+function pmRenderGallery(){
+    const st = window.smtGalleryState || {images:[],index:0,product:null};
+    const main = document.getElementById("smtPhotoMain");
+    const thumbs = document.getElementById("smtPhotoThumbs");
+    const count = document.getElementById("smtPhotoCount");
+    const pos = document.getElementById("smtPhotoPosition");
+    const name = document.getElementById("smtPhotoName");
+    if(!main || !thumbs) return;
+
+    const images = st.images || [];
+    if(!images.length){
+        main.removeAttribute("src");
+        thumbs.innerHTML="";
+        if(count) count.textContent="Tidak ada foto tambahan";
+        if(pos) pos.textContent="";
+        return;
+    }
+
+    st.index = Math.max(0, Math.min(st.index, images.length-1));
+    main.src = images[st.index];
+    if(count) count.textContent = images.length + " foto produk";
+    if(pos) pos.textContent = (st.index+1) + " / " + images.length;
+    if(name) name.textContent = st.product?.nama || "Produk";
+
+    thumbs.innerHTML = images.map((src,i)=>`
+      <button type="button" class="smt-photo-thumb ${i===st.index?'active':''}" onclick="pmGalleryGo(${i})" aria-label="Lihat foto ${i+1}">
+        <img src="${pmEscape(src)}" alt="Foto ${i+1}" loading="lazy">
+      </button>`).join("");
+}
+
+window.pmOpenGalleryById = function(id){
+    const product = pmProducts.find(p => String(p.id) === String(id));
+    if(!product) return;
+    pmOpenGallery(product);
+};
+
+window.pmOpenGallery = function(product){
+    const images = pmProductImages(product);
+    if(!images.length) return;
+    window.smtGalleryState = {images:images,index:0,product:product};
+    const modal = document.getElementById("smtPhotoModal");
+    if(!modal) return;
+    modal.style.display="flex";
+    modal.setAttribute("aria-hidden","false");
+    document.body.style.overflow="hidden";
+    pmRenderGallery();
+};
+
+window.pmCloseGallery = function(){
+    const modal=document.getElementById("smtPhotoModal");
+    if(modal){modal.style.display="none";modal.setAttribute("aria-hidden","true");}
+    document.body.style.overflow="";
+};
+
+window.pmGalleryGo = function(index){
+    if(!window.smtGalleryState || !window.smtGalleryState.images.length) return;
+    window.smtGalleryState.index = index;
+    pmRenderGallery();
+};
+
+window.pmGalleryMove = function(step){
+    const st=window.smtGalleryState;
+    if(!st || !st.images.length) return;
+    st.index=(st.index+step+st.images.length)%st.images.length;
+    pmRenderGallery();
+};
+
+document.addEventListener("keydown",function(e){
+    const modal=document.getElementById("smtPhotoModal");
+    if(!modal || modal.style.display !== "flex") return;
+    if(e.key==="Escape") pmCloseGallery();
+    if(e.key==="ArrowLeft") pmGalleryMove(-1);
+    if(e.key==="ArrowRight") pmGalleryMove(1);
+});
+
 function pmRenderProducts(){
     const container = document.getElementById("daftarProduk");
     if(!container) return;
@@ -2140,10 +2223,10 @@ function pmRenderProducts(){
         const stockText = stok > 0 ? `Stok ${stok}` : "Stok habis";
 
         container.innerHTML += `
-        <div class="produk-card pm-product-wrap" data-product-id="${pmEscape(id)}">
+        <div class="produk-card pm-product-wrap" data-product-id="${pmEscape(id)}" onclick="pmOpenGalleryById('${pmEscape(id)}')" style="cursor:pointer;">
             <span class="pm-product-badge">${badge}</span>
-            <img src="${pmEscape(p.gambar || '')}" alt="${pmEscape(p.nama || 'Produk')}" loading="lazy">
-            <h3>${pmEscape(p.nama || "Produk")}</h3>
+            <img src="${pmEscape(p.gambar || '')}" alt="${pmEscape(p.nama || 'Produk')}" loading="lazy" onclick="pmOpenGalleryById('${pmEscape(id)}')" style="cursor:zoom-in;">
+            <h3 onclick="pmOpenGalleryById('${pmEscape(id)}')" style="cursor:pointer;">${pmEscape(p.nama || "Produk")}</h3>
             <div class="pm-product-meta">
                 <p class="pm-product-price">
                     ${diskon > 0 && harga < hargaAsli ? `<span style="text-decoration:line-through;color:#888;font-size:13px;display:block;">Rp ${hargaAsli.toLocaleString("id-ID")}</span>` : ""}
@@ -2153,10 +2236,10 @@ function pmRenderProducts(){
             </div>
             <p style="margin-top:7px!important">🌿 Bibit berkualitas</p>
             <div class="pm-product-actions">
-                <button type="button" class="pm-buy-now" ${stok <= 0 ? "disabled" : ""} onclick='beliSekarang(${safe})'>
+                <button type="button" class="pm-buy-now" ${stok <= 0 ? "disabled" : ""} onclick='event.stopPropagation();beliSekarang(${safe})'>
                     ${stok > 0 ? "⚡ Beli Sekarang" : "Stok Habis"}
                 </button>
-                <button type="button" class="pm-add-cart" ${stok <= 0 ? "disabled" : ""} onclick='tambahKeranjang(${safe})'>
+                <button type="button" class="pm-add-cart" ${stok <= 0 ? "disabled" : ""} onclick='event.stopPropagation();tambahKeranjang(${safe})'>
                     ${stok > 0 ? "🛒 Masukkan Keranjang" : "Stok Habis"}
                 </button>
             </div>
@@ -2860,6 +2943,59 @@ function muatUlasan() {
 }
 document.addEventListener("DOMContentLoaded", muatUlasan);
 </script>
+
+<!-- =========================================================
+     GALERI FOTO PRODUK
+========================================================= -->
+<style>
+#smtPhotoModal{
+  position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:999998;
+  display:none;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;
+}
+#smtPhotoModal .smt-photo-card{
+  width:min(760px,100%);max-height:94vh;overflow:auto;background:#fff;border-radius:22px;
+  box-shadow:0 20px 70px rgba(0,0,0,.35);padding:16px;box-sizing:border-box;
+}
+.smt-photo-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.smt-photo-close{border:0;background:#f1f1f1;border-radius:50%;width:42px;height:42px;font-size:25px;cursor:pointer}
+.smt-photo-main-wrap{position:relative;background:#f4f6f3;border-radius:16px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:260px}
+#smtPhotoMain{width:100%;height:min(62vh,520px);object-fit:contain;display:block}
+.smt-photo-arrow{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;font-size:25px;cursor:pointer}
+.smt-photo-prev{left:10px}.smt-photo-next{right:10px}
+.smt-photo-thumbs{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 3px}
+.smt-photo-thumb{flex:0 0 70px;width:70px;height:70px;border:2px solid #e0e0e0;border-radius:10px;padding:0;background:#fff;overflow:hidden;cursor:pointer}
+.smt-photo-thumb.active{border-color:#c7a15a;box-shadow:0 0 0 2px rgba(199,161,90,.18)}
+.smt-photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.smt-photo-info{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:10px}
+@media(max-width:600px){
+  #smtPhotoModal{align-items:flex-end;padding:0}
+  #smtPhotoModal .smt-photo-card{border-radius:22px 22px 0 0;max-height:92vh;padding:12px}
+  #smtPhotoMain{height:52vh}
+  .smt-photo-thumb{flex-basis:62px;width:62px;height:62px}
+}
+</style>
+
+<div id="smtPhotoModal" aria-hidden="true">
+  <div class="smt-photo-card">
+    <div class="smt-photo-head">
+      <div>
+        <h2 id="smtPhotoTitle" style="margin:0;color:#0b3d2e;font-size:21px;">Foto Produk</h2>
+        <small id="smtPhotoCount" style="color:#777;"></small>
+      </div>
+      <button type="button" class="smt-photo-close" onclick="pmCloseGallery()">×</button>
+    </div>
+    <div class="smt-photo-main-wrap">
+      <button type="button" class="smt-photo-arrow smt-photo-prev" onclick="pmGalleryMove(-1)" aria-label="Foto sebelumnya">‹</button>
+      <img id="smtPhotoMain" src="" alt="Foto produk">
+      <button type="button" class="smt-photo-arrow smt-photo-next" onclick="pmGalleryMove(1)" aria-label="Foto berikutnya">›</button>
+    </div>
+    <div id="smtPhotoThumbs" class="smt-photo-thumbs"></div>
+    <div class="smt-photo-info">
+      <b id="smtPhotoName" style="color:#0b3d2e;"></b>
+      <span id="smtPhotoPosition" style="color:#777;font-size:13px;"></span>
+    </div>
+  </div>
+</div>
 
 <!-- =========================================================
      VARIAN PRODUK / PILIHAN HARGA & BERAT
