@@ -66,3 +66,6 @@ Checkout COD -> pesanan Firebase -> Admin "Konfirmasi COD & Buat Pengiriman"
 
 Mode Testing Biteship harus tetap aktif saat pengujian. Order test tidak dipickup kurir nyata.
 
+
+
+Perbaikan webhook: endpoint sekarang menerima GET dan POST kosong dengan HTTP 200 agar validasi saat membuat webhook Biteship berhasil. Request webhook nyata tetap memerlukan signature secret.
