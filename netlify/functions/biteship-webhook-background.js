@@ -69,7 +69,11 @@ exports.handler = async event => {
   // biteship-webhook.js so the public webhook can answer Biteship immediately.
   if (event.httpMethod !== "POST") return response(405, { success: false, message: "Method harus POST." });
 
-  const internalSecret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
+  const internalSecret = String(
+    process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET ||
+    process.env.BITESHIP_WEBHOOK_HEADER_SECRET ||
+    ""
+  ).trim();
   const receivedInternalSecret = headerValue(event.headers, "x-smt-webhook-internal");
   if (!safeEqual(receivedInternalSecret, internalSecret)) {
     return response(401, { success: false, message: "Unauthorized." });
