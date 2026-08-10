@@ -523,6 +523,18 @@ body{background:#f5f6f2}
   .pm-cart-btn{padding:8px 9px!important;border-radius:11px!important;}
   .pm-cart-label{display:none!important;}
 }
+
+/* Product purchase actions */
+.pm-product-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 17px 0}
+.pm-product-actions button{width:100%!important;margin:0!important;min-height:44px;padding:10px 8px!important;font-weight:800;border-radius:12px;line-height:1.15}
+.pm-buy-now{background:linear-gradient(135deg,#c49a45,#e0bd72)!important;color:#173d2f!important;border:1px solid rgba(23,61,47,.18)!important;box-shadow:0 7px 16px rgba(180,140,55,.16)!important}
+.pm-add-cart{background:linear-gradient(135deg,var(--forest),var(--leaf))!important;color:#fff!important}
+.pm-product-actions button:disabled{opacity:.55!important;cursor:not-allowed!important}
+@media(max-width:600px){
+ .pm-product-actions{gap:7px;margin:10px 10px 0}
+ .pm-product-actions button{min-height:42px;font-size:11px;padding:9px 5px!important}
+}
+
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -2127,7 +2139,7 @@ function pmRenderProducts(){
         const stockText = stok > 0 ? `Stok ${stok}` : "Stok habis";
 
         container.innerHTML += `
-        <div class="produk-card pm-product-wrap">
+        <div class="produk-card pm-product-wrap" data-product-id="${pmEscape(id)}">
             <span class="pm-product-badge">${badge}</span>
             <img src="${pmEscape(p.gambar || '')}" alt="${pmEscape(p.nama || 'Produk')}" loading="lazy">
             <h3>${pmEscape(p.nama || "Produk")}</h3>
@@ -2139,11 +2151,35 @@ function pmRenderProducts(){
                 <span class="pm-product-stock">${stockText}</span>
             </div>
             <p style="margin-top:7px!important">🌿 Bibit berkualitas</p>
-            <button class="pm-add" ${stok <= 0 ? "disabled style='opacity:.55;cursor:not-allowed'" : ""} onclick='tambahKeranjang(${safe})'>
-                ${stok > 0 ? "🛒 Tambah ke Keranjang" : "Stok Habis"}
-            </button>
+            <div class="pm-product-actions">
+                <button type="button" class="pm-buy-now" ${stok <= 0 ? "disabled" : ""} onclick='beliSekarang(${safe})'>
+                    ${stok > 0 ? "⚡ Beli Sekarang" : "Stok Habis"}
+                </button>
+                <button type="button" class="pm-add-cart" ${stok <= 0 ? "disabled" : ""} onclick='tambahKeranjang(${safe})'>
+                    ${stok > 0 ? "🛒 Masukkan Keranjang" : "Stok Habis"}
+                </button>
+            </div>
         </div>`;
     });
+}
+
+function pmOpenLinkedProduct(){
+    const params=new URLSearchParams(window.location.search);
+    const productId=params.get("produk");
+    if(!productId) return;
+
+    let tries=0;
+    const timer=setInterval(()=>{
+        const card=document.querySelector(`.produk-card[data-product-id="${CSS.escape(productId)}"]`);
+        if(card){
+            clearInterval(timer);
+            card.style.outline="3px solid #c7a15a";
+            card.style.boxShadow="0 0 0 6px rgba(199,161,90,.18), 0 20px 40px rgba(20,42,32,.14)";
+            card.scrollIntoView({behavior:"smooth",block:"center"});
+            setTimeout(()=>{card.style.outline="";},5000);
+        }
+        if(++tries>40) clearInterval(timer);
+    },250);
 }
 
 function loadProduk() {
@@ -2156,6 +2192,7 @@ function loadProduk() {
             });
         }
         pmRenderProducts();
+        pmOpenLinkedProduct();
     });
 }
 
@@ -2373,6 +2410,44 @@ async function tambahKeranjang(produk) {
         }
         alert(pesan);
     }
+}
+
+
+
+/* BELI SEKARANG: tambahkan satu produk, pilih hanya produk tersebut,
+   lalu buka checkout. Tidak menghapus isi keranjang yang sudah ada. */
+async function beliSekarang(produk) {
+    if (typeof produk === "string") {
+        try { produk = JSON.parse(produk); } catch(e) {
+            alert("Data produk tidak valid.");
+            return;
+        }
+    }
+    if (!produk || !produk.id) {
+        alert("Produk tidak valid.");
+        return;
+    }
+
+    pastikanKeranjangArray();
+    const id = String(produk.id);
+    const before = keranjang.find(item => String(item.id) === id);
+    const beforeQty = before ? Number(before.jumlah || 0) : 0;
+
+    try {
+        await tambahKeranjang(produk);
+    } catch(e) {
+        console.error("Beli sekarang gagal:", e);
+        return;
+    }
+
+    pastikanKeranjangArray();
+    const after = keranjang.find(item => String(item.id) === id);
+    const afterQty = after ? Number(after.jumlah || 0) : 0;
+    if (!after || afterQty <= beforeQty) return;
+
+    /* Checkout akan membaca ID ini dan hanya menandai produk yang baru dibeli. */
+    localStorage.setItem("smt_buy_now_id", id);
+    window.location.href = "checkout.html#checkout";
 }
 
 /* Plus pada keranjang: selalu cek stok terbaru */

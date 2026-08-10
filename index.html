@@ -590,6 +590,18 @@ body{background:#f5f6f2}
   .pm-cart-btn{padding:8px 9px!important;border-radius:11px!important;}
   .pm-cart-label{display:none!important;}
 }
+
+/* Product purchase actions */
+.pm-product-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:13px 17px 0}
+.pm-product-actions button{width:100%!important;margin:0!important;min-height:44px;padding:10px 8px!important;font-weight:800;border-radius:12px;line-height:1.15}
+.pm-buy-now{background:linear-gradient(135deg,#c49a45,#e0bd72)!important;color:#173d2f!important;border:1px solid rgba(23,61,47,.18)!important;box-shadow:0 7px 16px rgba(180,140,55,.16)!important}
+.pm-add-cart{background:linear-gradient(135deg,var(--forest),var(--leaf))!important;color:#fff!important}
+.pm-product-actions button:disabled{opacity:.55!important;cursor:not-allowed!important}
+@media(max-width:600px){
+ .pm-product-actions{gap:7px;margin:10px 10px 0}
+ .pm-product-actions button{min-height:42px;font-size:11px;padding:9px 5px!important}
+}
+
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -750,6 +762,8 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 .home-social-card .post-time{font-size:12px;color:#777}
 .home-social-card .post-text{padding:4px 18px 16px;white-space:pre-wrap;word-break:break-word;font-size:16px;line-height:1.55}
 .home-social-card .post-image{display:block;width:100%;max-height:620px;object-fit:cover;background:#f3f3f3}
+.home-social-product-link{display:inline-flex;align-items:center;justify-content:center;margin:0 18px 18px;padding:11px 15px;border-radius:11px;background:#c7a15a;color:#173d2f;text-decoration:none;font-weight:800;box-shadow:0 7px 16px rgba(180,140,55,.16)}
+.home-social-product-link:hover{filter:brightness(.96);transform:translateY(-1px)}
 .home-social-empty{background:#fff;border:1px dashed #ddd;border-radius:16px;padding:22px;text-align:center;color:#777}
 @media(min-width:900px){.home-social-feed{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){
@@ -2253,9 +2267,14 @@ function pmRenderProducts(){
                 <span class="pm-product-stock">${stockText}</span>
             </div>
             <p style="margin-top:7px!important">🌿 Bibit berkualitas</p>
-            <button class="pm-add" ${stok <= 0 ? "disabled style='opacity:.55;cursor:not-allowed'" : ""} onclick='tambahKeranjang(${safe})'>
-                ${stok > 0 ? "🛒 Tambah ke Keranjang" : "Stok Habis"}
-            </button>
+            <div class="pm-product-actions">
+                <button type="button" class="pm-buy-now" ${stok <= 0 ? "disabled" : ""} onclick='beliSekarang(${safe})'>
+                    ${stok > 0 ? "⚡ Beli Sekarang" : "Stok Habis"}
+                </button>
+                <button type="button" class="pm-add-cart" ${stok <= 0 ? "disabled" : ""} onclick='tambahKeranjang(${safe})'>
+                    ${stok > 0 ? "🛒 Masukkan Keranjang" : "Stok Habis"}
+                </button>
+            </div>
         </div>`;
     });
 }
@@ -2542,6 +2561,44 @@ async function tambahKeranjang(produk) {
         }
         alert(pesan);
     }
+}
+
+
+
+/* BELI SEKARANG: tambahkan satu produk, pilih hanya produk tersebut,
+   lalu buka checkout. Tidak menghapus isi keranjang yang sudah ada. */
+async function beliSekarang(produk) {
+    if (typeof produk === "string") {
+        try { produk = JSON.parse(produk); } catch(e) {
+            alert("Data produk tidak valid.");
+            return;
+        }
+    }
+    if (!produk || !produk.id) {
+        alert("Produk tidak valid.");
+        return;
+    }
+
+    pastikanKeranjangArray();
+    const id = String(produk.id);
+    const before = keranjang.find(item => String(item.id) === id);
+    const beforeQty = before ? Number(before.jumlah || 0) : 0;
+
+    try {
+        await tambahKeranjang(produk);
+    } catch(e) {
+        console.error("Beli sekarang gagal:", e);
+        return;
+    }
+
+    pastikanKeranjangArray();
+    const after = keranjang.find(item => String(item.id) === id);
+    const afterQty = after ? Number(after.jumlah || 0) : 0;
+    if (!after || afterQty <= beforeQty) return;
+
+    /* Checkout akan membaca ID ini dan hanya menandai produk yang baru dibeli. */
+    localStorage.setItem("smt_buy_now_id", id);
+    window.location.href = "checkout.html#checkout";
 }
 
 /* Plus pada keranjang: selalu cek stok terbaru */
@@ -2953,6 +3010,7 @@ function renderHomeSocialPosts(data){
       </div>
       ${p.text?`<div class="post-text">${escapeHomePost(p.text)}</div>`:""}
       ${p.image?`<img class="post-image" src="${String(p.image).replace(/"/g,'&quot;')}" alt="Postingan Subur Mujur" loading="lazy">`:""}
+      ${p.productId?`<a class="home-social-product-link" href="produk.html?produk=${encodeURIComponent(p.productId)}">🛒 ${escapeHomePost(p.productName||"Beli Produk")}</a>`:""}
     </article>`;
   }).join("");
 }

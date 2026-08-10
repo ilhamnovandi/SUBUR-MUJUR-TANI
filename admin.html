@@ -214,6 +214,19 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 }
 </style>
 
+
+<style id="admin-organizer-styles">
+.admin-section-nav{position:sticky;top:0;z-index:50;display:flex;gap:8px;flex-wrap:wrap;padding:12px;margin:0 0 18px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border:1px solid #e7e1d4;border-radius:16px;box-shadow:0 8px 24px rgba(20,42,32,.08)}
+.admin-tab{border:1px solid #d8d2c5;background:#fff;border-radius:12px;padding:11px 14px;font-weight:700;color:#214b3b;cursor:pointer;min-height:44px}
+.admin-tab.active{background:#0b3d2e;color:#fff;border-color:#0b3d2e}
+.admin-tab:hover{transform:translateY(-1px)}
+.post-live-preview{margin:16px 0;padding:14px;border:1px solid #e6dfd0;border-radius:16px;background:#f8f7f1}
+.post-live-label{font-weight:800;color:#0b3d2e;margin-bottom:10px}
+.post-live-preview .home-social-card{margin:0}
+.post-preview{max-width:100%;max-height:360px;object-fit:cover;border-radius:14px;margin-top:12px;display:none}
+@media(max-width:640px){.admin-section-nav{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.admin-section-nav::-webkit-scrollbar{display:none}.admin-tab{white-space:nowrap}.post-live-preview{padding:10px}}
+</style>
+
 </head>
 
 
@@ -237,6 +250,15 @@ SUBUR MUJUR TANI
 
 <div class="container">
 
+<div class="admin-section-nav" id="adminSectionNav">
+  <button type="button" class="admin-tab active" data-section="pesanan">📦 Pesanan Masuk</button>
+  <button type="button" class="admin-tab" data-section="status">⚙️ Status Pesanan</button>
+  <button type="button" class="admin-tab" data-section="postingan">📣 Postingan Beranda</button>
+  <button type="button" class="admin-tab" data-section="produk">🌱 Tambahkan Produk</button>
+  <button type="button" class="admin-tab" data-section="pembayaran">💳 Pembayaran Masuk</button>
+  <button type="button" class="admin-tab" data-section="voucher">🏷️ Kelola Voucher Diskon</button>
+  <button type="button" class="admin-tab" data-section="ulasan">⭐ Ulasan</button>
+</div>
 
 <div class="box">
 
@@ -557,6 +579,16 @@ async function tambahResi(id){
 
   <textarea id="postText" maxlength="2000" placeholder="Tulis sesuatu tentang Subur Mujur Tani..."></textarea>
 
+  <label style="display:block;margin:12px 0 6px;font-weight:700;color:#0b3d2e;">
+    🛒 Link Pembelian Produk <span style="font-weight:400;color:#777;">(opsional)</span>
+  </label>
+  <select id="postProductSelect" style="margin:0 0 10px;">
+    <option value="">Tidak ada link produk</option>
+  </select>
+  <small style="display:block;color:#777;margin-bottom:10px;">
+    Pilih produk agar postingan memiliki tombol pembelian yang langsung membuka produk tersebut.
+  </small>
+
   <label class="post-file">
     <span style="font-size:24px;">📷</span>
     <span><b>Tambah Foto</b><br><small>JPG, PNG atau WEBP • maksimal 5 MB</small></span>
@@ -564,6 +596,18 @@ async function tambahResi(id){
   </label>
 
   <img id="postImagePreview" class="post-preview" alt="Preview foto postingan">
+
+  <div id="postLivePreview" class="post-live-preview" style="display:none;">
+    <div class="post-live-label">👀 Preview sebelum dipublikasikan</div>
+    <article class="home-social-card" id="postLiveCard">
+      <div class="post-head">
+        <div class="post-avatar">🌱</div>
+        <div><div class="post-author">SUBUR MUJUR TANI</div><div class="post-time">Sekarang</div></div>
+      </div>
+      <div id="postLiveText" class="post-text"></div>
+      <img id="postLiveImage" class="post-image" alt="Preview postingan">
+    </article>
+  </div>
 
   <div class="post-actions">
     <button type="button" onclick="publikasikanBerandaPost()">📤 Publikasikan</button>
@@ -1911,6 +1955,199 @@ async function adminHapusUlasan(id){
 <h3>Daftar Voucher</h3>
 <div id="daftarVoucherAdmin">Memuat voucher...</div>
 </div>
+
+<script>
+/* =========================================================
+   ADMIN — POSTINGAN BERANDA + PREVIEW + NAVIGASI BAGIAN
+========================================================= */
+(function(){
+  "use strict";
+  const escAdmin = v => String(v ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+  const dbAdmin = () => window.database || (typeof database !== "undefined" ? database : null);
+  const storageAdmin = () => window.storage || (typeof storage !== "undefined" ? storage : null);
+  let previewUrl = "";
+
+  function setPostStatus(msg, ok=false){
+    const el=document.getElementById("postUploadStatus"); if(!el) return;
+    el.textContent=msg||""; el.style.color=ok?"#1b5e20":"#b3261e"; el.style.background=ok?"#edf8ee":"#fff0ee";
+  }
+  function getSelectedPostProduct(){
+    const sel=document.getElementById("postProductSelect");
+    if(!sel || !sel.value) return null;
+    const opt=sel.options[sel.selectedIndex];
+    return {id:sel.value,nama:opt?.dataset?.nama || opt?.textContent?.replace(/^🛒\\s*/,"") || ""};
+  }
+
+  function updateLivePreview(){
+    const text=(document.getElementById("postText")?.value||"").trim();
+    const img=document.getElementById("postImagePreview");
+    const live=document.getElementById("postLivePreview");
+    const lt=document.getElementById("postLiveText");
+    const li=document.getElementById("postLiveImage");
+    const product=getSelectedPostProduct();
+
+    if(lt) lt.textContent=text;
+    if(li){
+      if(img?.src && img.style.display!=="none"){ li.src=img.src; li.style.display="block"; }
+      else { li.removeAttribute("src"); li.style.display="none"; }
+    }
+
+    const oldBtn=document.getElementById("postLiveProductLink");
+    if(oldBtn) oldBtn.remove();
+
+    if(product && live){
+      const card=document.getElementById("postLiveCard");
+      if(card){
+        const a=document.createElement("a");
+        a.id="postLiveProductLink";
+        a.href="produk.html?produk="+encodeURIComponent(product.id);
+        a.textContent="🛒 Beli "+product.nama;
+        a.target="_blank";
+        a.rel="noopener";
+        a.style.cssText="display:inline-block;margin:12px 0 0;padding:10px 14px;border-radius:10px;background:#c7a15a;color:#173d2f;text-decoration:none;font-weight:800;";
+        card.appendChild(a);
+      }
+    }
+
+    if(live) live.style.display=(text || (img?.src && img.style.display!=="none") || product) ? "block" : "none";
+  }
+
+  window.previewBerandaPost=function(ev){
+    const file=ev?.target?.files?.[0];
+    const img=document.getElementById("postImagePreview");
+    if(!file){ if(img){img.removeAttribute("src");img.style.display="none";} updateLivePreview(); return; }
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type)){ alert("❌ Foto harus JPG, PNG, atau WEBP."); ev.target.value=""; return; }
+    if(file.size>5*1024*1024){ alert("❌ Ukuran foto maksimal 5 MB."); ev.target.value=""; return; }
+    const r=new FileReader();
+    r.onload=e=>{ if(img){img.src=e.target.result;img.style.display="block";} updateLivePreview(); };
+    r.readAsDataURL(file);
+  };
+  window.resetBerandaPost=function(){
+    const t=document.getElementById("postText"), f=document.getElementById("postImageFile"), img=document.getElementById("postImagePreview"), sel=document.getElementById("postProductSelect");
+    if(t)t.value=""; if(f)f.value=""; if(sel)sel.value="";
+    if(img){img.removeAttribute("src");img.style.display="none";}
+    setPostStatus(""); updateLivePreview();
+  };
+    async function compressImage(file){
+    return new Promise((resolve,reject)=>{
+      const r=new FileReader(); r.onerror=reject; r.onload=()=>{
+        const im=new Image(); im.onload=()=>{
+          const max=1400, scale=Math.min(1,max/Math.max(im.width,im.height));
+          const c=document.createElement("canvas"); c.width=Math.max(1,Math.round(im.width*scale)); c.height=Math.max(1,Math.round(im.height*scale));
+          c.getContext("2d").drawImage(im,0,0,c.width,c.height);
+          c.toBlob(b=>b?resolve(b):reject(new Error("Gagal memproses gambar.")),"image/jpeg",.82);
+        }; im.onerror=reject; im.src=r.result;
+      }; r.readAsDataURL(file);
+    });
+  }
+  window.publikasikanBerandaPost=async function(){
+    const db=dbAdmin(), st=storageAdmin();
+    if(!db){alert("❌ Firebase belum siap. Tunggu sebentar lalu coba lagi.");return;}
+    const text=(document.getElementById("postText")?.value||"").trim();
+    const file=document.getElementById("postImageFile")?.files?.[0]||null;
+    const product=getSelectedPostProduct();
+    if(!text && !file && !product){alert("Tulis kata-kata, pilih foto, atau pilih produk terlebih dahulu.");return;}
+    if(file && file.size>5*1024*1024){alert("Ukuran foto maksimal 5 MB.");return;}
+    const btn=document.querySelector('#kelolaPostingan .post-actions button:first-child');
+    if(btn){btn.disabled=true;btn.textContent="⏳ Mempublikasikan...";}
+    setPostStatus("Sedang menyiapkan postingan...");
+    try{
+      let image="";
+      if(file){
+        const blob=await compressImage(file);
+        if(st){
+          const path="berandaPosts/"+Date.now()+"_"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+          const snap=await st.ref(path).put(blob,{contentType:"image/jpeg"});
+          image=await snap.ref.getDownloadURL();
+        } else {
+          // Fallback agar postingan tetap bisa disimpan bila Storage belum tersedia.
+          image=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+        }
+      }
+      await db.ref("berandaPosts").push({
+        text,
+        image,
+        productId: product ? product.id : "",
+        productName: product ? product.nama : "",
+        createdAt:Date.now(),
+        tanggal:new Date().toLocaleString("id-ID"),
+        dibuatOleh:"Admin"
+      });
+      setPostStatus("✅ Postingan berhasil dipublikasikan dan akan muncul di Beranda.",true);
+      window.resetBerandaPost();
+      setPostStatus("✅ Postingan berhasil dipublikasikan dan akan muncul di Beranda.",true);
+      muatPostinganAdmin();
+    }catch(e){console.error(e);setPostStatus("❌ Gagal mempublikasikan: "+(e.message||e),false);alert("❌ Gagal mempublikasikan postingan: "+(e.message||e));}
+    finally{if(btn){btn.disabled=false;btn.textContent="📤 Publikasikan";}}
+  };
+  window.hapusBerandaPost=async function(id){
+    const db=dbAdmin(); if(!db||!id)return;
+    if(!confirm("Hapus postingan ini dari Beranda?"))return;
+    try{await db.ref("berandaPosts/"+id).remove();muatPostinganAdmin();}
+    catch(e){alert("❌ Gagal menghapus postingan: "+e.message);}
+  };
+  function muatPostinganAdmin(){
+    const db=dbAdmin(), box=document.getElementById("adminBerandaPosts"); if(!db||!box)return;
+    db.ref("berandaPosts").once("value").then(s=>{
+      const data=s.val()||{}; const arr=Object.entries(data).sort((a,b)=>(b[1]?.createdAt||0)-(a[1]?.createdAt||0));
+      if(!arr.length){box.innerHTML='<div style="padding:14px;color:#777">Belum ada postingan.</div>';return;}
+      box.innerHTML=arr.map(([id,p])=>`<div style="border:1px solid #e5e0d5;border-radius:14px;padding:12px;margin:10px 0;background:#fff">${p.text?`<div style="white-space:pre-wrap;line-height:1.5">${escAdmin(p.text)}</div>`:""}${p.image?`<img src="${escAdmin(p.image)}" style="width:100%;max-height:260px;object-fit:cover;border-radius:10px;margin-top:10px" loading="lazy">`:""}${p.productId?`<a href="produk.html?produk=${encodeURIComponent(p.productId)}" target="_blank" rel="noopener" style="display:inline-block;margin-top:10px;padding:9px 12px;border-radius:9px;background:#c7a15a;color:#173d2f;text-decoration:none;font-weight:800">🛒 ${escAdmin(p.productName||"Beli Produk")}</a>`:""}<small style="display:block;color:#777;margin-top:8px">${escAdmin(p.tanggal||"")}</small><button type="button" onclick="hapusBerandaPost('${id}')" style="margin-top:8px;background:#b3261e">🗑️ Hapus</button></div>`).join("");
+    }).catch(e=>{box.textContent="Gagal memuat postingan: "+e.message;});
+  }
+  function classifyBoxes(){
+    document.querySelectorAll(".container > .box").forEach(box=>{
+      const h=(box.querySelector("h2")?.textContent||"").toLowerCase();
+      let sec="other";
+      if(h.includes("pesanan masuk"))sec="pesanan";
+      else if(h.includes("status pesanan"))sec="status";
+      else if(h.includes("postingan beranda"))sec="postingan";
+      else if(h.includes("tambah produk")||h.includes("daftar produk"))sec="produk";
+      else if(h.includes("pembayaran masuk"))sec="pembayaran";
+      else if(h.includes("voucher diskon"))sec="voucher";
+      else if(h.includes("ulasan"))sec="ulasan";
+      else if(!h && box.textContent.toLowerCase().includes("keluar admin"))sec="persistent";
+      else if(!h && box.textContent.toLowerCase().includes("© 2026 subur mujur tani"))sec="persistent";
+      else if(h.includes("ringkasan"))sec="pesanan";
+      box.dataset.adminSection=sec;
+    });
+  }
+  function showSection(sec){
+    document.querySelectorAll(".container > .box").forEach(b=>{
+      const keep=b.dataset.adminSection==="persistent";
+      b.style.display=(keep || b.dataset.adminSection===sec)?"block":"none";
+    });
+    document.querySelectorAll(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.section===sec));
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function init(){
+    classifyBoxes();
+    document.querySelectorAll(".admin-tab").forEach(b=>b.addEventListener("click",()=>showSection(b.dataset.section)));
+    document.getElementById("postText")?.addEventListener("input",updateLivePreview);
+    document.getElementById("postProductSelect")?.addEventListener("change",updateLivePreview);
+
+    function muatProdukUntukPosting(){
+      const sel=document.getElementById("postProductSelect");
+      const db=dbAdmin();
+      if(!sel || !db) return;
+      const current=sel.value;
+      db.ref("produk").on("value",snap=>{
+        const data=snap.val()||{};
+        const items=Object.entries(data).sort((a,b)=>String(a[1]?.nama||"").localeCompare(String(b[1]?.nama||""),"id"));
+        sel.innerHTML='<option value="">Tidak ada link produk</option>'+items.map(([id,p])=>
+          `<option value="${escAdmin(id)}" data-nama="${escAdmin(p?.nama||"Produk")}">🛒 ${escAdmin(p?.nama||"Produk")}</option>`
+        ).join("");
+        if(items.some(([id])=>id===current)) sel.value=current;
+        updateLivePreview();
+      });
+    }
+
+    muatProdukUntukPosting();
+    muatPostinganAdmin();
+    showSection("pesanan");
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+})();
+</script>
 
 <script src="fitur-toko.js"></script>
 </body>

@@ -1695,6 +1695,20 @@ function renderKeranjang() {
 
     // Simpan status pilihan hanya untuk tampilan keranjang. Checkout lama
     // tetap memakai seluruh isi keranjang sehingga tidak mengubah alur pesanan.
+    /* Jika datang dari tombol "Beli Sekarang", pilih hanya produk itu.
+       Setelah dipakai, mode ini tetap dipertahankan selama halaman checkout
+       aktif agar render ulang tidak memilih semua produk kembali. */
+    if (!window.smtBuyNowHandled) {
+        const buyNowId = localStorage.getItem("smt_buy_now_id");
+        if (buyNowId) {
+            const buyIndex = keranjang.findIndex(item => String(item.id) === String(buyNowId));
+            if (buyIndex >= 0) {
+                window.smtSelectedCart = [buyIndex];
+                window.smtBuyNowHandled = true;
+                localStorage.removeItem("smt_buy_now_id");
+            }
+        }
+    }
     window.smtSelectedCart = Array.isArray(window.smtSelectedCart)
         ? window.smtSelectedCart.filter(i => i >= 0 && i < keranjang.length)
         : keranjang.map((_, i) => i);
@@ -2908,7 +2922,7 @@ function cetakInvoice(data) {
         "<div class='actions'><button onclick='window.print()'>🖨️ Cetak / Simpan PDF</button></div>" +
         "</main>" +
         "" +
-        "</body></html>";
+        "</html>";
 
     const blob = new Blob([invoiceHtml], {type:"text/html;charset=utf-8"});
     const url = URL.createObjectURL(blob);
@@ -2999,5 +3013,15 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
 </section>
 
 <script src="fitur-toko.js"></script>
+<script>
+window.addEventListener("load", function(){
+    if (window.location.hash === "#checkout") {
+        setTimeout(function(){
+            document.getElementById("checkout")?.scrollIntoView({behavior:"smooth", block:"start"});
+        }, 250);
+    }
+});
+</script>
+
 </body>
 </html>
