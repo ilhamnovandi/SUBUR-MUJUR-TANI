@@ -146,6 +146,11 @@ color:#1b5e20;
 
 
 
+
+.status-select{width:100%;margin:8px 0;padding:10px;border:1px solid #d8d8d8;border-radius:9px;background:#fff;font-size:14px;}
+.status-tools{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-top:8px;}
+.status-tools button{width:auto;margin:0;padding:10px 14px;}
+.status-badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#f2ead6;color:#6b5422;font-weight:800;font-size:12px;}
 </style>
 
 </head>
@@ -188,6 +193,17 @@ Memuat data pesanan...
 </div>
 
 
+</div>
+
+<div class="box" id="statusPanduanAdmin">
+<h2>⚙️ Status Pesanan</h2>
+<p style="margin:0 0 10px;color:#666;">Status yang bisa dipilih admin dan akan tampil di menu <b>Pesanan Saya</b> pelanggan:</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;">
+  <div style="padding:12px;border:1px solid #eee;border-radius:10px;">💳 <b>Belum Bayar</b><br><small>Menunggu pembayaran</small></div>
+  <div style="padding:12px;border:1px solid #eee;border-radius:10px;">📦 <b>Dikemas</b><br><small>Pesanan diproses</small></div>
+  <div style="padding:12px;border:1px solid #eee;border-radius:10px;">🚚 <b>Dikirim</b><br><small>Pesanan dikirim</small></div>
+  <div style="padding:12px;border:1px solid #eee;border-radius:10px;">⭐ <b>Beri Penilaian</b><br><small>Pesanan selesai</small></div>
+</div>
 </div>
 <!-- FIREBASE -->
 
@@ -321,17 +337,19 @@ hasil += `
 
 <p><b>Total:</b> Rp ${data[id].total}</p>
 
-<p><b>Status:</b> ${data[id].status}</p>
+<p><b>Status:</b> <span class="status-badge">${data[id].status || "Menunggu Pembayaran"}</span></p>
 
-<br>
-
-<button onclick="verifikasiBayar('${id}')">
-✅ Konfirmasi Lunas
-</button>
-
-<button onclick="ubahStatus('${id}')">
-📝 Ubah Status
-</button>
+<label for="status-${id}"><b>Atur status pesanan</b></label>
+<select class="status-select" id="status-${id}">
+  <option value="Belum Bayar" ${data[id].status === "Belum Bayar" || data[id].status === "Menunggu Pembayaran" ? "selected" : ""}>💳 Belum Bayar</option>
+  <option value="Dikemas" ${data[id].status === "Dikemas" || data[id].status === "Diproses" || data[id].status === "Lunas" ? "selected" : ""}>📦 Dikemas</option>
+  <option value="Dikirim" ${data[id].status === "Dikirim" ? "selected" : ""}>🚚 Dikirim</option>
+  <option value="Beri Penilaian" ${data[id].status === "Beri Penilaian" || data[id].status === "Selesai" ? "selected" : ""}>⭐ Beri Penilaian</option>
+</select>
+<div class="status-tools">
+  <button onclick="ubahStatus('${id}', document.getElementById('status-${id}').value)">📝 Simpan Status</button>
+  <button onclick="verifikasiBayar('${id}')">✅ Lunas</button>
+</div>
 
 <button onclick="tambahResi('${id}')">
 🚚 Tambah Resi
@@ -377,9 +395,10 @@ document.getElementById(
 ========================= */
 
 
-async function ubahStatus(id){
-    const status = prompt("Masukkan status pesanan:\n\nMenunggu Pembayaran\nDiproses\nDikirim\nSelesai");
-    if(!status) return;
+async function ubahStatus(id, selectedStatus){
+    const allowed = ["Belum Bayar","Dikemas","Dikirim","Beri Penilaian"];
+    const status = allowed.includes(selectedStatus) ? selectedStatus : null;
+    if(!status) return alert("Pilih status pesanan terlebih dahulu.");
 
     try {
         const ref = database.ref("pesanan/" + id);
@@ -389,6 +408,7 @@ async function ubahStatus(id){
 
         await ref.update({
             status: status,
+            statusKategori: status,
             statusTerakhirDiperbarui: new Date().toLocaleString("id-ID")
         });
 
@@ -403,6 +423,7 @@ async function ubahStatus(id){
                 nama: order.nama || "",
                 total: Number(order.total || 0),
                 status: status,
+                statusKategori: status,
                 resi: order.resi || track.resi || "",
                 whatsappLast4: String(order.whatsapp || "").replace(/\D/g, "").slice(-4),
                 updatedAt: new Date().toLocaleString("id-ID"),
@@ -969,7 +990,8 @@ async function verifikasiBayar(id){
         if (!order) { alert("Pesanan tidak ditemukan."); return; }
 
         await orderRef.update({
-            status: "Lunas",
+            status: "Dikemas",
+            statusKategori: "Dikemas",
             statusPembayaran: "Lunas",
             dikonfirmasiPada: new Date().toLocaleString("id-ID")
         });
@@ -979,12 +1001,13 @@ async function verifikasiBayar(id){
             const trackSnap = await trackRef.once("value");
             const track = trackSnap.val() || {};
             const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
-            history.push({status:"Lunas", waktu:new Date().toLocaleString("id-ID")});
+            history.push({status:"Dikemas", waktu:new Date().toLocaleString("id-ID")});
             await trackRef.update({
                 invoice: order.invoice,
                 nama: order.nama || "",
                 total: Number(order.total || 0),
-                status: "Lunas",
+                status: "Dikemas",
+                statusKategori: "Dikemas",
                 resi: order.resi || "",
                 whatsappLast4: String(order.whatsapp || "").replace(/\D/g, "").slice(-4),
                 updatedAt: new Date().toLocaleString("id-ID"),
