@@ -128,7 +128,9 @@ exports.handler = async event => {
       duration:s.duration || (s.shipment_duration_range ? `${s.shipment_duration_range} ${s.shipment_duration_unit || ""}`.trim() : "-"),
       description:s.description || "",
       shipping_type:s.shipping_type || "parcel",
-      service_type:s.service_type || ""
+      service_type:s.service_type || "",
+      available_for_cash_on_delivery: s.available_for_cash_on_delivery === true,
+      cash_on_delivery_fee: Number(s.cash_on_delivery_fee || 0)
     })) : [];
 
     return { statusCode:200, headers, body:JSON.stringify({ success:true, pricing, origin:data.origin, destination:data.destination, biteship_code:data.code || null }) };
