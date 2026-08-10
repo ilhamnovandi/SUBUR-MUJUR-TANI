@@ -2866,46 +2866,7 @@ function cetakInvoice(data) {
         "<div class='actions'><button onclick='window.print()'>🖨️ Cetak / Simpan PDF</button></div>" +
         "</main>" +
         "" +
-        "
-<script>
-/* =========================
-   FEED POSTINGAN BERANDA
-========================= */
-function escapeHomePost(s){
-  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
-}
-function renderHomeSocialPosts(data){
-  const el=document.getElementById("homeSocialFeed");
-  if(!el) return;
-  if(!data){el.innerHTML='<div class="home-social-empty">Belum ada kabar terbaru dari Subur Mujur.</div>';return;}
-  const arr=Object.entries(data).sort((a,b)=>(b[1]?.createdAt||0)-(a[1]?.createdAt||0));
-  el.innerHTML=arr.map(([id,p])=>{
-    const date=p.createdAt?new Date(p.createdAt).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
-    return `<article class="home-social-card">
-      <div class="post-head">
-        <div class="post-avatar">🌱</div>
-        <div><div class="post-author">SUBUR MUJUR TANI</div><div class="post-time">${date}</div></div>
-      </div>
-      ${p.text?`<div class="post-text">${escapeHomePost(p.text)}</div>`:""}
-      ${p.image?`<img class="post-image" src="${String(p.image).replace(/"/g,'&quot;')}" alt="Postingan Subur Mujur" loading="lazy">`:""}
-    </article>`;
-  }).join("");
-}
-(function initHomeSocialPosts(){
-  function start(){
-    const db=window.database || (typeof database!=="undefined"?database:null);
-    if(!db) return setTimeout(start,300);
-    db.ref("berandaPosts").on("value",snap=>renderHomeSocialPosts(snap.val()),err=>{
-      console.error("Gagal memuat postingan:",err);
-      const el=document.getElementById("homeSocialFeed");
-      if(el) el.innerHTML='<div class="home-social-empty">Postingan belum dapat dimuat.</div>';
-    });
-  }
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",start); else start();
-})();
-</script>
-
-</body></html>";
+        "</body></html>";
 
     const blob = new Blob([invoiceHtml], {type:"text/html;charset=utf-8"});
     const url = URL.createObjectURL(blob);
@@ -2969,6 +2930,44 @@ function muatUlasan() {
     });
 }
 document.addEventListener("DOMContentLoaded", muatUlasan);
+</script>
+
+<script>
+/* =========================
+   FEED POSTINGAN BERANDA
+========================= */
+function escapeHomePost(s){
+  return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+}
+function renderHomeSocialPosts(data){
+  const el=document.getElementById("homeSocialFeed");
+  if(!el) return;
+  if(!data){el.innerHTML='<div class="home-social-empty">Belum ada kabar terbaru dari Subur Mujur.</div>';return;}
+  const arr=Object.entries(data).sort((a,b)=>(b[1]?.createdAt||0)-(a[1]?.createdAt||0));
+  el.innerHTML=arr.map(([id,p])=>{
+    const date=p.createdAt?new Date(p.createdAt).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+    return `<article class="home-social-card">
+      <div class="post-head">
+        <div class="post-avatar">🌱</div>
+        <div><div class="post-author">SUBUR MUJUR TANI</div><div class="post-time">${date}</div></div>
+      </div>
+      ${p.text?`<div class="post-text">${escapeHomePost(p.text)}</div>`:""}
+      ${p.image?`<img class="post-image" src="${String(p.image).replace(/"/g,'&quot;')}" alt="Postingan Subur Mujur" loading="lazy">`:""}
+    </article>`;
+  }).join("");
+}
+(function initHomeSocialPosts(){
+  function start(){
+    const db=window.database || (typeof database!=="undefined"?database:null);
+    if(!db) return setTimeout(start,300);
+    db.ref("berandaPosts").on("value",snap=>renderHomeSocialPosts(snap.val()),err=>{
+      console.error("Gagal memuat postingan:",err);
+      const el=document.getElementById("homeSocialFeed");
+      if(el) el.innerHTML='<div class="home-social-empty">Postingan belum dapat dimuat.</div>';
+    });
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",start); else start();
+})();
 </script>
 </body>
 </html>
