@@ -418,21 +418,25 @@ hasil += `
 
 <p><b>WhatsApp:</b> ${data[id].whatsapp}</p>
 
-<p><b>Total:</b> Rp ${data[id].total}</p>
+<p><b>Total:</b> Rp ${Number(data[id].total || 0).toLocaleString("id-ID")}</p>
+
+<p><b>Metode Pembayaran:</b> ${data[id].metodePembayaran === "COD" ? "🤝 COD — Bayar di Tempat" : (data[id].metodePembayaran || "-")}</p>
 
 <p><b>Status:</b> <span class="status-badge">${data[id].status || "Menunggu Pembayaran"}</span></p>
 
 <label for="status-${id}"><b>Atur status pesanan</b></label>
 <select class="status-select" id="status-${id}">
   <option value="Belum Bayar" ${data[id].status === "Belum Bayar" || data[id].status === "Menunggu Pembayaran" ? "selected" : ""}>💳 Belum Bayar</option>
+  <option value="Menunggu Konfirmasi COD" ${data[id].status === "Menunggu Konfirmasi COD" ? "selected" : ""}>🤝 Menunggu Konfirmasi COD</option>
   <option value="Dikemas" ${data[id].status === "Dikemas" || data[id].status === "Diproses" || data[id].status === "Lunas" ? "selected" : ""}>📦 Dikemas</option>
   <option value="Dikirim" ${data[id].status === "Dikirim" ? "selected" : ""}>🚚 Dikirim</option>
   <option value="Beri Penilaian" ${data[id].status === "Beri Penilaian" || data[id].status === "Selesai" ? "selected" : ""}>⭐ Beri Penilaian</option>
 </select>
 <div class="status-tools">
   <button onclick="ubahStatus('${id}', document.getElementById('status-${id}').value)">📝 Simpan Status</button>
-  <button onclick="verifikasiBayar('${id}')">✅ Lunas</button>
+  ${data[id].metodePembayaran === "COD" ? `<button onclick="konfirmasiCOD('${id}')">🚚 Konfirmasi COD & Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Dibayar</button>` : `<button onclick="verifikasiBayar('${id}')">✅ Lunas</button>`}
 </div>
+${data[id].metodePembayaran === "COD" ? `<div style="margin-top:10px;padding:10px;background:#f7fbf8;border:1px solid #dfeee4;border-radius:10px;"><b>COD:</b> Rp ${Number(data[id].total || 0).toLocaleString("id-ID")}<br><b>Kurir:</b> ${data[id].biteshipCourier || data[id].kurir || "-"}<br><b>Resi:</b> ${data[id].resi || "Belum dibuat"}<br><b>Status pengiriman:</b> ${data[id].statusPengiriman || "Belum dibuat"}</div>` : ""}
 
 <button onclick="tambahResi('${id}')">
 🚚 Tambah Resi
@@ -1070,20 +1074,17 @@ Rp ${data[id].total}
 
 
 <p>
+<b>Metode:</b> ${data[id].metodePembayaran || "-"}
+</p>
 
+<p>
 <b>Status:</b>
 
 ${data[id].status}
 
 </p>
 
-
-
-<button onclick="verifikasiBayar('${id}')">
-
-Konfirmasi Lunas
-
-</button>
+${data[id].tipe === "COD" || data[id].metodePembayaran === "COD" ? `<button onclick="konfirmasiCOD('${id}')">🚚 Konfirmasi COD & Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Dibayar</button>` : `<button onclick="verifikasiBayar('${id}')">Konfirmasi Lunas</button>`}
 
 
 
@@ -1129,6 +1130,68 @@ document.getElementById(
    VERIFIKASI PEMBAYARAN
 ========================= */
 
+
+async function buatPengirimanCOD(id){
+    try {
+        const user = firebase.auth().currentUser;
+        if(!user) return alert("Sesi admin sudah habis. Silakan login ulang.");
+
+        const snap = await database.ref("pesanan/" + id).once("value");
+        const order = snap.val();
+        if(!order) return alert("Pesanan tidak ditemukan.");
+        if(String(order.metodePembayaran || "").toUpperCase() !== "COD") return alert("Pesanan ini bukan COD.");
+        if(order.biteshipOrderId || order.resi) return alert("Pesanan ini sudah memiliki order Biteship/resi.");
+        if(!order.kurirKode || !order.layananKode) return alert("Kode kurir/layanan belum tersedia. Minta pembeli memilih layanan ongkir lalu buat pesanan COD kembali.");
+
+        if(!confirm("Konfirmasi COD dan buat order pengiriman resmi ke Biteship sekarang?")) return;
+
+        const button = Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("onclick") === `konfirmasiCOD('${id}')`);
+        if(button){ button.disabled = true; button.dataset.oldText = button.innerHTML; button.innerHTML = "⏳ Membuat pengiriman..."; }
+
+        const idToken = await user.getIdToken(true);
+        const res = await fetch("/.netlify/functions/create-biteship-order", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({orderId:id,idToken})
+        });
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch(e) { throw new Error("Server mengirim respons yang bukan JSON."); }
+        if(!res.ok || data.success === false) throw new Error(data.message || `Gagal membuat pengiriman (HTTP ${res.status}).`);
+
+        alert("✅ Order COD Biteship berhasil dibuat.\n\nResi: " + (data.waybill_id || "Belum terbit") + "\nKurir: " + (data.courier_company || order.kurirKode));
+    } catch(error) {
+        console.error("Buat order COD:", error);
+        alert("❌ Gagal membuat pengiriman COD: " + (error.message || error));
+    } finally {
+        const button = Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("onclick") === `konfirmasiCOD('${id}')`);
+        if(button){ button.disabled = false; button.innerHTML = button.dataset.oldText || "🚚 Konfirmasi COD & Buat Pengiriman"; }
+    }
+}
+
+async function konfirmasiCOD(id){
+    return buatPengirimanCOD(id);
+}
+
+
+
+async function tandaiCODLunas(id){
+    if(!confirm("Apakah uang COD sudah diterima dari pembeli?")) return;
+    try {
+        const orderRef = database.ref("pesanan/" + id);
+        const snap = await orderRef.once("value");
+        const order = snap.val();
+        if(!order) { alert("Pesanan tidak ditemukan."); return; }
+        if(order.metodePembayaran !== "COD") { alert("Pesanan ini bukan COD."); return; }
+        const waktu = new Date().toLocaleString("id-ID");
+        await orderRef.update({statusPembayaran:"Lunas (COD)", codDibayarPada:waktu});
+        await database.ref("pembayaran/" + id).update({status:"Lunas (COD)", dikonfirmasiPada:waktu});
+        alert("✅ Pembayaran COD ditandai sudah diterima.");
+    } catch(error) {
+        console.error(error);
+        alert("❌ Gagal memperbarui pembayaran COD: " + error.message);
+    }
+}
 
 async function verifikasiBayar(id){
     try {

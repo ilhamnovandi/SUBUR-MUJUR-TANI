@@ -1055,12 +1055,17 @@ Rp
 <div class="box">
 <h2>💳 Pembayaran</h2>
 <p style="color:#666;margin-top:-5px;">
-Klik <b>Pembayaran</b> untuk melihat semua bank. Setelah itu pilih bank untuk melihat nomor rekening dan QRIS.
+Pilih metode pembayaran. Untuk COD, pembayaran dilakukan saat barang diterima.
 </p>
 <!-- Bank yang dipilih disimpan untuk pesanan -->
 <input id="metodePembayaran" type="hidden" value=""/>
+<div id="metodePembayaranTerpilih" class="payment-selected-note">Belum memilih metode pembayaran.</div>
+<button class="cod-payment-card" id="codPaymentCard" onclick="pilihMetodeCOD()" type="button">
+  <span><b>🤝 COD — Bayar di Tempat</b><small>Pesanan COD akan dibuat ke ekspedisi setelah dikonfirmasi admin. Bayar kepada kurir saat diterima.</small></span>
+  <span class="cod-check" id="codCheck">○</span>
+</button>
 <button class="payment-main-toggle" onclick="toggleDaftarBank()" type="button">
-<span>💳 Pembayaran</span><span class="payment-main-arrow" id="payment-main-arrow">⌄</span>
+<span>💳 Transfer Bank / E-Wallet / QRIS</span><span class="payment-main-arrow" id="payment-main-arrow">⌄</span>
 </button>
 <!-- =========================
      PENGATURAN PEMBAYARAN
@@ -1209,6 +1214,60 @@ const DATA_PEMBAYARAN = {
 </div>
 </section>
 <style>
+.payment-selected-note {
+    margin: 10px 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #f5f5f5;
+    color: #666;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cod-payment-card {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    text-align: left;
+    border: 2px solid #d9d9d9;
+    background: #fff;
+    color: #222;
+    padding: 15px 16px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-sizing: border-box;
+    margin: 8px 0;
+}
+
+.cod-payment-card:hover { background: #f7faf7; }
+.cod-payment-card.selected {
+    border-color: #2e7d32;
+    background: #eef8ef;
+}
+
+.cod-payment-card span:first-child {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cod-payment-card small {
+    color: #666;
+    font-weight: 500;
+}
+
+.cod-check {
+    font-size: 25px;
+    color: #777;
+    flex: 0 0 auto;
+}
+
+.cod-payment-card.selected .cod-check {
+    color: #2e7d32;
+}
+
 .payment-bank-list {
     display: none;
     margin-top: 8px;
@@ -1375,6 +1434,43 @@ const DATA_PEMBAYARAN = {
     });
 })();
 
+function smtTerapkanBiayaCOD() {
+    const shipping = window.smtSelectedShipping;
+    if (!shipping) return;
+    const metode = document.getElementById("metodePembayaran")?.value || "";
+    const base = Number(shipping.price || 0);
+    const codFee = Number(shipping.codFee || 0);
+    ongkir = Math.max(0, base + (metode === "COD" ? codFee : 0));
+    localStorage.setItem("smt_ongkir", String(ongkir));
+    updateTotalBayar();
+}
+
+function updateMetodePembayaranUI() {
+    const metode = document.getElementById("metodePembayaran")?.value || "";
+    const note = document.getElementById("metodePembayaranTerpilih");
+    const cod = document.getElementById("codPaymentCard");
+    const check = document.getElementById("codCheck");
+    if (note) {
+        note.textContent = metode ? "Metode pembayaran: " + metode : "Belum memilih metode pembayaran.";
+    }
+    if (cod) cod.classList.toggle("selected", metode === "COD");
+    if (check) check.textContent = metode === "COD" ? "✓" : "○";
+}
+
+function pilihMetodeCOD() {
+    const metodeEl = document.getElementById("metodePembayaran");
+    if (!metodeEl) return;
+    metodeEl.value = "COD";
+    document.querySelectorAll(".payment-content").forEach(function(el){ el.classList.remove("open"); });
+    document.querySelectorAll(".payment-arrow").forEach(function(el){ el.classList.remove("open"); });
+    const list = document.getElementById("payment-bank-list");
+    const mainArrow = document.getElementById("payment-main-arrow");
+    if (list) list.classList.remove("open");
+    if (mainArrow) mainArrow.classList.remove("open");
+    updateMetodePembayaranUI();
+    smtTerapkanBiayaCOD();
+}
+
 function toggleDaftarBank() {
     const list = document.getElementById("payment-bank-list");
     const arrow = document.getElementById("payment-main-arrow");
@@ -1406,9 +1502,14 @@ function togglePembayaran(metode) {
         const metodeEl = document.getElementById("metodePembayaran");
         if (metodeEl && selected) {
             metodeEl.value = selected.bank;
+            updateMetodePembayaranUI();
+            smtTerapkanBiayaCOD();
         }
     }
 }
+
+updateMetodePembayaranUI();
+smtTerapkanBiayaCOD();
 </script>
 <!-- =========================
      CEK RESI
@@ -1682,6 +1783,7 @@ simpanKeranjang();
 // BITESHIP_ORIGIN_POSTAL_CODE diatur di Netlify Environment Variable.
 // BITESHIP_API_KEY juga disimpan di Netlify, bukan di file ini.
 var ongkir = angkaUang(localStorage.getItem("smt_ongkir") || 0);
+try { window.smtSelectedShipping = JSON.parse(localStorage.getItem("smt_selected_shipping") || "null"); } catch(e) { window.smtSelectedShipping = null; }
 window.daftarLayanan = [];
 
 // ==========================
@@ -2168,6 +2270,8 @@ document.getElementById("kurirOngkir")
     // tombol Hitung Ongkir.
     daftarLayanan = [];
     ongkir = 0;
+    window.smtSelectedShipping = null;
+    localStorage.removeItem("smt_selected_shipping");
     localStorage.setItem("smt_ongkir", "0");
 
     document.getElementById("layananOngkir").innerHTML =
@@ -2203,6 +2307,7 @@ function isiLayanan() {
                 ${item.courier_name} - ${item.courier_service_name}
                 | Rp ${harga.toLocaleString("id-ID")}
                 | ${estimasi}
+                ${item.available_for_cash_on_delivery ? "| COD ✓" : ""}
             </option>
         `;
     });
@@ -2227,6 +2332,17 @@ document.getElementById("layananOngkir")
 
     ongkir = angkaUang(data.price || data.shipping_fee || 0);
     localStorage.setItem("smt_ongkir", String(ongkir));
+    window.smtSelectedShipping = {
+        courierCode: String(data.courier_code || data.company || document.getElementById("kurirOngkir")?.value || "").toLowerCase(),
+        serviceCode: String(data.courier_service_code || data.type || ""),
+        serviceName: String(data.courier_service_name || ""),
+        availableForCOD: data.available_for_cash_on_delivery === true,
+        codFee: Number(data.cash_on_delivery_fee || 0),
+        price: ongkir,
+        duration: String(data.duration || "")
+    };
+    localStorage.setItem("smt_selected_shipping", JSON.stringify(window.smtSelectedShipping));
+    smtTerapkanBiayaCOD();
 
     document.getElementById("ongkir").innerHTML =
         "Rp " + ongkir.toLocaleString("id-ID");
@@ -2250,6 +2366,8 @@ document.getElementById("kodePos")
 .addEventListener("input", function () {
     daftarLayanan = [];
     ongkir = 0;
+    window.smtSelectedShipping = null;
+    localStorage.removeItem("smt_selected_shipping");
     localStorage.setItem("smt_ongkir", "0");
 
     document.getElementById("layananOngkir").innerHTML =
@@ -2686,6 +2804,23 @@ async function simpanPesanan() {
         return;
     }
 
+    if (!document.getElementById("layananOngkir")?.value) {
+        alert("Pilih layanan pengiriman terlebih dahulu.");
+        return;
+    }
+
+    if (metode === "COD") {
+        const selectedShipping = window.smtSelectedShipping;
+        if (!selectedShipping?.courierCode || !selectedShipping?.serviceCode) {
+            alert("Kode layanan COD belum tersedia. Silakan hitung ongkir dan pilih layanan lagi.");
+            return;
+        }
+        if (selectedShipping.availableForCOD !== true) {
+            alert("Layanan pengiriman yang dipilih tidak mendukung COD. Silakan pilih layanan yang bertanda 'COD ✓'.");
+            return;
+        }
+    }
+
     finalOrderProcessing = true;
     const btn = Array.from(document.querySelectorAll("button")).find(b => b.textContent.includes("Simpan Pesanan"));
     if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Menyimpan..."; }
@@ -2741,9 +2876,14 @@ async function simpanPesanan() {
             ongkir: totals.ongkir,
             total: totals.total,
             metodePembayaran: metode,
+            tipePembayaran: metode === "COD" ? "COD" : "NON_COD",
+            statusPembayaran: metode === "COD" ? "COD - Belum Dibayar" : "Menunggu Pembayaran",
             kurir: document.getElementById("kurirOngkir")?.value || "",
+            kurirKode: String(window.smtSelectedShipping?.courierCode || document.getElementById("kurirOngkir")?.value || "").toLowerCase(),
             layananPengiriman: document.getElementById("layananOngkir")?.selectedOptions?.[0]?.textContent?.trim() || "",
-            status: "Menunggu Pembayaran",
+            layananKode: String(window.smtSelectedShipping?.serviceCode || ""),
+            layananNama: String(window.smtSelectedShipping?.serviceName || document.getElementById("layananOngkir")?.selectedOptions?.[0]?.textContent?.trim() || ""),
+            status: metode === "COD" ? "Menunggu Konfirmasi COD" : "Menunggu Pembayaran",
             tanggal: new Date().toLocaleString("id-ID"),
             waktu: Date.now()
         };
@@ -2754,7 +2894,8 @@ async function simpanPesanan() {
             whatsapp: orderData.whatsapp,
             total: orderData.total,
             metodePembayaran: orderData.metodePembayaran,
-            status: "Menunggu",
+            status: metode === "COD" ? "Menunggu Pembayaran COD" : "Menunggu",
+            tipe: metode === "COD" ? "COD" : "NON_COD",
             waktu: orderData.waktu
         });
 

@@ -27,3 +27,12 @@ FITUR TAMBAHAN SUBUR MUJUR TANI
    - Nomor resi dan status tampil di tracking.
 
 Jangan menghapus netlify/functions atau netlify.toml.
+
+FITUR COD (10 Agustus 2026)
+- Checkout memiliki pilihan pembayaran COD / Bayar di Tempat.
+- COD tidak memerlukan pemilihan rekening atau QRIS.
+- Pesanan COD disimpan dengan status Menunggu Konfirmasi COD.
+- Admin dapat Konfirmasi COD untuk memindahkan pesanan ke Dikemas.
+- Admin dapat menandai COD sudah dibayar setelah uang diterima.
+- Pembayaran COD dicatat terpisah sebagai COD - Belum Dibayar / COD - Menunggu Penagihan / Lunas (COD).
+- Fitur COD tetap kompatibel dengan varian produk, berat varian, stok, galeri foto, ongkir, dan keranjang.

@@ -1,0 +1,68 @@
+SUBUR MUJUR TANI — Biteship COD Testing
+
+1) Netlify Environment Variables
+
+BITESHIP_API_KEY
+Value: API KEY TESTING Biteship milik Anda
+Jangan taruh API key di HTML/JS/GitHub.
+
+BITESHIP_ORIGIN_POSTAL_CODE
+Value: kode pos alamat pickup toko (contoh yang sebelumnya digunakan: 45652)
+
+BITESHIP_ORIGIN_CONTACT_NAME
+Value: nama kontak pickup toko
+
+BITESHIP_ORIGIN_CONTACT_PHONE
+Value: nomor WhatsApp/telepon pickup toko
+
+BITESHIP_ORIGIN_ADDRESS
+Value: alamat lengkap pickup toko
+
+BITESHIP_ORIGIN_ORGANIZATION
+Value: Subur Mujur Tani
+
+BITESHIP_COD_TYPE
+Value: 7_days
+Pilihan Biteship: 3_days, 5_days, 7_days
+
+FIREBASE_SERVICE_ACCOUNT_JSON
+Value: seluruh isi JSON Service Account Firebase.
+Ini diperlukan agar webhook Biteship dapat menulis status otomatis ke Firebase.
+JANGAN masukkan file JSON ini ke GitHub.
+
+FIREBASE_DATABASE_URL
+Value: https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app
+
+BITESHIP_WEBHOOK_SIGNATURE_KEY
+Value: nama header rahasia yang Anda buat di pengaturan Webhook Biteship, misalnya: x-smt-biteship
+
+BITESHIP_WEBHOOK_SIGNATURE_SECRET
+Value: secret yang sama dengan secret pada Webhook Biteship.
+
+BITESHIP_ADMIN_EMAILS (opsional tetapi disarankan)
+Value: email akun admin Firebase. Jika diisi, hanya email ini yang boleh menekan tombol pembuatan pengiriman COD.
+
+2) Endpoint webhook setelah website di-deploy
+
+https://DOMAIN-KAMU/.netlify/functions/biteship-webhook
+
+3) Biteship Webhook
+
+Di Integrasi > Webhook > Tambah Webhook:
+- URL: endpoint di atas
+- Event: order.status
+- Event: order.waybill_id
+- Event: order.price
+- Headers Signature Key: sama dengan BITESHIP_WEBHOOK_SIGNATURE_KEY
+- Headers Signature Secret: sama dengan BITESHIP_WEBHOOK_SIGNATURE_SECRET
+
+4) Alur
+
+Checkout COD -> pesanan Firebase -> Admin "Konfirmasi COD & Buat Pengiriman"
+-> Netlify Function -> Biteship /v1/orders -> resi/tracking ID masuk Firebase
+-> webhook Biteship -> status pengiriman otomatis diperbarui.
+
+5) Catatan testing
+
+Mode Testing Biteship harus tetap aktif saat pengujian. Order test tidak dipickup kurir nyata.
+
