@@ -1,5 +1,4 @@
 const crypto = require("crypto");
-const { getFirebaseAdmin } = require("./firebaseAdmin");
 
 function response(statusCode, body = {}) {
   return {
@@ -22,206 +21,121 @@ function headerValue(headers, name) {
   return "";
 }
 
-function findFirst(obj, keys, depth = 0) {
-  if (!obj || typeof obj !== "object" || depth > 6) return "";
-  for (const key of keys) {
-    if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== "") return obj[key];
-  }
-  for (const value of Object.values(obj)) {
-    if (value && typeof value === "object") {
-      const found = findFirst(value, keys, depth + 1);
-      if (found !== "") return found;
-    }
-  }
-  return "";
-}
-
-function normalizeStatus(raw) {
-  const s = String(raw || "").toLowerCase().trim();
-  const map = {
-    confirmed: "Dikemas",
-    allocated: "Dikemas",
-    picking_up: "Dikirim",
-    picked: "Dikirim",
-    dropping_off: "Dikirim",
-    delivered: "Beri Penilaian",
-    cancelled: "Dibatalkan",
-    rejected: "Dibatalkan",
-    returned: "Dikembalikan",
-    on_hold: "Ditahan"
-  };
-  return map[s] || (s ? String(raw).replace(/_/g, " ") : "Dikirim");
-}
-
-function isDelivered(raw) {
-  return ["delivered", "success", "completed", "complete"].includes(String(raw || "").toLowerCase());
-}
-
 function safeEqual(a, b) {
   const left = Buffer.from(String(a || ""));
   const right = Buffer.from(String(b || ""));
   return left.length > 0 && left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
+function isLikelyRealWebhook(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+  return Boolean(
+    payload.event ||
+    payload.type ||
+    payload.name ||
+    payload.data ||
+    payload.id ||
+    payload.order_id ||
+    payload.waybill_id ||
+    payload.tracking_id ||
+    payload.status ||
+    payload.order_status ||
+    payload.price !== undefined
+  );
+}
+
+function getBackgroundUrl(event) {
+  const headers = event.headers || {};
+  const host =
+    headerValue(headers, "x-forwarded-host") ||
+    headerValue(headers, "host");
+  const proto =
+    headerValue(headers, "x-forwarded-proto") ||
+    (String(host).includes("localhost") ? "http" : "https");
+  if (!host) return "";
+  return `${proto}://${host}/.netlify/functions/biteship-webhook-background`;
+}
+
+async function invokeBackground(event, rawBody) {
+  const url = getBackgroundUrl(event);
+  const secret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
+  if (!url || !secret) return false;
+
+  try {
+    // Netlify Background Functions acknowledge with 202 immediately and
+    // continue processing independently, keeping the Biteship request fast.
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-smt-webhook-internal": secret
+      },
+      body: rawBody
+    });
+    return res.status === 202 || (res.status >= 200 && res.status < 300);
+  } catch (err) {
+    console.error("biteship-webhook background invoke:", err);
+    return false;
+  }
+}
+
 exports.handler = async event => {
-  // Biteship melakukan validasi endpoint saat webhook dibuat. Validasi tersebut
-  // dapat datang tanpa body. Endpoint wajib menjawab 2xx agar webhook bisa dibuat.
+  // Biteship requires a public HTTPS POST JSON endpoint. GET is also accepted
+  // here to make endpoint checks easy to verify from a browser/curl.
   if (event.httpMethod === "OPTIONS") return response(204, {});
   if (event.httpMethod === "GET") return response(200, { success: true, webhook: "ready" });
-
   if (event.httpMethod !== "POST") {
     return response(405, { success: false, message: "Method harus POST." });
   }
 
-  // Saat instalasi, Biteship dapat mengirim POST tanpa body. Jangan memaksa
-  // signature/Firebase pada request validasi kosong ini.
   const rawBody = String(event.body || "").trim();
+
+  // Installation/endpoint validation can be a POST with an empty body.
   if (!rawBody) {
     return response(200, { success: true, webhook: "ready", validation: true });
   }
 
+  let payload;
   try {
-    const signatureKey = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY || "").trim();
-    const signatureSecret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
-
-    // Jika secret belum dipasang, tetap jangan membocorkan detail konfigurasi.
-    // Request webhook nyata ditolak sampai keamanan selesai dikonfigurasi.
-    if (!signatureKey || !signatureSecret) {
-      return response(500, {
-        success: false,
-        message: "Konfigurasi keamanan webhook belum lengkap di Netlify."
-      });
-    }
-
-    const receivedSecret = headerValue(event.headers, signatureKey);
-    if (!safeEqual(receivedSecret, signatureSecret)) {
-      return response(401, { success: false, message: "Signature webhook tidak valid." });
-    }
-
-    let payload;
-    try {
-      payload = JSON.parse(rawBody);
-    } catch {
-      return response(400, { success: false, message: "Body webhook bukan JSON yang valid." });
-    }
-
-    const eventName = String(payload.event || payload.type || payload.name || "order.status");
-    const data = payload.data || payload;
-
-    let localOrderId = String(
-      findFirst(payload, ["local_order_id"]) ||
-      findFirst(payload, ["order_id"]) ||
-      findFirst(payload, ["reference_id"]) ||
-      (payload.metadata && payload.metadata.local_order_id) ||
-      (data.metadata && data.metadata.local_order_id) ||
-      ""
-    ).trim();
-
-    const biteshipOrderId = String(findFirst(payload, ["id"]) || findFirst(data, ["id"]) || "").trim();
-    const waybill = String(findFirst(payload, ["waybill_id"]) || findFirst(data, ["waybill_id"]) || "").trim();
-    const trackingId = String(findFirst(payload, ["tracking_id"]) || findFirst(data, ["tracking_id"]) || "").trim();
-    const courierCompany = String(findFirst(payload, ["company", "courier_company"]) || findFirst(data, ["company", "courier_company"]) || "").trim();
-    const courierType = String(findFirst(payload, ["courier_type", "type"]) || findFirst(data, ["courier_type", "type"]) || "").trim();
-    const rawStatus = String(findFirst(payload, ["status", "order_status"]) || findFirst(data, ["status", "order_status"]) || "").trim();
-    const price = Number(findFirst(payload, ["price"]) || findFirst(data, ["price"]) || 0);
-    const trackingUrl = String(findFirst(payload, ["link"]) || findFirst(data, ["link"]) || "").trim();
-
-    const admin = getFirebaseAdmin();
-    const db = admin.database();
-    let orderRef = localOrderId ? db.ref("pesanan/" + localOrderId) : null;
-    let orderSnap = orderRef ? await orderRef.once("value") : null;
-    let order = orderSnap && orderSnap.val();
-
-    // Fallback: cari pesanan berdasarkan Biteship order ID / tracking ID / resi.
-    if (!order && (biteshipOrderId || trackingId || waybill)) {
-      const snap = await db.ref("pesanan").once("value");
-      const all = snap.val() || {};
-      for (const [id, value] of Object.entries(all)) {
-        if (
-          String(value?.biteshipOrderId || "") === biteshipOrderId ||
-          String(value?.biteshipTrackingId || "") === trackingId ||
-          String(value?.resi || "") === waybill
-        ) {
-          localOrderId = id;
-          orderRef = db.ref("pesanan/" + id);
-          order = value;
-          break;
-        }
-      }
-    }
-
-    // Event tetap dianggap berhasil diterima walaupun pesanan lokal belum ditemukan.
-    if (!orderRef || !order) {
-      await db.ref("biteshipWebhookEvents").push({
-        receivedAt: new Date().toISOString(),
-        event: eventName,
-        payload
-      });
-      return response(200, { success: true, matched: false });
-    }
-
-    const now = new Date().toLocaleString("id-ID");
-    const nextStatus = normalizeStatus(rawStatus);
-    const updates = {
-      statusPengiriman: rawStatus || order.statusPengiriman || "",
-      statusTerakhirDiperbarui: now,
-      biteshipLastWebhookAt: now,
-      biteshipLastEvent: eventName
-    };
-
-    if (biteshipOrderId) updates.biteshipOrderId = biteshipOrderId;
-    if (waybill) updates.resi = waybill;
-    if (trackingId) updates.biteshipTrackingId = trackingId;
-    if (courierCompany) updates.biteshipCourier = courierCompany;
-    if (courierType) updates.biteshipCourierType = courierType;
-    if (trackingUrl) updates.biteshipTrackingUrl = trackingUrl;
-    if (price > 0) updates.biteshipShippingPrice = price;
-
-    if (eventName === "order.status" || rawStatus) {
-      updates.status = nextStatus;
-      updates.statusKategori = nextStatus;
-      if (isDelivered(rawStatus) && String(order.metodePembayaran || "").toUpperCase() === "COD") {
-        updates.statusPembayaran = "COD - Menunggu Pencairan";
-        updates.codDeliveredAt = now;
-      }
-    }
-
-    await orderRef.update(updates);
-
-    if (order.invoice) {
-      const trackRef = db.ref("pelacakan/" + order.invoice);
-      const trackSnap = await trackRef.once("value");
-      const track = trackSnap.val() || {};
-      const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
-      if (rawStatus) history.push({ status: nextStatus, waktu: now, sumber: "Biteship" });
-      await trackRef.update({
-        invoice: order.invoice,
-        nama: order.nama || "",
-        total: Number(order.total || 0),
-        status: nextStatus,
-        statusKategori: nextStatus,
-        resi: waybill || order.resi || track.resi || "",
-        kurir: courierCompany || order.biteshipCourier || order.kurirKode || "",
-        biteshipOrderId: biteshipOrderId || order.biteshipOrderId || "",
-        biteshipTrackingUrl: trackingUrl || order.biteshipTrackingUrl || "",
-        updatedAt: now,
-        riwayatStatus: history.slice(-20)
-      });
-    }
-
-    await db.ref("biteshipWebhookEvents").push({
-      receivedAt: new Date().toISOString(),
-      event: eventName,
-      orderId: localOrderId,
-      biteshipOrderId,
-      waybill,
-      status: rawStatus,
-      payload
-    });
-
-    return response(200, { success: true, matched: true, orderId: localOrderId });
-  } catch (err) {
-    console.error("biteship-webhook:", err);
-    return response(500, { success: false, message: err.message || "Webhook gagal diproses." });
+    payload = JSON.parse(rawBody);
+  } catch {
+    return response(400, { success: false, message: "Body webhook bukan JSON yang valid." });
   }
+
+  const signatureKey = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY || "").trim();
+  const signatureSecret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
+  const receivedSecret = signatureKey ? headerValue(event.headers, signatureKey) : "";
+
+  // A non-event JSON payload is treated as the initial Biteship validation.
+  // It gets 200 without requiring the optional signature header.
+  if (!isLikelyRealWebhook(payload) && !receivedSecret) {
+    return response(200, { success: true, webhook: "ready", validation: true });
+  }
+
+  // Real webhook deliveries are verified when signature security is configured.
+  if (!signatureKey || !signatureSecret) {
+    return response(500, {
+      success: false,
+      message: "Konfigurasi keamanan webhook belum lengkap di Netlify."
+    });
+  }
+
+  if (!safeEqual(receivedSecret, signatureSecret)) {
+    return response(401, { success: false, message: "Signature webhook tidak valid." });
+  }
+
+  // IMPORTANT: do not read Firebase or perform heavy processing here.
+  // The Background Function handles Firebase after Biteship has been acknowledged.
+  const accepted = await invokeBackground(event, rawBody);
+  if (!accepted) {
+    // The request was authenticated but could not be queued. Returning an
+    // error is safer than falsely acknowledging a webhook that will be lost.
+    return response(502, { success: false, message: "Webhook berhasil diverifikasi tetapi gagal diteruskan ke background processor." });
+  }
+
+  return response(200, {
+    success: true,
+    received: true,
+    queued: true
+  });
 };
