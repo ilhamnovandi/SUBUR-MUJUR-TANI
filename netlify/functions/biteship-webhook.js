@@ -1,10 +1,15 @@
 const crypto = require("crypto");
 const { getFirebaseAdmin } = require("./firebaseAdmin");
 
-function response(statusCode, body) {
+function response(statusCode, body = {}) {
   return {
     statusCode,
-    headers: { "Content-Type": "application/json; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Content-Type, X-Requested-With, *",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    },
     body: JSON.stringify(body)
   };
 }
@@ -18,7 +23,7 @@ function headerValue(headers, name) {
 }
 
 function findFirst(obj, keys, depth = 0) {
-  if (!obj || typeof obj !== "object" || depth > 5) return "";
+  if (!obj || typeof obj !== "object" || depth > 6) return "";
   for (const key of keys) {
     if (obj[key] !== undefined && obj[key] !== null && String(obj[key]).trim() !== "") return obj[key];
   }
@@ -52,23 +57,54 @@ function isDelivered(raw) {
   return ["delivered", "success", "completed", "complete"].includes(String(raw || "").toLowerCase());
 }
 
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a || ""));
+  const right = Buffer.from(String(b || ""));
+  return left.length > 0 && left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
 exports.handler = async event => {
+  // Biteship melakukan validasi endpoint saat webhook dibuat. Validasi tersebut
+  // dapat datang tanpa body. Endpoint wajib menjawab 2xx agar webhook bisa dibuat.
   if (event.httpMethod === "OPTIONS") return response(204, {});
-  if (event.httpMethod !== "POST") return response(405, { success: false, message: "Method harus POST." });
+  if (event.httpMethod === "GET") return response(200, { success: true, webhook: "ready" });
+
+  if (event.httpMethod !== "POST") {
+    return response(405, { success: false, message: "Method harus POST." });
+  }
+
+  // Saat instalasi, Biteship dapat mengirim POST tanpa body. Jangan memaksa
+  // signature/Firebase pada request validasi kosong ini.
+  const rawBody = String(event.body || "").trim();
+  if (!rawBody) {
+    return response(200, { success: true, webhook: "ready", validation: true });
+  }
 
   try {
     const signatureKey = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY || "").trim();
     const signatureSecret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
+
+    // Jika secret belum dipasang, tetap jangan membocorkan detail konfigurasi.
+    // Request webhook nyata ditolak sampai keamanan selesai dikonfigurasi.
     if (!signatureKey || !signatureSecret) {
-      return response(500, { success: false, message: "Webhook belum diamankan. Isi BITESHIP_WEBHOOK_SIGNATURE_KEY dan BITESHIP_WEBHOOK_SIGNATURE_SECRET di Netlify." });
+      return response(500, {
+        success: false,
+        message: "Konfigurasi keamanan webhook belum lengkap di Netlify."
+      });
     }
 
     const receivedSecret = headerValue(event.headers, signatureKey);
-    if (!receivedSecret || !crypto.timingSafeEqual(Buffer.from(receivedSecret), Buffer.from(signatureSecret))) {
+    if (!safeEqual(receivedSecret, signatureSecret)) {
       return response(401, { success: false, message: "Signature webhook tidak valid." });
     }
 
-    const payload = JSON.parse(event.body || "{}");
+    let payload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return response(400, { success: false, message: "Body webhook bukan JSON yang valid." });
+    }
+
     const eventName = String(payload.event || payload.type || payload.name || "order.status");
     const data = payload.data || payload;
 
@@ -82,13 +118,13 @@ exports.handler = async event => {
     ).trim();
 
     const biteshipOrderId = String(findFirst(payload, ["id"]) || findFirst(data, ["id"]) || "").trim();
-    const waybill = String(findFirst(payload, ["waybill_id"]) || "").trim();
-    const trackingId = String(findFirst(payload, ["tracking_id"]) || "").trim();
-    const courierCompany = String(findFirst(payload, ["company", "courier_company"]) || "").trim();
-    const courierType = String(findFirst(payload, ["courier_type", "type"]) || "").trim();
-    const rawStatus = String(findFirst(payload, ["status", "order_status"]) || "").trim();
-    const price = Number(findFirst(payload, ["price"]) || 0);
-    const trackingUrl = String(findFirst(payload, ["link"]) || "").trim();
+    const waybill = String(findFirst(payload, ["waybill_id"]) || findFirst(data, ["waybill_id"]) || "").trim();
+    const trackingId = String(findFirst(payload, ["tracking_id"]) || findFirst(data, ["tracking_id"]) || "").trim();
+    const courierCompany = String(findFirst(payload, ["company", "courier_company"]) || findFirst(data, ["company", "courier_company"]) || "").trim();
+    const courierType = String(findFirst(payload, ["courier_type", "type"]) || findFirst(data, ["courier_type", "type"]) || "").trim();
+    const rawStatus = String(findFirst(payload, ["status", "order_status"]) || findFirst(data, ["status", "order_status"]) || "").trim();
+    const price = Number(findFirst(payload, ["price"]) || findFirst(data, ["price"]) || 0);
+    const trackingUrl = String(findFirst(payload, ["link"]) || findFirst(data, ["link"]) || "").trim();
 
     const admin = getFirebaseAdmin();
     const db = admin.database();
@@ -96,12 +132,16 @@ exports.handler = async event => {
     let orderSnap = orderRef ? await orderRef.once("value") : null;
     let order = orderSnap && orderSnap.val();
 
-    // Fallback: cari pesanan berdasarkan Biteship order ID / resi bila metadata tidak ikut terkirim.
-    if (!order && biteshipOrderId) {
+    // Fallback: cari pesanan berdasarkan Biteship order ID / tracking ID / resi.
+    if (!order && (biteshipOrderId || trackingId || waybill)) {
       const snap = await db.ref("pesanan").once("value");
       const all = snap.val() || {};
       for (const [id, value] of Object.entries(all)) {
-        if (String(value?.biteshipOrderId || "") === biteshipOrderId || String(value?.biteshipTrackingId || "") === biteshipOrderId) {
+        if (
+          String(value?.biteshipOrderId || "") === biteshipOrderId ||
+          String(value?.biteshipTrackingId || "") === trackingId ||
+          String(value?.resi || "") === waybill
+        ) {
           localOrderId = id;
           orderRef = db.ref("pesanan/" + id);
           order = value;
@@ -110,8 +150,13 @@ exports.handler = async event => {
       }
     }
 
+    // Event tetap dianggap berhasil diterima walaupun pesanan lokal belum ditemukan.
     if (!orderRef || !order) {
-      await db.ref("biteshipWebhookEvents").push({ receivedAt: new Date().toISOString(), event: eventName, payload });
+      await db.ref("biteshipWebhookEvents").push({
+        receivedAt: new Date().toISOString(),
+        event: eventName,
+        payload
+      });
       return response(200, { success: true, matched: false });
     }
 
