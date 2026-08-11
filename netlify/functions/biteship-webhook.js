@@ -1,18 +1,15 @@
 /**
- * Biteship webhook endpoint for Netlify.
+ * Public Biteship webhook endpoint.
  *
- * IMPORTANT:
- * Biteship validates a newly-created webhook before it is activated.
- * During that validation it can send an empty application/json POST.
- * This function therefore treats an empty/validation request as SUCCESS and
- * returns HTTP 200 immediately. Real webhook events are authenticated when
- * the signature variables are configured, then queued to the background
- * function so Biteship does not wait for Firebase processing.
+ * Biteship validates a new webhook with an empty application/json POST.
+ * Empty/health-check requests MUST return HTTP 200 + "ok".
+ * Real events are processed directly so COD status updates work even when
+ * webhook signature headers are left empty during testing.
  */
-
 const crypto = require("crypto");
+const { getFirebaseAdmin } = require("./firebaseAdmin");
 
-const JSON_HEADERS = {
+const HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type, X-Requested-With, *",
@@ -20,209 +17,136 @@ const JSON_HEADERS = {
   "Cache-Control": "no-store"
 };
 
-function response(statusCode, body = {}) {
-  return {
-    statusCode,
-    headers: JSON_HEADERS,
-    body: JSON.stringify(body)
-  };
+function json(statusCode, body) {
+  return { statusCode, headers: HEADERS, body: JSON.stringify(body) };
 }
-
-function okText() {
-  return {
-    statusCode: 200,
-    headers: {
-      ...JSON_HEADERS,
-      "Content-Type": "text/plain; charset=utf-8"
-    },
-    body: "ok"
-  };
+function ok() {
+  return { statusCode: 200, headers: { ...HEADERS, "Content-Type": "text/plain; charset=utf-8" }, body: "ok" };
 }
-
 function headerValue(headers, name) {
   const target = String(name || "").toLowerCase();
-  for (const [key, value] of Object.entries(headers || {})) {
-    if (String(key).toLowerCase() === target) return String(value ?? "");
+  for (const [k, v] of Object.entries(headers || {})) if (String(k).toLowerCase() === target) return String(v ?? "");
+  return "";
+}
+function safeEqual(a, b) {
+  const x = Buffer.from(String(a || ""));
+  const y = Buffer.from(String(b || ""));
+  return x.length > 0 && x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+function first(obj, keys, depth = 0) {
+  if (!obj || typeof obj !== "object" || depth > 6) return "";
+  for (const k of keys) if (obj[k] !== undefined && obj[k] !== null && String(obj[k]).trim() !== "") return obj[k];
+  for (const v of Object.values(obj)) if (v && typeof v === "object") {
+    const found = first(v, keys, depth + 1);
+    if (found !== "") return found;
   }
   return "";
 }
-
-function safeEqual(a, b) {
-  const left = Buffer.from(String(a || ""));
-  const right = Buffer.from(String(b || ""));
-  return left.length > 0 && left.length === right.length && crypto.timingSafeEqual(left, right);
+function normalizeStatus(raw) {
+  const s = String(raw || "").toLowerCase().trim();
+  const map = { confirmed:"Dikemas", allocated:"Dikemas", picking_up:"Dikirim", picked:"Dikirim", dropping_off:"Dikirim", delivered:"Beri Penilaian", cancelled:"Dibatalkan", rejected:"Dibatalkan", returned:"Dikembalikan", on_hold:"Ditahan" };
+  return map[s] || (s ? String(raw).replace(/_/g, " ") : "Dikirim");
 }
+function isDelivered(raw) { return ["delivered","success","completed","complete"].includes(String(raw || "").toLowerCase()); }
 
-function isLikelyRealWebhook(payload) {
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+async function processWebhook(payload) {
+  const eventName = String(payload.event || payload.type || payload.name || "order.status");
+  const data = payload.data && typeof payload.data === "object" ? payload.data : payload;
+  let localOrderId = String(
+    first(payload,["local_order_id"]) || first(payload,["reference_id"]) || first(payload,["order_id"]) ||
+    (payload.metadata && payload.metadata.local_order_id) || (data.metadata && data.metadata.local_order_id) || ""
+  ).trim();
+  const biteshipOrderId = String(first(payload,["id"]) || first(data,["id"]) || "").trim();
+  const waybill = String(first(payload,["waybill_id","courier_waybill_id"]) || first(data,["waybill_id","courier_waybill_id"]) || "").trim();
+  const trackingId = String(first(payload,["tracking_id","courier_tracking_id"]) || first(data,["tracking_id","courier_tracking_id"]) || "").trim();
+  const courierCompany = String(first(payload,["company","courier_company"]) || first(data,["company","courier_company"]) || "").trim();
+  const courierType = String(first(payload,["courier_type","type"]) || first(data,["courier_type","type"]) || "").trim();
+  const rawStatus = String(first(payload,["status","order_status"]) || first(data,["status","order_status"]) || "").trim();
+  const price = Number(first(payload,["price"]) || first(data,["price"]) || 0);
+  const trackingUrl = String(first(payload,["link","courier_link"]) || first(data,["link","courier_link"]) || "").trim();
 
-  // Biteship may send a validation payload containing only event/type/name.
-  // Treat those as installation checks. A real delivery should contain an
-  // order identifier, tracking/waybill data, a status, or price data.
-  const hasOrderData =
-    payload.id ||
-    payload.order_id ||
-    payload.reference_id ||
-    payload.waybill_id ||
-    payload.tracking_id ||
-    payload.courier_waybill_id ||
-    payload.courier_tracking_id ||
-    payload.status ||
-    payload.order_status ||
-    payload.price !== undefined;
+  const admin = getFirebaseAdmin();
+  const db = admin.database();
+  let orderRef = localOrderId ? db.ref("pesanan/" + localOrderId) : null;
+  let orderSnap = orderRef ? await orderRef.once("value") : null;
+  let order = orderSnap && orderSnap.val();
 
-  if (hasOrderData) return true;
-
-  const data = payload.data;
-  if (data && typeof data === "object" && !Array.isArray(data)) {
-    return Boolean(
-      data.id ||
-      data.order_id ||
-      data.reference_id ||
-      data.waybill_id ||
-      data.tracking_id ||
-      data.courier_waybill_id ||
-      data.courier_tracking_id ||
-      data.status ||
-      data.order_status ||
-      data.price !== undefined
-    );
+  if (!order && (biteshipOrderId || trackingId || waybill)) {
+    const snap = await db.ref("pesanan").once("value");
+    const all = snap.val() || {};
+    for (const [id, value] of Object.entries(all)) {
+      if (String(value?.biteshipOrderId || "") === biteshipOrderId || String(value?.biteshipTrackingId || "") === trackingId || String(value?.resi || "") === waybill) {
+        localOrderId = id; orderRef = db.ref("pesanan/" + id); order = value; break;
+      }
+    }
   }
 
-  return false;
-}
-
-function getSignatureConfig() {
-  const key = String(
-    process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY ||
-    process.env.BITESHIP_WEBHOOK_HEADER_KEY ||
-    ""
-  ).trim();
-
-  const secret = String(
-    process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET ||
-    process.env.BITESHIP_WEBHOOK_HEADER_SECRET ||
-    ""
-  ).trim();
-
-  return { key, secret };
-}
-
-function getBackgroundUrl(event) {
-  const headers = event.headers || {};
-  const host =
-    headerValue(headers, "x-forwarded-host") ||
-    headerValue(headers, "host");
-
-  const proto =
-    headerValue(headers, "x-forwarded-proto") ||
-    (String(host).includes("localhost") ? "http" : "https");
-
-  if (!host) return "";
-  return `${proto}://${host}/.netlify/functions/biteship-webhook-background`;
-}
-
-async function invokeBackground(event, rawBody) {
-  const url = getBackgroundUrl(event);
-  const { secret } = getSignatureConfig();
-
-  if (!url || !secret) return false;
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-smt-webhook-internal": secret
-      },
-      body: rawBody
-    });
-
-    // Background Functions acknowledge with 202 and continue asynchronously.
-    return res.status === 202 || (res.status >= 200 && res.status < 300);
-  } catch (error) {
-    console.error("biteship-webhook background invoke:", error);
-    return false;
+  const receivedAt = new Date().toISOString();
+  if (!orderRef || !order) {
+    await db.ref("biteshipWebhookEvents").push({ receivedAt, event:eventName, payload });
+    return { matched:false };
   }
+
+  const now = new Date().toLocaleString("id-ID");
+  const nextStatus = normalizeStatus(rawStatus);
+  const updates = { statusPengiriman: rawStatus || order.statusPengiriman || "", statusTerakhirDiperbarui: now, biteshipLastWebhookAt: now, biteshipLastEvent: eventName };
+  if (biteshipOrderId) updates.biteshipOrderId = biteshipOrderId;
+  if (waybill) updates.resi = waybill;
+  if (trackingId) updates.biteshipTrackingId = trackingId;
+  if (courierCompany) updates.biteshipCourier = courierCompany;
+  if (courierType) updates.biteshipCourierType = courierType;
+  if (trackingUrl) updates.biteshipTrackingUrl = trackingUrl;
+  if (price > 0) updates.biteshipShippingPrice = price;
+  if (eventName === "order.status" || rawStatus) {
+    updates.status = nextStatus;
+    updates.statusKategori = nextStatus;
+    if (isDelivered(rawStatus) && String(order.metodePembayaran || "").toUpperCase() === "COD") {
+      updates.statusPembayaran = "COD - Menunggu Pencairan";
+      updates.codDeliveredAt = now;
+    }
+  }
+  await orderRef.update(updates);
+
+  if (order.invoice) {
+    const trackRef = db.ref("pelacakan/" + order.invoice);
+    const trackSnap = await trackRef.once("value");
+    const track = trackSnap.val() || {};
+    const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
+    if (rawStatus) history.push({ status: nextStatus, waktu: now, sumber: "Biteship" });
+    await trackRef.update({ invoice:order.invoice, nama:order.nama||"", total:Number(order.total||0), status:nextStatus, statusKategori:nextStatus, resi:waybill||order.resi||track.resi||"", kurir:courierCompany||order.biteshipCourier||order.kurirKode||"", biteshipOrderId:biteshipOrderId||order.biteshipOrderId||"", biteshipTrackingUrl:trackingUrl||order.biteshipTrackingUrl||"", updatedAt:now, riwayatStatus:history.slice(-20) });
+  }
+  await db.ref("biteshipWebhookEvents").push({ receivedAt, event:eventName, orderId:localOrderId, biteshipOrderId, waybill, status:rawStatus, payload });
+  return { matched:true, orderId:localOrderId };
 }
 
 exports.handler = async event => {
   const method = String(event.httpMethod || "GET").toUpperCase();
+  if (["GET","HEAD","OPTIONS"].includes(method)) return ok();
+  if (method !== "POST") return json(405,{success:false,message:"Method harus POST."});
 
-  // Biteship/browser/proxy health checks should never fail with 405.
-  if (method === "OPTIONS" || method === "HEAD" || method === "GET") {
-    return okText();
-  }
-
-  if (method !== "POST") {
-    return response(405, {
-      success: false,
-      message: "Method tidak didukung. Gunakan POST."
-    });
-  }
-
-  // Biteship webhook installation validation may send an empty JSON request.
-  // Do NOT require a signature and do NOT reject an empty body here.
   const rawBody = String(event.body ?? "").trim();
-  if (!rawBody) return okText();
+  // Biteship installation validation: empty application/json POST.
+  if (!rawBody) return ok();
 
   let payload;
+  try { payload = JSON.parse(rawBody); } catch { return ok(); }
+
+  // A neutral validation payload (event/type only) is accepted without auth.
+  const hasOrderData = Boolean(first(payload,["id","order_id","reference_id","waybill_id","tracking_id","status","order_status"]) || payload.price !== undefined || (payload.data && first(payload.data,["id","order_id","reference_id","waybill_id","tracking_id","status","order_status"])) || (payload.data && payload.data.price !== undefined));
+  if (!hasOrderData) return ok();
+
+  const key = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY || process.env.BITESHIP_WEBHOOK_HEADER_KEY || "").trim();
+  const secret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || process.env.BITESHIP_WEBHOOK_HEADER_SECRET || "").trim();
+  if (key && secret) {
+    const received = headerValue(event.headers,key);
+    if (!safeEqual(received,secret)) return json(401,{success:false,message:"Signature webhook tidak valid."});
+  }
+
   try {
-    payload = JSON.parse(rawBody);
-  } catch (error) {
-    // If there is no signature, this is most likely an installation/health
-    // check. Returning 200 prevents Biteship from rejecting the webhook.
-    const { key } = getSignatureConfig();
-    const receivedSecret = key ? headerValue(event.headers, key) : "";
-    if (!receivedSecret) return okText();
-
-    return response(400, {
-      success: false,
-      message: "Body webhook bukan JSON yang valid."
-    });
+    const result = await processWebhook(payload);
+    return json(200,{success:true,received:true,...result});
+  } catch (err) {
+    console.error("biteship-webhook:",err);
+    return json(500,{success:false,message:err.message || "Webhook gagal diproses."});
   }
-
-  const { key: signatureKey, secret: signatureSecret } = getSignatureConfig();
-  const receivedSecret = signatureKey
-    ? headerValue(event.headers, signatureKey)
-    : "";
-
-  // Installation/validation requests are allowed to pass without a
-  // signature. This is important because Biteship validates the URL before
-  // the webhook is activated and that request may contain only event/type.
-  if (!isLikelyRealWebhook(payload) && !receivedSecret) {
-    return okText();
-  }
-
-  // If signature security has not been configured yet, do not reject the
-  // Biteship installation check. Real webhook events should be configured
-  // with the two signature environment variables before production use.
-  if (!signatureKey || !signatureSecret) {
-    console.warn("Biteship webhook signature variables are missing.");
-    return okText();
-  }
-
-  if (!safeEqual(receivedSecret, signatureSecret)) {
-    return response(401, {
-      success: false,
-      message: "Signature webhook tidak valid."
-    });
-  }
-
-  // Do the Firebase work in the Background Function so Biteship receives a
-  // quick acknowledgement and does not time out on slow database operations.
-  const queued = await invokeBackground(event, rawBody);
-
-  if (!queued) {
-    return response(502, {
-      success: false,
-      message: "Webhook terverifikasi tetapi gagal masuk ke background processor."
-    });
-  }
-
-  return response(200, {
-    success: true,
-    received: true,
-    queued: true
-  });
 };
