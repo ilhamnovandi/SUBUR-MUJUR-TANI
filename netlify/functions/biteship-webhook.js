@@ -55,19 +55,41 @@ function safeEqual(a, b) {
 
 function isLikelyRealWebhook(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
-  return Boolean(
-    payload.event ||
-    payload.type ||
-    payload.name ||
-    payload.data ||
+
+  // Biteship may send a validation payload containing only event/type/name.
+  // Treat those as installation checks. A real delivery should contain an
+  // order identifier, tracking/waybill data, a status, or price data.
+  const hasOrderData =
     payload.id ||
     payload.order_id ||
+    payload.reference_id ||
     payload.waybill_id ||
     payload.tracking_id ||
+    payload.courier_waybill_id ||
+    payload.courier_tracking_id ||
     payload.status ||
     payload.order_status ||
-    payload.price !== undefined
-  );
+    payload.price !== undefined;
+
+  if (hasOrderData) return true;
+
+  const data = payload.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    return Boolean(
+      data.id ||
+      data.order_id ||
+      data.reference_id ||
+      data.waybill_id ||
+      data.tracking_id ||
+      data.courier_waybill_id ||
+      data.courier_tracking_id ||
+      data.status ||
+      data.order_status ||
+      data.price !== undefined
+    );
+  }
+
+  return false;
 }
 
 function getSignatureConfig() {
@@ -165,19 +187,19 @@ exports.handler = async event => {
     ? headerValue(event.headers, signatureKey)
     : "";
 
-  // Empty/object validation payloads are accepted without authentication.
+  // Installation/validation requests are allowed to pass without a
+  // signature. This is important because Biteship validates the URL before
+  // the webhook is activated and that request may contain only event/type.
   if (!isLikelyRealWebhook(payload) && !receivedSecret) {
     return okText();
   }
 
-  // Real webhook deliveries should use the exact Biteship signature key/secret
-  // configured in Netlify Environment Variables.
+  // If signature security has not been configured yet, do not reject the
+  // Biteship installation check. Real webhook events should be configured
+  // with the two signature environment variables before production use.
   if (!signatureKey || !signatureSecret) {
-    console.error("Biteship webhook signature variables are missing.");
-    return response(500, {
-      success: false,
-      message: "BITESHIP_WEBHOOK_SIGNATURE_KEY dan BITESHIP_WEBHOOK_SIGNATURE_SECRET belum dikonfigurasi."
-    });
+    console.warn("Biteship webhook signature variables are missing.");
+    return okText();
   }
 
   if (!safeEqual(receivedSecret, signatureSecret)) {
