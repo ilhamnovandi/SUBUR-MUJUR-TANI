@@ -29,6 +29,14 @@ Functions used by COD:
 - `/.netlify/functions/biteship-webhook`
 
 ## 4. Biteship Webhook
+
+Use the exact public function URL after Netlify deployment:
+
+`https://DOMAIN-KAMU/.netlify/functions/biteship-webhook`
+
+Important: do not use the Background Function URL for Biteship. The public endpoint is the one above.
+
+The endpoint accepts Biteship's initial validation request with HTTP 200 and a plain `ok` response. After the webhook is created, configure the signature key/secret in Netlify and in Biteship so real events are authenticated.
 After deployment, create a Biteship webhook pointing to:
 
 `https://DOMAIN-KAMU/.netlify/functions/biteship-webhook`

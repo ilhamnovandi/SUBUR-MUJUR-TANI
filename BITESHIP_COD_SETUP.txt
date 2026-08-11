@@ -48,6 +48,16 @@ https://DOMAIN-KAMU/.netlify/functions/biteship-webhook
 
 3) Biteship Webhook
 
+URL yang dipasang di Biteship HARUS endpoint publik ini:
+
+`https://DOMAIN-KAMU/.netlify/functions/biteship-webhook`
+
+Jangan memasang URL `biteship-webhook-background`.
+
+Endpoint publik menerima validasi awal Biteship dan mengembalikan HTTP 200 + `ok`, termasuk saat body validasi kosong atau hanya berisi event/type. Setelah webhook berhasil dibuat, pasang signature key/secret yang sama di Netlify dan Biteship untuk pengiriman event nyata.
+
+
+
 Di Integrasi > Webhook > Tambah Webhook:
 - URL: endpoint di atas
 - Event: order.status

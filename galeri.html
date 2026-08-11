@@ -989,7 +989,7 @@ Rp
 <div class="box">
 <h2>💳 Pembayaran</h2>
 <p style="color:#666;margin-top:-5px;">
-Klik <b>Pembayaran</b> untuk melihat semua bank. Setelah itu pilih bank untuk melihat nomor rekening dan QRIS.
+Klik <b>Pembayaran</b> untuk melihat rekening BRI dan pilihan COD.
 </p>
 <!-- Bank yang dipilih disimpan untuk pesanan -->
 <input id="metodePembayaran" type="hidden" value=""/>
@@ -998,136 +998,25 @@ Klik <b>Pembayaran</b> untuk melihat semua bank. Setelah itu pilih bank untuk me
 </button>
 <!-- =========================
      PENGATURAN PEMBAYARAN
-     EDIT BAGIAN INI JIKA INGIN MENGGANTI DATA REKENING/QRIS
+     Hanya Transfer Bank BRI yang tersedia. COD tetap tersedia terpisah.
 ========================= -->
 <script>
 // =========================
 // DATA PEMBAYARAN
 // Tambahkan bank baru di sini.
-// File QRIS mengikuti nama file yang ditulis pada properti qris.
-// Contoh BRI: qris: "BRI.JPG" lalu upload BRI.JPG ke folder yang sama dengan index.html.
 // =========================
 const DATA_PEMBAYARAN = {
-    bca: {
-        bank: "BCA",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "BCA.JPG"
-    },
     bri: {
         bank: "BRI",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "BRI.JPG"
-    },
-    bni: {
-        bank: "BNI",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "BNI.JPG"
-    },
-    mandiri: {
-        bank: "Mandiri",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "MANDIRI.JPG"
-    },
-    btn: {
-        bank: "BTN",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "BTN.JPG"
-    },
-    bsi: {
-        bank: "BSI",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "BSI.JPG"
-    },
-    cimb: {
-        bank: "CIMB Niaga",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "CIMB.JPG"
-    },
-    permata: {
-        bank: "PermataBank",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "PERMATA.JPG"
-    },
-    danamon: {
-        bank: "Danamon",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "DANAMON.JPG"
-    },
-    muamalat: {
-        bank: "Bank Muamalat",
-        rekening: "123456789",
-        nama: "Nama Pemilik Rekening",
-        qris: "MUAMALAT.JPG"
-    },
-
-    // =========================
-    // E-WALLET
-    // Nama file QRIS mengikuti nama yang ditulis di properti qris.
-    // Contoh: DANA.JPG, OVO.JPG, GOPAY.JPG, SHOPEEPAY.JPG, LINKAJA.JPG.
-    // =========================
-    dana: {
-        bank: "DANA",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "DANA.JPG",
-        tipe: "ewallet"
-    },
-    ovo: {
-        bank: "OVO",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "OVO.JPG",
-        tipe: "ewallet"
-    },
-    gopay: {
-        bank: "GoPay",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "GOPAY.JPG",
-        tipe: "ewallet"
-    },
-    shopeepay: {
-        bank: "ShopeePay",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "SHOPEEPAY.JPG",
-        tipe: "ewallet"
-    },
-    linkaja: {
-        bank: "LinkAja",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "LINKAJA.JPG",
-        tipe: "ewallet"
-    },
-    isaku: {
-        bank: "iSaku",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "ISAKU.JPG",
-        tipe: "ewallet"
-    },
-    sakuku: {
-        bank: "Sakuku",
-        rekening: "123456789",
-        nama: "Nama Pemilik",
-        qris: "SAKUKU.JPG",
-        tipe: "ewallet"
+        rekening: "414401025887534",
+        nama: "MUHAMAD RIZAL HAKIM",
+        tipe: "bank"
     }
 };
 </script>
 <div class="payment-bank-list" id="payment-bank-list">
 <div class="payment-accordion" id="payment-accordion-list">
-<!-- Semua bank dibuat otomatis dari DATA_PEMBAYARAN. -->
+<!-- Metode transfer dibuat otomatis dari DATA_PEMBAYARAN. -->
 </div>
 </div>
 <hr style="margin:25px 0;"/>
@@ -1239,35 +1128,6 @@ const DATA_PEMBAYARAN = {
     color: #777;
 }
 
-.qris-placeholder {
-    text-align: center;
-    padding: 18px 10px;
-}
-
-.qris-placeholder strong {
-    display: block;
-    font-size: 20px;
-    margin-top: 5px;
-}
-
-.qris-image {
-    display: block;
-    width: min(280px, 90%);
-    max-height: 360px;
-    object-fit: contain;
-    margin: 15px auto;
-    border-radius: 10px;
-    background: #fff;
-}
-
-.qris-placeholder p {
-    margin: 8px 0 4px;
-}
-
-.qris-placeholder small {
-    color: #777;
-}
-
 @media (max-width: 600px) {
     .payment-toggle {
         padding: 14px;
@@ -1288,20 +1148,15 @@ const DATA_PEMBAYARAN = {
         button.type = "button";
         button.className = "payment-toggle";
         button.setAttribute("onclick", "togglePembayaran('" + id + "')");
-        button.innerHTML = `<span>${d.tipe === "ewallet" ? "📱" : "🏦"} ${d.bank}</span><span class="payment-arrow" id="arrow-${id}">⌄</span>`;
+        button.innerHTML = `<span>🏦 ${d.bank}</span><span class="payment-arrow" id="arrow-${id}">⌄</span>`;
 
         const content = document.createElement("div");
         content.id = "payment-" + id;
         content.className = "payment-content";
         content.innerHTML = `
-            <p><b>${d.tipe === "ewallet" ? "Nomor HP / Akun:" : "Nomor Rekening:"}</b> <span>${d.rekening || "Belum diisi"}</span></p>
+            <p><b>Nomor Rekening:</b> <span>${d.rekening || "Belum diisi"}</span></p>
             <p><b>Atas Nama:</b> <span>${d.nama || "Belum diisi"}</span></p>
-            <div class="qris-placeholder">
-                <strong>QRIS ${d.bank}</strong>
-                <img src="${d.qris}" alt="QRIS ${d.bank}" class="qris-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <p class="qris-error" style="display:none;">File QRIS belum tersedia. Upload <b>${d.qris}</b> ke folder yang sama dengan index.html.</p>
-                <p>Scan QRIS ${d.bank} untuk melakukan pembayaran.</p>
-            </div>
+            <p class="payment-note">Silakan transfer ke rekening BRI di atas, lalu lakukan konfirmasi pembayaran sesuai petunjuk toko.</p>
         `;
 
         container.appendChild(button);
