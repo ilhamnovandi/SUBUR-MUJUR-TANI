@@ -33,11 +33,11 @@ JANGAN masukkan file JSON ini ke GitHub.
 FIREBASE_DATABASE_URL
 Value: https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app
 
-BITESHIP_WEBHOOK_SIGNATURE_KEY
-Value: nama header rahasia yang Anda buat di pengaturan Webhook Biteship, misalnya: x-smt-biteship
+BITESHIP_WEBHOOK_SIGNATURE_KEY (opsional)
+Isi hanya jika Headers Signature Key di Biteship diisi.
 
-BITESHIP_WEBHOOK_SIGNATURE_SECRET
-Value: secret yang sama dengan secret pada Webhook Biteship.
+BITESHIP_WEBHOOK_SIGNATURE_SECRET (opsional)
+Isi hanya jika Headers Signature Secret di Biteship diisi.
 
 BITESHIP_ADMIN_EMAILS (opsional tetapi disarankan)
 Value: email akun admin Firebase. Jika diisi, hanya email ini yang boleh menekan tombol pembuatan pengiriman COD.
