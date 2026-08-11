@@ -15,8 +15,8 @@ Set these in Netlify > Site configuration > Environment variables:
 - `BITESHIP_COD_TYPE` = `7_days` (or `5_days` / `3_days`)
 - `FIREBASE_SERVICE_ACCOUNT_JSON`
 - `FIREBASE_DATABASE_URL`
-- `BITESHIP_WEBHOOK_SIGNATURE_KEY`
-- `BITESHIP_WEBHOOK_SIGNATURE_SECRET`
+- `BITESHIP_WEBHOOK_SIGNATURE_KEY` (optional; leave blank until webhook is created)
+- `BITESHIP_WEBHOOK_SIGNATURE_SECRET` (optional; leave blank until webhook is created)
 - `BITESHIP_ADMIN_EMAILS` (recommended)
 
 Never put the Biteship API key or Firebase service-account JSON into HTML/JS/GitHub.
