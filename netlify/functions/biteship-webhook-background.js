@@ -38,12 +38,23 @@ function findFirst(obj, keys, depth = 0) {
 
 function normalizeStatus(raw) {
   const s = String(raw || "").toLowerCase().trim();
+  // Once Biteship has accepted/created the shipment, the order has left
+  // the packing stage from the store's point of view. Therefore confirmed
+  // and all active pickup/transit states must be shown as "Dikirim" in the
+  // admin/customer UI. Previously confirmed/allocated were mapped to
+  // "Dikemas", which caused the UI to jump back to Dikemas after every
+  // Biteship webhook even though a waybill already existed.
   const map = {
-    confirmed: "Dikemas",
-    allocated: "Dikemas",
+    confirmed: "Dikirim",
+    allocated: "Dikirim",
     picking_up: "Dikirim",
     picked: "Dikirim",
     dropping_off: "Dikirim",
+    on_delivery: "Dikirim",
+    out_for_delivery: "Dikirim",
+    in_transit: "Dikirim",
+    delivering: "Dikirim",
+    ready_to_ship: "Dikirim",
     delivered: "Beri Penilaian",
     cancelled: "Dibatalkan",
     rejected: "Dibatalkan",
