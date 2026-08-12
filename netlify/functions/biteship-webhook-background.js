@@ -83,16 +83,36 @@ exports.handler = async event => {
     const eventName = String(payload.event || payload.type || payload.name || "order.status");
     const data = payload.data || payload;
 
-    let localOrderId = String(
-      findFirst(payload, ["local_order_id"]) ||
-      findFirst(payload, ["order_id"]) ||
-      findFirst(payload, ["reference_id"]) ||
+    // IMPORTANT:
+    // `order_id` is the Biteship order ID, NOT our Firebase/local order ID.
+    // The local order ID is intentionally stored in metadata when the order
+    // is created. Always prefer that value so a Biteship webhook can update
+    // pesanan/{localOrderId} reliably.
+    const metadataLocalOrderId = String(
       (payload.metadata && payload.metadata.local_order_id) ||
       (data.metadata && data.metadata.local_order_id) ||
       ""
     ).trim();
 
-    const biteshipOrderId = String(findFirst(payload, ["id"]) || findFirst(data, ["id"]) || "").trim();
+    let localOrderId = String(
+      metadataLocalOrderId ||
+      findFirst(payload, ["local_order_id"]) ||
+      findFirst(data, ["local_order_id"]) ||
+      findFirst(payload, ["reference_id"]) ||
+      findFirst(data, ["reference_id"]) ||
+      ""
+    ).trim();
+
+    // Biteship's order_id is the actual Biteship order identifier. `id` can
+    // be an event/object ID depending on the webhook payload, so order_id
+    // gets priority for matching against pesanan/{...}.biteshipOrderId.
+    const biteshipOrderId = String(
+      findFirst(payload, ["order_id"]) ||
+      findFirst(data, ["order_id"]) ||
+      findFirst(payload, ["id"]) ||
+      findFirst(data, ["id"]) ||
+      ""
+    ).trim();
     const waybill = String(findFirst(payload, ["waybill_id"]) || findFirst(data, ["waybill_id"]) || "").trim();
     const trackingId = String(findFirst(payload, ["tracking_id"]) || findFirst(data, ["tracking_id"]) || "").trim();
     const courierCompany = String(findFirst(payload, ["company", "courier_company"]) || findFirst(data, ["company", "courier_company"]) || "").trim();
