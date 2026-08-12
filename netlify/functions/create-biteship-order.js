@@ -115,17 +115,23 @@ exports.handler = async event => {
     }
 
     const originPostalCode = safe(process.env.BITESHIP_ORIGIN_POSTAL_CODE);
-    const originName = safe(process.env.BITESHIP_ORIGIN_CONTACT_NAME, "Subur Mujur Tani");
+    const originName = safe(process.env.BITESHIP_ORIGIN_CONTACT_NAME);
     const originPhone = normalizePhone(process.env.BITESHIP_ORIGIN_CONTACT_PHONE);
     const originEmail = safe(process.env.BITESHIP_ORIGIN_CONTACT_EMAIL);
     const originAddress = safe(process.env.BITESHIP_ORIGIN_ADDRESS);
-    const organization = safe(process.env.BITESHIP_ORIGIN_ORGANIZATION, "Subur Mujur Tani");
+    const organization = safe(process.env.BITESHIP_ORIGIN_ORGANIZATION);
 
     if (!/^\d{5}$/.test(originPostalCode)) {
       return json(500, { success: false, message: "BITESHIP_ORIGIN_POSTAL_CODE harus 5 digit." });
     }
     if (!originPhone || !originAddress) {
       return json(500, { success: false, message: "BITESHIP_ORIGIN_CONTACT_PHONE dan BITESHIP_ORIGIN_ADDRESS wajib diisi di Netlify." });
+    }
+    if (!organization) {
+      return json(500, { success: false, message: "BITESHIP_ORIGIN_ORGANIZATION wajib diisi di Netlify." });
+    }
+    if (!safe(process.env.BITESHIP_COD_TYPE)) {
+      return json(500, { success: false, message: "BITESHIP_COD_TYPE wajib diisi di Netlify." });
     }
 
     const courierCompany = safe(order.kurirKode || order.kurir).toLowerCase();
@@ -172,11 +178,11 @@ exports.handler = async event => {
       destination_address: destinationAddress,
       destination_postal_code: Number(order.kodePos),
       destination_cash_on_delivery: codAmount,
-      destination_cash_on_delivery_type: safe(process.env.BITESHIP_COD_TYPE, "7_days"),
+      destination_cash_on_delivery_type: safe(process.env.BITESHIP_COD_TYPE),
       courier_company: courierCompany,
       courier_type: courierType,
       delivery_type: "now",
-      order_note: `Pesanan ${safe(order.invoice, orderId)} - COD Subur Mujur Tani`,
+      order_note: `Pesanan ${safe(order.invoice, orderId)} - COD`,
       metadata: {
         local_order_id: orderId,
         invoice: safe(order.invoice),

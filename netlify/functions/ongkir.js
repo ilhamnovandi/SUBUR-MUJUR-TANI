@@ -59,7 +59,7 @@ exports.handler = async event => {
     const courier = String(input.courier || "").trim().toLowerCase();
 
     if (!apiKey) return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_API_KEY belum tersedia di Netlify Functions."}) };
-    if (!/^\d{5}$/.test(origin)) return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_ORIGIN_POSTAL_CODE harus 5 digit. Contoh: 45652."}) };
+    if (!/^\d{5}$/.test(origin)) return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_ORIGIN_POSTAL_CODE harus berupa 5 digit."}) };
     if (!/^\d{5}$/.test(destination)) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Kode pos tujuan harus 5 digit."}) };
     if (!courier) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Ekspedisi belum dipilih."}) };
 
