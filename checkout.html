@@ -1493,6 +1493,18 @@ function updateMetodePembayaranUI() {
 function pilihMetodeCOD() {
     const metodeEl = document.getElementById("metodePembayaran");
     if (!metodeEl) return;
+
+    const shipping = window.smtSelectedShipping;
+    if (!shipping?.courierCode || !shipping?.serviceCode) {
+        alert("Pilih dan hitung layanan pengiriman terlebih dahulu.");
+        document.getElementById("layananOngkir")?.focus();
+        return;
+    }
+    if (shipping.availableForCOD !== true) {
+        alert("Layanan pengiriman ini tidak mendukung COD. Pilih layanan yang bertanda \"COD ✓\".");
+        return;
+    }
+
     metodeEl.value = "COD";
     document.querySelectorAll(".payment-content").forEach(function(el){ el.classList.remove("open"); });
     document.querySelectorAll(".payment-arrow").forEach(function(el){ el.classList.remove("open"); });
@@ -2305,6 +2317,9 @@ document.getElementById("kurirOngkir")
     window.smtSelectedShipping = null;
     localStorage.removeItem("smt_selected_shipping");
     localStorage.setItem("smt_ongkir", "0");
+    const metodePembayaranEl = document.getElementById("metodePembayaran");
+    if (metodePembayaranEl) metodePembayaranEl.value = "";
+    if (typeof updateMetodePembayaranUI === "function") updateMetodePembayaranUI();
 
     document.getElementById("layananOngkir").innerHTML =
         '<option value="">Pilih Layanan</option>';
@@ -2374,6 +2389,15 @@ document.getElementById("layananOngkir")
         duration: String(data.duration || "")
     };
     localStorage.setItem("smt_selected_shipping", JSON.stringify(window.smtSelectedShipping));
+
+    // Jangan biarkan metode COD tertinggal ketika pelanggan mengganti
+    // layanan ke ekspedisi/service yang tidak mendukung COD.
+    const metodePembayaranEl = document.getElementById("metodePembayaran");
+    if (metodePembayaranEl?.value === "COD" && !window.smtSelectedShipping.availableForCOD) {
+        metodePembayaranEl.value = "";
+        updateMetodePembayaranUI();
+    }
+
     smtTerapkanBiayaCOD();
 
     document.getElementById("ongkir").innerHTML =
@@ -2401,6 +2425,9 @@ document.getElementById("kodePos")
     window.smtSelectedShipping = null;
     localStorage.removeItem("smt_selected_shipping");
     localStorage.setItem("smt_ongkir", "0");
+    const metodePembayaranEl = document.getElementById("metodePembayaran");
+    if (metodePembayaranEl) metodePembayaranEl.value = "";
+    if (typeof updateMetodePembayaranUI === "function") updateMetodePembayaranUI();
 
     document.getElementById("layananOngkir").innerHTML =
         '<option value="">Pilih Layanan</option>';
@@ -2858,6 +2885,21 @@ async function simpanPesanan() {
     if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Menyimpan..."; }
 
     const totals = finalGetTotals();
+
+    if (metode === "COD") {
+        const codTotal = Number(totals.total || 0);
+        if (!Number.isFinite(codTotal) || codTotal < 1000) {
+            alert("Nilai COD minimal Rp1.000.");
+            finalOrderProcessing = false;
+            return;
+        }
+        if (codTotal > 10000000) {
+            alert("Nilai COD maksimal Rp10.000.000 per paket.");
+            finalOrderProcessing = false;
+            return;
+        }
+    }
+
     const orderKey = db.ref("pesanan").push().key;
     const changed = [];
 

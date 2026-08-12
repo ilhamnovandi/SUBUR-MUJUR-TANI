@@ -321,73 +321,6 @@ Memuat data pesanan...
   <div style="padding:12px;border:1px solid #eee;border-radius:10px;">⭐ <b>Beri Penilaian</b><br><small>Pesanan selesai</small></div>
 </div>
 </div>
-
-<!-- =========================
-     ADMIN — POSTINGAN BERANDA
-========================= -->
-<div class="box" data-admin-section="postingan">
-  <h2>📣 Postingan Beranda</h2>
-  <p style="color:#666">Buat postingan yang akan tampil di Beranda.</p>
-  <textarea id="postText" rows="4" placeholder="Tulis informasi, promo, atau kabar terbaru..."></textarea>
-  <input id="postImageFile" type="file" accept="image/*" onchange="previewBerandaPost(event)">
-  <img id="postImagePreview" class="post-preview" alt="Preview postingan">
-  <select id="postProductSelect"><option value="">Tidak ada link produk</option></select>
-  <div id="postUploadStatus" style="display:none;padding:9px;border-radius:8px;margin:8px 0"></div>
-  <div id="postLivePreview" class="post-live-preview" style="display:none;border:1px solid #ddd;border-radius:12px;margin:12px 0;padding:12px">
-    <div class="post-live-label">Preview Beranda</div>
-    <div id="postLiveCard" class="home-social-card">
-      <div id="postLiveText" style="white-space:pre-wrap"></div>
-      <img id="postLiveImage" style="display:none;width:100%;max-height:260px;object-fit:cover;border-radius:10px;margin-top:10px" alt="">
-      <a id="postLiveProductLink" style="display:none;margin-top:10px" href="#" target="_blank" rel="noopener"></a>
-    </div>
-  </div>
-  <button type="button" id="btnPublikasikanPostingan" onclick="publikasikanBerandaPost()">📤 Publikasikan</button>
-  <button type="button" onclick="resetBerandaPost()" style="background:#777">↩️ Bersihkan</button>
-  <hr style="margin:22px 0">
-  <h3>Postingan Tersimpan</h3>
-  <div id="adminBerandaPosts">Memuat postingan...</div>
-</div>
-
-<!-- =========================
-     ADMIN — TAMBAHKAN PRODUK
-========================= -->
-<div class="box" data-admin-section="produk">
-  <h2>🌱 Tambahkan Produk</h2>
-  <p style="color:#666">Tambah atau edit bibit tanaman yang dijual.</p>
-  <input id="namaProduk" placeholder="Nama produk, contoh: Bibit Durian">
-  <input id="hargaProduk" inputmode="numeric" type="number" min="1" placeholder="Harga (Rp)">
-  <input id="diskonProduk" inputmode="numeric" type="number" min="0" max="100" placeholder="Diskon (%)">
-  <input id="stokProduk" inputmode="numeric" type="number" min="0" placeholder="Stok">
-  <input id="beratProduk" inputmode="numeric" type="number" min="0" placeholder="Berat (gram)">
-  <input id="gambarProduk" placeholder="URL gambar (opsional)" oninput="previewGambar()">
-  <input id="fileGambarProduk" type="file" accept="image/*" multiple onchange="pilihGambarProduk(event)" style="display:none">
-  <input id="fileGambarProdukTambah" type="file" accept="image/*" multiple onchange="pilihGambarProduk(event)" style="display:none">
-  <button type="button" id="btnTambahFotoProduk" onclick="bukaPemilihFotoProduk()">📷 Pilih Foto Produk</button>
-  <div id="uploadStatusProduk" style="display:none;padding:9px;border-radius:8px;margin:8px 0"></div>
-  <img id="previewProduk" style="display:none;max-width:100%;border-radius:12px" alt="Preview produk">
-  <div id="previewProdukGaleri" style="display:none;margin-top:10px">
-    <b>Preview Foto</b>
-    <div id="previewProdukThumbs" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
-  </div>
-  <h3 style="margin-top:18px">Varian (opsional)</h3>
-  <div id="daftarVarianProduk"></div>
-  <button type="button" onclick="tambahBarisVarian()" style="background:#557a5d">➕ Tambah Varian</button>
-  <button type="button" id="btnProduk" onclick="tambahProduk()">➕ Tambah Produk</button>
-  <button type="button" onclick="batalEditProduk()" style="background:#777">↩️ Bersihkan Form</button>
-  <hr style="margin:22px 0">
-  <h3>Produk Tersimpan</h3>
-  <div id="daftarProdukAdmin">Memuat produk...</div>
-</div>
-
-<!-- =========================
-     ADMIN — PEMBAYARAN MASUK
-========================= -->
-<div class="box" data-admin-section="pembayaran">
-  <h2>💳 Pembayaran Masuk</h2>
-  <p style="color:#666">Daftar pembayaran dari pesanan pelanggan. Status di sini terhubung dengan pesanan.</p>
-  <div id="daftarPembayaranAdmin">Memuat pembayaran...</div>
-</div>
-
 <!-- FIREBASE -->
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -693,6 +626,7 @@ async function buatPengirimanCOD(id){
         if(!res.ok || data.success === false) throw new Error(data.message || `Gagal membuat pengiriman (HTTP ${res.status}).`);
 
         alert("✅ Order COD Biteship berhasil dibuat.\n\nResi: " + (data.waybill_id || "Belum terbit") + "\nKurir: " + (data.courier_company || order.kurirKode));
+        location.reload();
     } catch(error) {
         console.error("Buat order COD:", error);
         alert("❌ Gagal membuat pengiriman COD: " + (error.message || error));
@@ -1696,99 +1630,6 @@ function filterPesanan(){
 }
 
 </script>
-<script>
-// =========================
-// ADMIN — DATA PRODUK & PEMBAYARAN
-// =========================
-(function(){
-  function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));}
-  function rupiah(v){return "Rp "+Number(v||0).toLocaleString("id-ID");}
-
-  window.batalEditProduk=function(){
-    editID=null; fileGambarProduk=[]; gambarProdukLama=""; gambarProdukLamaList=[];
-    kosongkanForm();
-    const btn=document.getElementById("btnProduk"); if(btn) btn.innerHTML="➕ Tambah Produk";
-    const status=document.getElementById("uploadStatusProduk"); if(status){status.style.display="none";status.textContent="";}
-  };
-
-  window.editProduk=function(id){
-    database.ref("produk/"+id).once("value").then(snap=>{
-      const p=snap.val(); if(!p)return alert("Produk tidak ditemukan.");
-      editID=id;
-      document.getElementById("namaProduk").value=p.nama||"";
-      document.getElementById("hargaProduk").value=Number(p.harga||0);
-      document.getElementById("diskonProduk").value=Number(p.diskon||0);
-      document.getElementById("stokProduk").value=Number(p.stok||0);
-      document.getElementById("beratProduk").value=Number(p.berat||0);
-      document.getElementById("gambarProduk").value=p.gambar||"";
-      gambarProdukLama=p.gambar||"";
-      gambarProdukLamaList=Array.isArray(p.gambarList)&&p.gambarList.length?p.gambarList.slice():((p.gambar)?[p.gambar]:[]);
-      fileGambarProduk=[];
-      renderPreviewProduk(gambarProdukLamaList);
-      renderVarianProduk(Array.isArray(p.variants)?p.variants:[]);
-      const btn=document.getElementById("btnProduk"); if(btn) btn.innerHTML="💾 Simpan Perubahan";
-      showSectionForAdmin("produk");
-      document.getElementById("namaProduk").scrollIntoView({behavior:"smooth",block:"center"});
-    }).catch(e=>alert("❌ Gagal memuat produk: "+e.message));
-  };
-
-  window.hapusProdukAdmin=async function(id){
-    if(!id)return;
-    if(!confirm("Hapus produk ini? Data produk di katalog akan dihapus."))return;
-    try{await database.ref("produk/"+id).remove();alert("✅ Produk dihapus.");}
-    catch(e){alert("❌ Gagal menghapus produk: "+e.message);}
-  };
-
-  function muatProdukAdmin(){
-    const box=document.getElementById("daftarProdukAdmin"); if(!box)return;
-    database.ref("produk").on("value",snap=>{
-      const data=snap.val()||{}; const arr=Object.entries(data);
-      if(!arr.length){box.innerHTML="<p>Belum ada produk.</p>";return;}
-      box.innerHTML=arr.map(([id,p])=>{
-        const img=p.gambar||((Array.isArray(p.gambarList)&&p.gambarList[0])||"");
-        const stok=Number(p.stok||0);
-        return `<div class="card" style="margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          ${img?`<img src="${esc(img)}" alt="" style="width:74px;height:74px;object-fit:cover;border-radius:10px">`:``}
-          <div style="flex:1;min-width:180px"><b>${esc(p.nama||"Produk")}</b><br><span>${rupiah(p.harga)} • Stok ${stok}</span>${Number(p.diskon||0)?`<br><small>Diskon ${Number(p.diskon)}%</small>`:""}</div>
-          <button type="button" onclick="editProduk('${esc(id)}')">✏️ Edit</button>
-          <button type="button" onclick="hapusProdukAdmin('${esc(id)}')" style="background:#c62828">🗑️ Hapus</button>
-        </div>`;
-      }).join("");
-    },e=>{box.innerHTML=`<p style="color:#c62828">❌ Gagal memuat produk: ${esc(e.message)}</p>`;});
-  }
-
-  function muatPembayaranAdmin(){
-    const box=document.getElementById("daftarPembayaranAdmin"); if(!box)return;
-    database.ref("pembayaran").on("value",async snap=>{
-      const data=snap.val()||{}; const entries=Object.entries(data).sort((a,b)=>Number(b[1]?.waktu||0)-Number(a[1]?.waktu||0));
-      if(!entries.length){box.innerHTML="<p>Belum ada pembayaran masuk.</p>";return;}
-      box.innerHTML=entries.map(([id,p])=>{
-        const status=String(p.status||"Menunggu");
-        const cod=String(p.metodePembayaran||"").toUpperCase()==="COD";
-        const selesai=/lunas/i.test(status);
-        return `<div class="card" style="margin-bottom:12px">
-          <b>🧾 ${esc(p.nama||"Pelanggan")}</b><br>
-          <span>💳 ${esc(p.metodePembayaran||"-")}</span> • <span>${rupiah(p.total)}</span><br>
-          <small>${esc(p.whatsapp||"")} • ${esc(p.waktu?new Date(Number(p.waktu)).toLocaleString("id-ID"):"")}</small>
-          <p style="margin:8px 0"><b>Status:</b> ${esc(status)}</p>
-          ${!selesai && !cod ? `<button type="button" onclick="verifikasiBayar('${esc(id)}')">✅ Konfirmasi Lunas</button><button type="button" onclick="tolakPembayaran('${esc(id)}')" style="background:#c62828">❌ Tolak</button>` : !selesai && cod ? `<button type="button" onclick="konfirmasiCOD('${esc(id)}')">🤝 Konfirmasi COD</button>` : `<span style="font-weight:700;color:#1b5e20">✅ Selesai</span>`}
-        </div>`;
-      }).join("");
-    },e=>{box.innerHTML=`<p style="color:#c62828">❌ Gagal memuat pembayaran: ${esc(e.message)}</p>`;});
-  }
-
-  window.showSectionForAdmin=function(sec){
-    document.querySelectorAll(".container .box").forEach(b=>{
-      const keep=b.dataset.adminSection==="persistent";
-      b.style.display=(keep||b.dataset.adminSection===sec)?"block":"none";
-    });
-    document.querySelectorAll(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.section===sec));
-  };
-
-  document.addEventListener("DOMContentLoaded",()=>{muatProdukAdmin();muatPembayaranAdmin();});
-})();
-</script>
-
 <!-- =========================
      FOOTER ADMIN
 ========================= -->
@@ -2121,9 +1962,7 @@ async function adminHapusUlasan(id){
     }).catch(e=>{box.textContent="Gagal memuat postingan: "+e.message;});
   }
   function classifyBoxes(){
-    document.querySelectorAll(".container .box").forEach(box=>{
-      const explicit=box.dataset.adminSection;
-      if(explicit){ box.dataset.adminSection=explicit; return; }
+    document.querySelectorAll(".container > .box").forEach(box=>{
       const h=(box.querySelector("h2")?.textContent||"").toLowerCase();
       let sec="other";
       if(h.includes("pesanan masuk"))sec="pesanan";
@@ -2140,7 +1979,7 @@ async function adminHapusUlasan(id){
     });
   }
   function showSection(sec){
-    document.querySelectorAll(".container .box").forEach(b=>{
+    document.querySelectorAll(".container > .box").forEach(b=>{
       const keep=b.dataset.adminSection==="persistent";
       b.style.display=(keep || b.dataset.adminSection===sec)?"block":"none";
     });
