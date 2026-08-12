@@ -469,6 +469,7 @@ database.ref("pesanan").on("value", function(snapshot) {
                       <div>Resi: <b>${escapeAdmin(order.resi || order.biteshipTrackingId || "Menunggu penerbitan")}</b></div>
                       <div>Status: <b>${escapeAdmin(order.statusPengiriman || "confirmed")}</b></div>
                       ${order.biteshipTrackingUrl ? `<a href="${escapeAdminAttr(order.biteshipTrackingUrl)}" target="_blank" rel="noopener" class="track-link">🔗 Lacak Pengiriman</a>` : ""}
+                      <button type="button" class="btn-print-label" onclick="cetakLabelPengiriman('${id}')">🖨️ Cetak Label Pengiriman</button>
                     </div>
                   ` : `
                     <div class="biteship-controls">
@@ -771,6 +772,131 @@ async function buatPengirimanCOD(id) {
     } catch (error) {
         console.error("Buat pengiriman COD:", error);
         alert("❌ Gagal membuat pengiriman: " + (error.message || error));
+    }
+}
+
+
+async function cetakLabelPengiriman(id){
+    try {
+        const snap = await database.ref("pesanan/" + id).once("value");
+        const order = snap.val();
+        if(!order) return alert("Pesanan tidak ditemukan.");
+
+        const esc = (value) => String(value ?? "")
+            .replace(/&/g,"&amp;")
+            .replace(/</g,"&lt;")
+            .replace(/>/g,"&gt;")
+            .replace(/"/g,"&quot;")
+            .replace(/'/g,"&#039;");
+
+        const nama = order.nama || "Pelanggan";
+        const alamat = order.alamat || "-";
+        const rt = order.rt || "";
+        const rw = order.rw || "";
+        const desa = order.desa || order.desaNama || "";
+        const kecamatan = order.kecamatan || order.kecamatanNama || "";
+        const kabupaten = order.kabupaten || order.kabupatenNama || "";
+        const provinsi = order.provinsi || order.provinsiNama || "";
+        const kodePos = order.kodePos || "";
+        const whatsapp = order.whatsapp || "-";
+        const resi = order.resi || order.biteshipTrackingId || order.biteshipWaybillId || "-";
+        const kurir = order.biteshipCourier || order.kurirNama || order.kurir || "-";
+        const layanan = order.biteshipCourierType || order.layananNama || order.layananPengiriman || "-";
+        const ongkir = Number(order.biteshipShippingPrice || order.ongkir || 0);
+        const total = Number(order.total || 0);
+        const invoice = order.invoice || id;
+
+        const wilayah = [desa, kecamatan, kabupaten, provinsi].filter(Boolean).join(", ");
+        const rtRw = [rt ? "RT " + rt : "", rw ? "RW " + rw : ""].filter(Boolean).join(" / ");
+
+        const win = window.open("", "_blank", "width=800,height=900");
+        if(!win) return alert("Popup diblokir browser. Izinkan popup untuk mencetak label.");
+
+        win.document.open();
+        win.document.write(`<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Label Pengiriman - ${esc(resi)}</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
+.sheet{width:100mm;min-height:150mm;margin:12mm auto;background:#fff;padding:6mm;border:1px solid #222}
+.shop{font-size:20px;font-weight:900;letter-spacing:.2px}
+.small{font-size:11px;color:#555}
+.line{border-top:2px solid #111;margin:4mm 0}
+.title{font-size:11px;font-weight:900;text-transform:uppercase;color:#555}
+.receiver{font-size:21px;font-weight:900;margin-top:1.5mm}
+.address{font-size:15px;line-height:1.45;margin-top:2mm;word-break:break-word}
+.phone{font-size:14px;margin-top:2mm;font-weight:700}
+.resi{margin-top:5mm;padding:3mm;border:2px solid #111;text-align:center}
+.resi-label{font-size:10px;font-weight:900;text-transform:uppercase}
+.resi-number{font-size:22px;font-weight:900;letter-spacing:1px;margin-top:1mm;word-break:break-all}
+.shipping{display:grid;grid-template-columns:1fr 1fr;gap:2mm;margin-top:4mm}
+.box{border:1px solid #aaa;border-radius:2mm;padding:2.5mm}
+.box small{display:block;color:#666;font-size:10px}
+.box b{font-size:13px;display:block;margin-top:1mm}
+.cod{margin-top:4mm;padding:4mm;border:3px solid #111;text-align:center}
+.cod small{font-size:11px;font-weight:900}
+.cod strong{display:block;font-size:24px;margin-top:1mm}
+.footer{margin-top:4mm;font-size:10px;line-height:1.4;color:#555}
+@page{size:100mm 150mm;margin:0}
+@media print{
+ body{background:#fff}
+ .sheet{margin:0;width:100mm;min-height:150mm;border:0}
+ .no-print{display:none}
+}
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="shop">🌱 SUBUR MUJUR TANI</div>
+  <div class="small">LABEL PENGIRIMAN</div>
+  <div class="line"></div>
+
+  <div class="title">PENERIMA</div>
+  <div class="receiver">${esc(nama)}</div>
+  <div class="phone">📱 ${esc(whatsapp)}</div>
+  <div class="address">
+    ${esc(alamat)}
+    ${rtRw ? `<br>${esc(rtRw)}` : ""}
+    ${wilayah ? `<br>${esc(wilayah)}` : ""}
+    ${kodePos ? `<br><b>${esc(kodePos)}</b>` : ""}
+  </div>
+
+  <div class="resi">
+    <div class="resi-label">Nomor Resi</div>
+    <div class="resi-number">${esc(resi)}</div>
+  </div>
+
+  <div class="shipping">
+    <div class="box"><small>KURIR</small><b>${esc(kurir)}</b></div>
+    <div class="box"><small>LAYANAN</small><b>${esc(layanan)}</b></div>
+    <div class="box"><small>ONGKIR</small><b>Rp ${ongkir.toLocaleString("id-ID")}</b></div>
+    <div class="box"><small>INVOICE</small><b>${esc(invoice)}</b></div>
+  </div>
+
+  ${String(order.metodePembayaran || "").toUpperCase()==="COD" ? `
+  <div class="cod">
+    <small>COD — UANG YANG HARUS DITERIMA</small>
+    <strong>Rp ${total.toLocaleString("id-ID")}</strong>
+  </div>` : ""}
+
+  <div class="footer">
+    Pengirim: SUBUR MUJUR TANI<br>
+    Harap pastikan paket sesuai pesanan dan nomor resi tetap terlihat.
+  </div>
+
+  <button class="no-print" onclick="window.print()" style="margin-top:6mm;width:100%;padding:12px;font-size:16px;font-weight:800;">🖨️ CETAK</button>
+</div>
+<script>window.addEventListener("load",function(){setTimeout(function(){window.print()},350)});<\/script>
+</body>
+</html>`);
+        win.document.close();
+    } catch(e) {
+        console.error("Cetak label pengiriman:", e);
+        alert("❌ Gagal membuat label: " + (e.message || e));
     }
 }
 

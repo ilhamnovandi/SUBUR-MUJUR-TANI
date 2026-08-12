@@ -2759,6 +2759,10 @@ async function simpanPesanan() {
         const orderData = {
             invoice: "SMT-" + Date.now(),
             nama, alamat, rt, rw, kodePos, whatsapp,
+            provinsi: document.getElementById("provinsi")?.selectedOptions?.[0]?.textContent?.trim() || "",
+            kabupaten: document.getElementById("kabupaten")?.selectedOptions?.[0]?.textContent?.trim() || "",
+            kecamatan: document.getElementById("kecamatanSelect")?.selectedOptions?.[0]?.textContent?.trim() || "",
+            desa: document.getElementById("desaSelect")?.selectedOptions?.[0]?.textContent?.trim() || "",
             produk: keranjang.map(item => ({
                 id:item.id, nama:item.nama, harga:Number(item.harga||0),
                 hargaAsli:Number(item.hargaAsli || item.harga || 0),
