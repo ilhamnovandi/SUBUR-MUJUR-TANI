@@ -1,15 +1,17 @@
 const crypto = require("crypto");
+const { processWebhookPayload } = require("./biteship-webhook-processor");
 
 function response(statusCode, body = {}) {
+  const isText = typeof body === "string";
   return {
     statusCode,
     headers: {
-      "Content-Type": "application/json; charset=utf-8",
+      "Content-Type": isText ? "text/plain; charset=utf-8" : "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Content-Type, X-Requested-With, *",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
     },
-    body: JSON.stringify(body)
+    body: isText ? body : JSON.stringify(body)
   };
 }
 
@@ -56,14 +58,11 @@ function getBackgroundUrl(event) {
   return `${proto}://${host}/.netlify/functions/biteship-webhook-background`;
 }
 
-async function invokeBackground(event, rawBody) {
+async function invokeBackground(event, rawBody, secret) {
   const url = getBackgroundUrl(event);
-  const secret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
   if (!url || !secret) return false;
 
   try {
-    // Netlify Background Functions acknowledge with 202 immediately and
-    // continue processing independently, keeping the Biteship request fast.
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -80,19 +79,21 @@ async function invokeBackground(event, rawBody) {
 }
 
 exports.handler = async event => {
-  // Biteship requires a public HTTPS POST JSON endpoint. GET is also accepted
-  // here to make endpoint checks easy to verify from a browser/curl.
-  if (event.httpMethod === "OPTIONS") return response(204, {});
-  if (event.httpMethod === "GET") return response(200, { success: true, webhook: "ready" });
+  if (event.httpMethod === "OPTIONS") return response(204, "");
+
+  // Helpful for a browser/manual endpoint check.
+  if (event.httpMethod === "GET") return response(200, "ok");
+
   if (event.httpMethod !== "POST") {
     return response(405, { success: false, message: "Method harus POST." });
   }
 
   const rawBody = String(event.body || "").trim();
 
-  // Installation/endpoint validation can be a POST with an empty body.
+  // Biteship installation validation may send an empty JSON POST.
+  // Biteship explicitly expects an OK response, so return plain text "ok".
   if (!rawBody) {
-    return response(200, { success: true, webhook: "ready", validation: true });
+    return response(200, "ok");
   }
 
   let payload;
@@ -106,36 +107,48 @@ exports.handler = async event => {
   const signatureSecret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
   const receivedSecret = signatureKey ? headerValue(event.headers, signatureKey) : "";
 
-  // A non-event JSON payload is treated as the initial Biteship validation.
-  // It gets 200 without requiring the optional signature header.
-  if (!isLikelyRealWebhook(payload) && !receivedSecret) {
-    return response(200, { success: true, webhook: "ready", validation: true });
+  // Biteship's optional signature headers are only checked when configured.
+  // This keeps installation and normal delivery working when the Biteship
+  // dashboard Headers fields are intentionally left empty.
+  if (signatureKey || signatureSecret) {
+    if (!signatureKey || !signatureSecret) {
+      return response(500, {
+        success: false,
+        message: "Konfigurasi keamanan webhook belum lengkap di Netlify."
+      });
+    }
+    if (!safeEqual(receivedSecret, signatureSecret)) {
+      return response(401, { success: false, message: "Signature webhook tidak valid." });
+    }
   }
 
-  // Real webhook deliveries are verified when signature security is configured.
-  if (!signatureKey || !signatureSecret) {
+  // Biteship may send a non-event JSON validation payload during installation.
+  if (!isLikelyRealWebhook(payload)) {
+    return response(200, "ok");
+  }
+
+  // If a webhook signature secret exists, use the Background Function so the
+  // public endpoint can acknowledge Biteship quickly. If headers are empty,
+  // process directly with the same shared processor; no extra ENV is needed.
+  if (signatureSecret) {
+    const accepted = await invokeBackground(event, rawBody, signatureSecret);
+    if (!accepted) {
+      return response(502, {
+        success: false,
+        message: "Webhook berhasil diverifikasi tetapi gagal diteruskan ke background processor."
+      });
+    }
+    return response(200, { success: true, received: true, queued: true });
+  }
+
+  try {
+    const result = await processWebhookPayload(rawBody);
+    return response(200, result);
+  } catch (err) {
+    console.error("biteship-webhook:", err);
     return response(500, {
       success: false,
-      message: "Konfigurasi keamanan webhook belum lengkap di Netlify."
+      message: err.message || "Webhook gagal diproses."
     });
   }
-
-  if (!safeEqual(receivedSecret, signatureSecret)) {
-    return response(401, { success: false, message: "Signature webhook tidak valid." });
-  }
-
-  // IMPORTANT: do not read Firebase or perform heavy processing here.
-  // The Background Function handles Firebase after Biteship has been acknowledged.
-  const accepted = await invokeBackground(event, rawBody);
-  if (!accepted) {
-    // The request was authenticated but could not be queued. Returning an
-    // error is safer than falsely acknowledging a webhook that will be lost.
-    return response(502, { success: false, message: "Webhook berhasil diverifikasi tetapi gagal diteruskan ke background processor." });
-  }
-
-  return response(200, {
-    success: true,
-    received: true,
-    queued: true
-  });
 };
