@@ -2773,7 +2773,27 @@ async function simpanPesanan() {
             total: totals.total,
             metodePembayaran: metode,
             kurir: document.getElementById("kurirOngkir")?.value || "",
+            kurirKode: (() => {
+                const selected = daftarLayanan[Number(document.getElementById("layananOngkir")?.value)];
+                return selected?.courier_code || document.getElementById("kurirOngkir")?.value || "";
+            })(),
+            kurirNama: (() => {
+                const selected = daftarLayanan[Number(document.getElementById("layananOngkir")?.value)];
+                return selected?.courier_name || "";
+            })(),
+            layananKode: (() => {
+                const selected = daftarLayanan[Number(document.getElementById("layananOngkir")?.value)];
+                return selected?.courier_service_code || "";
+            })(),
+            layananNama: (() => {
+                const selected = daftarLayanan[Number(document.getElementById("layananOngkir")?.value)];
+                return selected?.courier_service_name || "";
+            })(),
             layananPengiriman: document.getElementById("layananOngkir")?.selectedOptions?.[0]?.textContent?.trim() || "",
+            shippingDuration: (() => {
+                const selected = daftarLayanan[Number(document.getElementById("layananOngkir")?.value)];
+                return selected?.duration || "";
+            })(),
             status: "Menunggu Pembayaran",
             tanggal: new Date().toLocaleString("id-ID"),
             waktu: Date.now()

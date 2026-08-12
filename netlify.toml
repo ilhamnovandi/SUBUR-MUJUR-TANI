@@ -19,6 +19,13 @@
   status = 200
   force = true
 
+# Endpoint tarif Biteship khusus Admin.
+[[redirects]]
+  from = "/api/biteship-rates"
+  to = "/.netlify/functions/biteship-rates"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
