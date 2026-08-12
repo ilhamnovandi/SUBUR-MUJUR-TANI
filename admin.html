@@ -438,8 +438,10 @@ database.ref("pesanan").on("value", function(snapshot) {
             const order = data[id] || {};
             const orderStatus = order.status || "Menunggu Pembayaran";
             const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
-            const bolehHapus = !order.biteshipOrderId && !order.resi &&
-              ["Pembayaran Ditolak","Ditolak","Dibatalkan","Batal","Belum Bayar","Menunggu Pembayaran","Menunggu Konfirmasi COD"].includes(orderStatus);
+            // Hapus pesanan tersedia untuk SEMUA pesanan.
+            // Jika sudah ada resi Biteship, yang dihapus hanya data pesanan
+            // di website/Firebase; pengiriman Biteship tidak dibatalkan.
+            const bolehHapus = true;
 
             const selectedShipping =
                 order.kurirNama || order.biteshipCourier || order.kurir || "-";
@@ -891,6 +893,12 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
   <button class="no-print" onclick="window.print()" style="margin-top:6mm;width:100%;padding:12px;font-size:16px;font-weight:800;">🖨️ CETAK</button>
 </div>
 <script>window.addEventListener("load",function(){setTimeout(function(){window.print()},350)});<\/script>
+
+
+
+
+
+
 </body>
 </html>`);
         win.document.close();
