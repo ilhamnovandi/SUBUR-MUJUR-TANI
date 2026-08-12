@@ -1470,12 +1470,20 @@ const DATA_PEMBAYARAN = {
 function smtTerapkanBiayaCOD() {
     const shipping = window.smtSelectedShipping;
     if (!shipping) return;
-    const metode = document.getElementById("metodePembayaran")?.value || "";
-    const base = Number(shipping.price || 0);
-    const codFee = Number(shipping.codFee || 0);
-    ongkir = Math.max(0, base + (metode === "COD" ? codFee : 0));
+    // Biaya layanan COD Biteship dipotong dari pencairan COD, bukan
+    // otomatis ditambahkan ke tagihan pelanggan. Total COD tetap
+    // harga barang setelah voucher + ongkir.
+    ongkir = Math.max(0, Number(shipping.price || 0));
     localStorage.setItem("smt_ongkir", String(ongkir));
     updateTotalBayar();
+
+    const note = document.getElementById("metodePembayaranTerpilih");
+    if (note && document.getElementById("metodePembayaran")?.value === "COD") {
+        const fee = Math.max(0, Number(shipping.codFee || 0));
+        note.textContent = fee > 0
+            ? "Metode pembayaran: COD • Biaya layanan COD Rp " + fee.toLocaleString("id-ID") + " (dipotong dari pencairan Biteship)."
+            : "Metode pembayaran: COD • Bayar saat barang diterima.";
+    }
 }
 
 function updateMetodePembayaranUI() {
@@ -1490,7 +1498,7 @@ function updateMetodePembayaranUI() {
     if (check) check.textContent = metode === "COD" ? "✓" : "○";
 }
 
-function pilihMetodeCOD() {
+async function pilihMetodeCOD() {
     const metodeEl = document.getElementById("metodePembayaran");
     if (!metodeEl) return;
 
@@ -1500,20 +1508,94 @@ function pilihMetodeCOD() {
         document.getElementById("layananOngkir")?.focus();
         return;
     }
-    if (shipping.availableForCOD !== true) {
-        alert("Layanan pengiriman ini tidak mendukung COD. Pilih layanan yang bertanda \"COD ✓\".");
+
+    if (!keranjang.length) {
+        alert("Keranjang masih kosong.");
         return;
     }
 
-    metodeEl.value = "COD";
-    document.querySelectorAll(".payment-content").forEach(function(el){ el.classList.remove("open"); });
-    document.querySelectorAll(".payment-arrow").forEach(function(el){ el.classList.remove("open"); });
-    const list = document.getElementById("payment-bank-list");
-    const mainArrow = document.getElementById("payment-main-arrow");
-    if (list) list.classList.remove("open");
-    if (mainArrow) mainArrow.classList.remove("open");
-    updateMetodePembayaranUI();
-    smtTerapkanBiayaCOD();
+    // Uji COD langsung ke Biteship memakai layanan yang sedang dipilih.
+    // Ini lebih aman daripada menebak dukungan COD dari daftar tarif biasa.
+    const totals = finalGetTotals();
+    if (totals.total < 1000) {
+        alert("Nilai COD minimal Rp1.000.");
+        return;
+    }
+    if (totals.total > 15000000) {
+        alert("Nilai COD maksimal Rp15.000.000.");
+        return;
+    }
+
+    const destinationPostalCode = (document.getElementById("kodePos")?.value || "").trim();
+    const courier = String(shipping.courierCode || "").toLowerCase();
+    const items = keranjang.map(item => ({
+        name: String(item.nama || "Produk"),
+        description: "Bibit tanaman",
+        value: Math.max(1, Number(item.harga || 0)),
+        weight: Math.max(1, Math.ceil(Number(item.berat || 1000))),
+        quantity: Math.max(1, Number(item.jumlah || 1))
+    }));
+
+    const oldText = document.getElementById("codPaymentCard")?.innerHTML;
+    const card = document.getElementById("codPaymentCard");
+    if (card) card.disabled = true;
+    if (card) card.innerHTML = "<span><b>⏳ Memeriksa COD...</b><small>Memastikan layanan ini benar-benar mendukung COD.</small></span><span>…</span>";
+
+    try {
+        const res = await fetch("/api/ongkir", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                destinationPostalCode,
+                courier,
+                items,
+                codRequested: true,
+                codAmount: totals.total
+            })
+        });
+        const raw = await res.text();
+        let data = {};
+        try { data = raw ? JSON.parse(raw) : {}; } catch { throw new Error("Server mengirim respons yang bukan JSON."); }
+        if (!res.ok || data.success === false) throw new Error(data.message || "Biteship tidak menerima permintaan COD.");
+
+        const rates = Array.isArray(data.pricing) ? data.pricing : [];
+        const selected = rates.find(item =>
+            String(item.courier_service_code || "") === String(shipping.serviceCode || "")
+        );
+        if (!selected || selected.available_for_cash_on_delivery !== true) {
+            throw new Error("Layanan " + (shipping.serviceName || shipping.serviceCode) + " tidak tersedia untuk COD pada akun/tujuan ini. Pilih layanan lain.");
+        }
+
+        shipping.availableForCOD = true;
+        shipping.codFee = Number(selected.cash_on_delivery_fee || 0);
+        shipping.codAmount = totals.total;
+        shipping.codVerified = true;
+        localStorage.setItem("smt_selected_shipping", JSON.stringify(shipping));
+
+        metodeEl.value = "COD";
+        document.querySelectorAll(".payment-content").forEach(function(el){ el.classList.remove("open"); });
+        document.querySelectorAll(".payment-arrow").forEach(function(el){ el.classList.remove("open"); });
+        const list = document.getElementById("payment-bank-list");
+        const mainArrow = document.getElementById("payment-main-arrow");
+        if (list) list.classList.remove("open");
+        if (mainArrow) mainArrow.classList.remove("open");
+        updateMetodePembayaranUI();
+        smtTerapkanBiayaCOD();
+        alert("✅ COD tersedia untuk layanan " + (shipping.serviceName || shipping.serviceCode) + ". Silakan tekan Buat Pesanan.");
+    } catch (err) {
+        shipping.availableForCOD = false;
+        shipping.codVerified = false;
+        localStorage.setItem("smt_selected_shipping", JSON.stringify(shipping));
+        metodeEl.value = "";
+        updateMetodePembayaranUI();
+        alert("❌ COD belum bisa digunakan: " + String(err.message || err));
+    } finally {
+        if (card) {
+            card.disabled = false;
+            if (oldText) card.innerHTML = oldText;
+            updateMetodePembayaranUI();
+        }
+    }
 }
 
 function toggleDaftarBank() {
@@ -2384,6 +2466,7 @@ document.getElementById("layananOngkir")
         serviceCode: String(data.courier_service_code || data.type || ""),
         serviceName: String(data.courier_service_name || ""),
         availableForCOD: data.available_for_cash_on_delivery === true,
+        codVerified: false,
         codFee: Number(data.cash_on_delivery_fee || 0),
         price: ongkir,
         duration: String(data.duration || "")
@@ -2683,8 +2766,10 @@ function finalGetTotals() {
         const h = hargaItem(item);
         return sum + h.harga * Math.max(1, angkaUang(item.jumlah || 1));
     }, 0);
+    const nilaiVoucher = Math.max(0, angkaUang(window.totalVoucher || 0));
     const nilaiOngkir = Math.max(0, angkaUang(ongkir));
-    return {totalProduk, ongkir:nilaiOngkir, total:totalProduk + nilaiOngkir};
+    const total = Math.max(0, totalProduk - nilaiVoucher + nilaiOngkir);
+    return {totalProduk, totalVoucher:nilaiVoucher, ongkir:nilaiOngkir, total};
 }
 
 /* Cek stok Firebase setiap kali tambah item.
@@ -2874,8 +2959,8 @@ async function simpanPesanan() {
             alert("Kode layanan COD belum tersedia. Silakan hitung ongkir dan pilih layanan lagi.");
             return;
         }
-        if (selectedShipping.availableForCOD !== true) {
-            alert("Layanan pengiriman yang dipilih tidak mendukung COD. Silakan pilih layanan yang bertanda 'COD ✓'.");
+        if (selectedShipping.availableForCOD !== true || selectedShipping.codVerified !== true) {
+            alert("COD belum diverifikasi untuk layanan ini. Tekan tombol COD lagi agar sistem memeriksa layanan langsung ke Biteship.");
             return;
         }
     }
@@ -2893,8 +2978,8 @@ async function simpanPesanan() {
             finalOrderProcessing = false;
             return;
         }
-        if (codTotal > 10000000) {
-            alert("Nilai COD maksimal Rp10.000.000 per paket.");
+        if (codTotal > 15000000) {
+            alert("Nilai COD maksimal Rp15.000.000 per paket.");
             finalOrderProcessing = false;
             return;
         }
