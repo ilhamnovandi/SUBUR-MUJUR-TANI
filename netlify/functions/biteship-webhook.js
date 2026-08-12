@@ -1,63 +1,71 @@
-const crypto = require("crypto");
-const { processWebhookPayload } = require("./biteship-webhook-processor");
+/**
+ * SUBUR MUJUR TANI - Biteship Webhook
+ *
+ * Public endpoint:
+ *   /.netlify/functions/biteship-webhook
+ *   /api/biteship-webhook
+ *
+ * Biteship installation validation:
+ *   POST + application/json + empty body => HTTP 200 "ok"
+ *
+ * Real order.status payloads are forwarded to the existing processor.
+ */
 
-function response(statusCode, body = "") {
-  const isText = typeof body === "string";
-
+function textResponse(statusCode, body) {
   return {
     statusCode,
     headers: {
-      "Content-Type": isText
-        ? "text/plain; charset=utf-8"
-        : "application/json; charset=utf-8",
-
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-store",
       "Access-Control-Allow-Origin": "*",
-
-      "Access-Control-Allow-Headers":
-        "Content-Type, X-Requested-With, X-Biteship-Signature, *",
-
-      "Access-Control-Allow-Methods":
-        "GET, POST, OPTIONS"
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
     },
-
-    body: isText
-      ? body
-      : JSON.stringify(body)
+    body: String(body ?? "")
   };
 }
 
+function jsonResponse(statusCode, body) {
+  return {
+    statusCode,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    },
+    body: JSON.stringify(body)
+  };
+}
 
-function headerValue(headers, name) {
-  const target = String(name || "").toLowerCase();
-
+function getHeader(headers, name) {
+  const wanted = String(name || "").toLowerCase();
   for (const [key, value] of Object.entries(headers || {})) {
-    if (String(key).toLowerCase() === target) {
-      return String(value || "");
+    if (String(key).toLowerCase() === wanted) {
+      return String(value ?? "");
     }
   }
-
   return "";
 }
 
+function getRawBody(event) {
+  let body = event && event.body != null ? String(event.body) : "";
 
-function safeEqual(a, b) {
-  const left = Buffer.from(String(a || ""));
-  const right = Buffer.from(String(b || ""));
+  // Netlify can expose a base64 encoded body when isBase64Encoded is true.
+  if (event && event.isBase64Encoded && body) {
+    try {
+      body = Buffer.from(body, "base64").toString("utf8");
+    } catch (err) {
+      console.error("Gagal decode base64 webhook body:", err);
+    }
+  }
 
-  return (
-    left.length > 0 &&
-    left.length === right.length &&
-    crypto.timingSafeEqual(left, right)
-  );
+  return body.trim();
 }
 
-
-function isLikelyRealWebhook(payload) {
-  if (
-    !payload ||
-    typeof payload !== "object" ||
-    Array.isArray(payload)
-  ) {
+function looksLikeWebhookPayload(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return false;
   }
 
@@ -71,367 +79,144 @@ function isLikelyRealWebhook(payload) {
     payload.waybill_id ||
     payload.tracking_id ||
     payload.status ||
-    payload.order_status ||
-    payload.price !== undefined
+    payload.order_status
   );
 }
 
+exports.handler = async function (event) {
+  const method = String(event?.httpMethod || "").toUpperCase();
 
-function getBackgroundUrl(event) {
-  const headers = event.headers || {};
-
-  const host =
-    headerValue(headers, "x-forwarded-host") ||
-    headerValue(headers, "host");
-
-  const proto =
-    headerValue(headers, "x-forwarded-proto") ||
-    (String(host).includes("localhost")
-      ? "http"
-      : "https");
-
-  if (!host) {
-    return "";
+  // --------------------------------------------------
+  // OPTIONS
+  // --------------------------------------------------
+  if (method === "OPTIONS") {
+    return textResponse(200, "ok");
   }
 
-  return `${proto}://${host}/.netlify/functions/biteship-webhook-background`;
-}
-
-
-async function invokeBackground(event, rawBody, secret) {
-  const url = getBackgroundUrl(event);
-
-  if (!url || !secret) {
-    return false;
+  // --------------------------------------------------
+  // GET
+  // Browser/manual health check
+  // --------------------------------------------------
+  if (method === "GET") {
+    return textResponse(200, "ok");
   }
 
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-
-      headers: {
-        "Content-Type": "application/json",
-        "x-smt-webhook-internal": secret
-      },
-
-      body: rawBody
-    });
-
-    return res.status >= 200 && res.status < 300;
-
-  } catch (err) {
-
-    console.error(
-      "biteship-webhook background invoke:",
-      err
-    );
-
-    return false;
-  }
-}
-
-
-exports.handler = async (event) => {
-
-  /*
-   * ============================
-   * OPTIONS
-   * ============================
-   */
-
-  if (event.httpMethod === "OPTIONS") {
-    return response(204, "");
+  // --------------------------------------------------
+  // Only POST is accepted for webhook delivery.
+  // --------------------------------------------------
+  if (method !== "POST") {
+    return textResponse(405, "Method Not Allowed");
   }
 
+  const rawBody = getRawBody(event);
+  const contentType = getHeader(event.headers, "content-type");
 
-  /*
-   * ============================
-   * GET
-   * ============================
-   *
-   * Untuk tes manual dari browser.
-   */
+  console.log("Biteship webhook received:", {
+    method,
+    contentType,
+    bodyLength: rawBody.length
+  });
 
-  if (event.httpMethod === "GET") {
-    return response(200, "ok");
-  }
-
-
-  /*
-   * ============================
-   * METHOD
-   * ============================
-   */
-
-  if (event.httpMethod !== "POST") {
-    return response(
-      405,
-      "Method Not Allowed"
-    );
-  }
-
-
-  /*
-   * ============================
-   * BITEHIP VALIDATION
-   * ============================
-   *
-   * Biteship dapat mengirim POST
-   * dengan Content-Type:
-   *
-   * application/json
-   *
-   * tetapi body kosong.
-   *
-   * Jangan JSON.parse body kosong.
-   * Langsung balas:
-   *
-   * HTTP 200
-   * ok
-   */
-
-  const rawBody = String(
-    event.body || ""
-  ).trim();
-
-
+  // --------------------------------------------------
+  // CRITICAL:
+  // Biteship installation validation can send an empty
+  // application/json POST. It MUST receive HTTP 200 "ok".
+  // --------------------------------------------------
   if (!rawBody) {
-
-    console.log(
-      "Biteship validation: empty body"
-    );
-
-    return response(
-      200,
-      "ok"
-    );
+    console.log("Biteship validation: empty body -> OK");
+    return textResponse(200, "ok");
   }
 
-
-  /*
-   * Biteship juga bisa mengirim
-   * JSON kosong:
-   *
-   * {}
-   */
-
+  // Biteship may also validate with an empty JSON object.
   if (rawBody === "{}") {
-
-    console.log(
-      "Biteship validation: empty JSON object"
-    );
-
-    return response(
-      200,
-      "ok"
-    );
+    console.log("Biteship validation: {} -> OK");
+    return textResponse(200, "ok");
   }
 
-
-  /*
-   * ============================
-   * PARSE JSON
-   * ============================
-   */
-
+  // --------------------------------------------------
+  // Parse JSON.
+  // --------------------------------------------------
   let payload;
 
   try {
-
-    payload = JSON.parse(
-      rawBody
-    );
-
+    payload = JSON.parse(rawBody);
   } catch (err) {
+    console.error("Webhook body bukan JSON valid:", err);
 
-    console.error(
-      "Invalid webhook JSON:",
-      err
-    );
-
-    return response(
-      400,
-      {
-        success: false,
-        message:
-          "Body webhook bukan JSON yang valid."
-      }
-    );
+    // Do not make installation fail because of a validation
+    // request that does not contain a normal event payload.
+    return textResponse(200, "ok");
   }
 
-
-  /*
-   * ============================
-   * NON-EVENT VALIDATION
-   * ============================
-   *
-   * Kalau Biteship mengirim JSON
-   * tetapi bukan event order.status,
-   * tetap jawab OK.
-   */
-
-  if (!isLikelyRealWebhook(payload)) {
-
-    console.log(
-      "Biteship validation payload accepted"
-    );
-
-    return response(
-      200,
-      "ok"
-    );
+  // --------------------------------------------------
+  // Non-event validation payload -> OK.
+  // --------------------------------------------------
+  if (!looksLikeWebhookPayload(payload)) {
+    console.log("Biteship validation payload -> OK");
+    return textResponse(200, "ok");
   }
 
-
-  /*
-   * ============================
-   * SIGNATURE
-   * ============================
-   *
-   * Optional.
-   *
-   * Karena di dashboard Biteship
-   * kamu mengosongkan Signature Key
-   * dan Signature Secret, bagian ini
-   * tidak akan mengganggu.
-   */
-
+  // --------------------------------------------------
+  // Optional signature verification.
+  //
+  // Leave the Biteship dashboard signature fields empty
+  // if you are not using signature verification.
+  // --------------------------------------------------
   const signatureKey = String(
     process.env.BITESHIP_WEBHOOK_SIGNATURE_KEY || ""
   ).trim();
-
 
   const signatureSecret = String(
     process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || ""
   ).trim();
 
-
-  if (
-    signatureKey ||
-    signatureSecret
-  ) {
-
-    if (
-      !signatureKey ||
-      !signatureSecret
-    ) {
-
-      return response(
-        500,
-        {
-          success: false,
-          message:
-            "Konfigurasi keamanan webhook belum lengkap di Netlify."
-        }
-      );
-    }
-
-
-    const receivedSecret =
-      headerValue(
-        event.headers,
-        signatureKey
-      );
-
-
-    if (
-      !safeEqual(
-        receivedSecret,
-        signatureSecret
-      )
-    ) {
-
-      return response(
-        401,
-        {
-          success: false,
-          message:
-            "Signature webhook tidak valid."
-        }
-      );
-    }
-  }
-
-
-  /*
-   * ============================
-   * BACKGROUND PROCESSOR
-   * ============================
-   */
-
-  if (signatureSecret) {
-
-    const accepted =
-      await invokeBackground(
-        event,
-        rawBody,
-        signatureSecret
-      );
-
-
-    if (!accepted) {
-
-      return response(
-        502,
-        {
-          success: false,
-          message:
-            "Webhook berhasil diverifikasi tetapi gagal diteruskan ke background processor."
-        }
-      );
-    }
-
-
-    return response(
-      200,
-      {
-        success: true,
-        received: true,
-        queued: true
-      }
-    );
-  }
-
-
-  /*
-   * ============================
-   * PROCESS WEBHOOK
-   * ============================
-   *
-   * Untuk order.status asli,
-   * teruskan ke processor yang
-   * sudah ada di proyek.
-   */
-
-  try {
-
-    const result =
-      await processWebhookPayload(
-        rawBody
-      );
-
-
-    return response(
-      200,
-      result
-    );
-
-  } catch (err) {
-
-    console.error(
-      "biteship-webhook:",
-      err
-    );
-
-
-    return response(
-      500,
-      {
+  if (signatureKey || signatureSecret) {
+    if (!signatureKey || !signatureSecret) {
+      return jsonResponse(500, {
         success: false,
-        message:
-          err.message ||
-          "Webhook gagal diproses."
-      }
-    );
+        message: "Konfigurasi signature webhook di Netlify belum lengkap."
+      });
+    }
+
+    const received = getHeader(event.headers, signatureKey);
+
+    if (!received || received !== signatureSecret) {
+      return jsonResponse(401, {
+        success: false,
+        message: "Signature webhook tidak valid."
+      });
+    }
+  }
+
+  // --------------------------------------------------
+  // REAL WEBHOOK
+  //
+  // Load processor lazily so a processor/Firebase
+  // problem cannot prevent the endpoint from being
+  // deployed and responding to validation requests.
+  // --------------------------------------------------
+  try {
+    const { processWebhookPayload } = require("./biteship-webhook-processor");
+
+    const result = await processWebhookPayload(rawBody);
+
+    return jsonResponse(200, {
+      success: true,
+      received: true,
+      result
+    });
+  } catch (err) {
+    console.error("Biteship webhook processor error:", err);
+
+    // The webhook endpoint has received the event. We return
+    // an explicit JSON 200 so Biteship does not repeatedly
+    // fail delivery just because Firebase processing failed.
+    return jsonResponse(200, {
+      success: true,
+      received: true,
+      processed: false,
+      message: "Webhook diterima, tetapi pemrosesan internal gagal.",
+      error: err.message || "Unknown processing error"
+    });
   }
 };

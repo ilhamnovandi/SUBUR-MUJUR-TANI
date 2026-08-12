@@ -14,8 +14,27 @@ function findFirst(obj, keys, depth = 0) {
   return "";
 }
 
-function normalizeStatus(raw, currentStatus) {
-  return currentStatus || "Dikemas";
+function normalizeStatus(raw, currentStatus, isCOD) {
+  const status = String(raw || "").toLowerCase().trim();
+
+  const map = {
+    confirmed: "Buat Pengiriman",
+    scheduled: "Buat Pengiriman",
+    allocated: "Buat Pengiriman",
+    picking_up: "Dikirim",
+    picked: "Dikirim",
+    dropping_off: "Dikirim",
+    delivered: isCOD ? "COD Lunas" : "Beri Penilaian",
+    cancelled: "Dibatalkan",
+    rejected: "Dibatalkan",
+    disposed: "Dibatalkan",
+    on_hold: "Ditahan",
+    courier_not_found: "Ditahan",
+    return_in_transit: "Dikembalikan",
+    returned: "Dikembalikan"
+  };
+
+  return map[status] || currentStatus || "Dikemas";
 }
 
 function isDelivered(raw) {
@@ -103,13 +122,25 @@ async function processWebhookPayload(rawBody) {
     }
 
     const now = new Date().toLocaleString("id-ID");
-    const nextStatus = normalizeStatus(rawStatus, order.status);
+    const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
+    const nextStatus = normalizeStatus(rawStatus, order.status, isCOD);
+    const statusChanged =
+      Boolean(rawStatus) &&
+      String(rawStatus).toLowerCase() !== String(order.statusPengiriman || "").toLowerCase();
+
     const updates = {
       statusPengiriman: rawStatus || order.statusPengiriman || "",
       statusTerakhirDiperbarui: now,
       biteshipLastWebhookAt: now,
       biteshipLastEvent: eventName
     };
+
+    // Keep the store's own order workflow synchronized with Biteship.
+    // Biteship's status codes are translated to the statuses already used
+    // by the SUBUR MUJUR TANI admin panel.
+    if (rawStatus) {
+      updates.status = nextStatus;
+    }
 
     if (biteshipOrderId) updates.biteshipOrderId = biteshipOrderId;
     if (waybill) updates.resi = waybill;
@@ -120,7 +151,7 @@ async function processWebhookPayload(rawBody) {
     if (price > 0) updates.biteshipShippingPrice = price;
 
     if (eventName === "order.status" || rawStatus) {
-      if (isDelivered(rawStatus) && String(order.metodePembayaran || "").toUpperCase() === "COD") {
+      if (isDelivered(rawStatus) && isCOD) {
         updates.statusPembayaran = "COD - Menunggu Pencairan";
         updates.codDeliveredAt = now;
       }
@@ -133,7 +164,9 @@ async function processWebhookPayload(rawBody) {
       const trackSnap = await trackRef.once("value");
       const track = trackSnap.val() || {};
       const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
-      if (rawStatus) history.push({ status: nextStatus, waktu: now, sumber: "Biteship" });
+      if (statusChanged) {
+        history.push({ status: nextStatus, waktu: now, sumber: "Biteship", biteshipStatus: rawStatus });
+      }
       await trackRef.update({
         invoice: order.invoice,
         nama: order.nama || "",
