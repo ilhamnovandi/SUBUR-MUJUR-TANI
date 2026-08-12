@@ -1,0 +1,46 @@
+SUBUR MUJUR TANI - WEBHOOK BITESHIP (FIXED)
+
+1. Deploy the whole project to the Netlify site:
+   monumental-sunburst-5531c9
+
+2. Use this webhook URL in Biteship:
+   https://monumental-sunburst-5531c9.netlify.app/api/biteship-webhook
+
+   This is the public rewrite route added in netlify.toml.
+   The underlying function remains:
+   /.netlify/functions/biteship-webhook
+
+3. Biteship webhook form:
+   Nama:
+   SUBUR MUJUR TANI
+
+   Deskripsi:
+   Webhook produksi untuk menerima update status pesanan Biteship SUBUR MUJUR TANI
+
+   Event:
+   order.status
+
+   Signature Key:
+   kosong
+
+   Signature Secret:
+   kosong
+
+4. After deployment, test in the browser:
+   https://monumental-sunburst-5531c9.netlify.app/api/biteship-webhook
+   Expected: ok
+
+5. The function also accepts POST application/json with an empty body
+   and returns HTTP 200 + "ok" for Biteship installation validation.
+
+6. Do not delete:
+   netlify/functions/biteship-webhook-processor.js
+   netlify/functions/firebaseAdmin.js
+   package.json
+
+7. Existing Firebase Admin and Biteship API settings must remain in
+   Netlify Environment Variables as already configured.
+
+8. The webhook processor maps Biteship delivery statuses into the
+   existing SUBUR MUJUR TANI order statuses and records webhook events
+   in Firebase.

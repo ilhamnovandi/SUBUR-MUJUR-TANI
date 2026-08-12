@@ -5,6 +5,13 @@
 [functions]
   node_bundler = "esbuild"
 
+# Public Biteship webhook route. Use this URL in Biteship dashboard.
+[[redirects]]
+  from = "/api/biteship-webhook"
+  to = "/.netlify/functions/biteship-webhook"
+  status = 200
+  force = true
+
 # Endpoint API ongkir yang stabil untuk frontend.
 [[redirects]]
   from = "/api/ongkir"
