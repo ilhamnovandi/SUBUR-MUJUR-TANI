@@ -1761,6 +1761,197 @@ async function adminHapusUlasan(id){
 </script>
 
 
+
+<!-- =========================
+     POSTINGAN BERANDA
+========================= -->
+<div class="box" id="kelolaPostingan">
+  <h2>📣 Postingan Beranda</h2>
+  <p style="margin-top:0;color:#666;">Buat postingan yang akan tampil di Beranda. Bisa berupa tulisan, foto, atau tautan ke produk.</p>
+
+  <div class="social-post-admin">
+    <div class="composer-head">
+      <div class="composer-avatar">🌱</div>
+      <div>
+        <b>SUBUR MUJUR TANI</b>
+        <div style="font-size:12px;color:#777;">Posting ke Beranda</div>
+      </div>
+    </div>
+
+    <textarea id="postText" placeholder="Tulis kabar, promo, tips tanaman, atau informasi untuk pelanggan..."></textarea>
+
+    <label class="post-file">
+      📷 Pilih foto postingan
+      <input id="postImageFile" type="file" accept="image/jpeg,image/png,image/webp" onchange="previewBerandaPost(event)">
+    </label>
+    <img id="postImagePreview" class="post-preview" alt="Preview postingan">
+
+    <label style="display:block;margin-top:12px;font-weight:700;">🛒 Tautkan produk (opsional)</label>
+    <select id="postProductSelect">
+      <option value="">Memuat produk...</option>
+    </select>
+
+    <div id="postLivePreview" class="post-live-preview" style="display:none;">
+      <div class="post-live-label">Preview Beranda</div>
+      <div id="postLiveCard" class="home-social-card" style="background:#fff;border-radius:14px;padding:12px;">
+        <div id="postLiveText" style="white-space:pre-wrap;line-height:1.5;"></div>
+        <img id="postLiveImage" style="display:none;width:100%;max-height:300px;object-fit:cover;border-radius:12px;margin-top:10px;" alt="Preview">
+      </div>
+    </div>
+
+    <div class="post-actions">
+      <button type="button" onclick="publikasikanBerandaPost()">📤 Publikasikan</button>
+      <button type="button" onclick="resetBerandaPost()" style="background:#777;">↺ Bersihkan</button>
+    </div>
+    <div id="postUploadStatus" class="post-status"></div>
+  </div>
+
+  <h3>Postingan yang sudah dipublikasikan</h3>
+  <div id="adminBerandaPosts">Memuat postingan...</div>
+</div>
+
+
+<!-- =========================
+     TAMBAHKAN PRODUK
+========================= -->
+<div class="box" id="kelolaProduk">
+  <h2>🌱 Tambahkan Produk</h2>
+  <p style="margin-top:0;color:#666;">Tambahkan bibit/produk baru ke katalog. Foto dapat dipilih langsung dari HP.</p>
+
+  <input id="namaProduk" type="text" placeholder="Nama produk, contoh: Bibit Durian Musang King">
+  <input id="hargaProduk" type="number" min="0" inputmode="numeric" placeholder="Harga (Rp)">
+  <input id="diskonProduk" type="number" min="0" max="100" inputmode="numeric" placeholder="Diskon (%) — isi 0 jika tidak ada">
+  <input id="stokProduk" type="number" min="0" inputmode="numeric" placeholder="Stok">
+  <input id="beratProduk" type="number" min="0" inputmode="numeric" placeholder="Berat per produk (gram)">
+
+  <div style="margin-top:14px;padding:14px;border:1px dashed #c7a15a;border-radius:12px;background:#fffdf8;">
+    <b>📷 Foto Produk</b>
+    <p style="font-size:13px;color:#666;margin:6px 0 10px;">Maksimal 6 foto, masing-masing maksimal 5 MB.</p>
+    <div id="pemilihFotoProdukWrap" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <label for="fileGambarProduk" style="display:inline-block;background:#0b3d2e;color:#fff;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer;text-align:center;">
+        📷 Pilih Foto
+      </label>
+      <input id="fileGambarProduk" type="file" accept="image/*" multiple onchange="pilihGambarProduk(event)" style="display:none;">
+      <button id="btnTambahFotoProduk" type="button" onclick="bukaPemilihFotoProduk()">➕ Tambah Foto</button>
+    </div>
+    <div id="uploadStatusProduk" style="display:none;margin-top:10px;padding:9px;border-radius:9px;"></div>
+    <div id="previewProdukGaleri" style="display:none;margin-top:12px;">
+      <div id="previewProdukThumbs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+    <input id="gambarProduk" type="hidden" value="">
+    <img id="previewProduk" style="display:none;max-width:100%;margin-top:10px;border-radius:10px;" alt="Preview produk">
+    <input id="fileGambarProdukTambah" type="file" accept="image/*" multiple onchange="pilihGambarProduk(event)" style="display:none;">
+  </div>
+
+  <div style="margin-top:16px;padding:14px;border:1px solid #e5e0d5;border-radius:12px;background:#fafcf9;">
+    <b>🔖 Varian Produk (opsional)</b>
+    <p style="font-size:13px;color:#666;margin:6px 0 10px;">Jika produk memiliki ukuran/varian berbeda, tambahkan di sini.</p>
+    <div id="daftarVarianProduk"></div>
+    <button type="button" onclick="tambahBarisVarian()">➕ Tambah Varian</button>
+  </div>
+
+  <button id="btnProduk" type="button" onclick="tambahProduk()" style="margin-top:16px;width:100%;font-size:16px;">🌱 Simpan Produk</button>
+  <div id="statusSimpanProduk" style="margin-top:10px;"></div>
+</div>
+
+
+<!-- =========================
+     PEMBAYARAN MASUK
+========================= -->
+<div class="box" id="kelolaPembayaran">
+  <h2>💳 Pembayaran Masuk</h2>
+  <p style="margin-top:0;color:#666;">Daftar pembayaran pelanggan dari Firebase. Pesanan COD juga muncul di sini untuk dipantau.</p>
+
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+    <button type="button" onclick="muatPembayaranAdmin()">🔄 Muat Ulang</button>
+    <select id="filterPembayaranAdmin" onchange="muatPembayaranAdmin()" style="max-width:260px;">
+      <option value="semua">Semua Pembayaran</option>
+      <option value="menunggu">Menunggu</option>
+      <option value="lunas">Lunas</option>
+      <option value="ditolak">Ditolak</option>
+    </select>
+  </div>
+
+  <div id="daftarPembayaranAdmin">Memuat pembayaran...</div>
+</div>
+
+<script>
+(function(){
+  function esc(v){
+    return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+    }[c]));
+  }
+
+  window.muatPembayaranAdmin = function(){
+    const box = document.getElementById("daftarPembayaranAdmin");
+    const filter = document.getElementById("filterPembayaranAdmin")?.value || "semua";
+    if(!box || !window.database) return;
+
+    box.innerHTML = "⏳ Memuat pembayaran...";
+
+    window.database.ref("pembayaran").once("value").then(async snap => {
+      const pembayaran = snap.val() || {};
+      const ordersSnap = await window.database.ref("pesanan").once("value");
+      const orders = ordersSnap.val() || {};
+
+      let arr = Object.entries(pembayaran).map(([id,p]) => ({id,p:p||{},order:orders[id]||{}}));
+      arr.sort((a,b) => Number(b.p.waktu||b.order.waktu||0) - Number(a.p.waktu||a.order.waktu||0));
+
+      if(filter === "menunggu"){
+        arr = arr.filter(x => !/lunas|ditolak/i.test(String(x.p.status||"")));
+      } else if(filter === "lunas"){
+        arr = arr.filter(x => /lunas/i.test(String(x.p.status||"")));
+      } else if(filter === "ditolak"){
+        arr = arr.filter(x => /ditolak/i.test(String(x.p.status||"")));
+      }
+
+      if(!arr.length){
+        box.innerHTML = '<div style="padding:14px;border:1px dashed #ccc;border-radius:10px;color:#777;">Belum ada pembayaran sesuai filter.</div>';
+        return;
+      }
+
+      box.innerHTML = arr.map(({id,p,order}) => {
+        const metode = p.metodePembayaran || order.metodePembayaran || "-";
+        const status = p.status || order.statusPembayaran || order.status || "Menunggu";
+        const total = Number(p.total || order.total || 0);
+        const isCOD = String(metode).toUpperCase() === "COD";
+        const sudahLunas = /lunas/i.test(String(status));
+        const ditolak = /ditolak/i.test(String(status));
+
+        return `<div class="card" style="margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+            <b>👤 ${esc(p.nama || order.nama || "Pelanggan")}</b>
+            <span class="status-badge">${esc(status)}</span>
+          </div>
+          <div style="font-size:13px;color:#66716c;margin-top:7px;">
+            📱 ${esc(p.whatsapp || order.whatsapp || "-")}<br>
+            💳 ${esc(metode)}${isCOD ? " 🤝" : ""}<br>
+            💰 <b>Rp ${total.toLocaleString("id-ID")}</b><br>
+            🧾 ${esc(order.invoice || id)}
+          </div>
+          <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">
+            ${(!sudahLunas && !ditolak && !isCOD) ? `<button type="button" onclick="verifikasiBayar('${esc(id)}')">✅ Lunas</button>` : ""}
+            ${(!sudahLunas && !ditolak) ? `<button type="button" onclick="tolakPembayaran('${esc(id)}')">❌ Tolak</button>` : ""}
+            ${isCOD && !sudahLunas ? `<button type="button" onclick="konfirmasiCOD('${esc(id)}')">🤝 Konfirmasi COD</button>` : ""}
+            ${isCOD && String(order.status||"") === "Dikemas" ? `<button type="button" onclick="buatPengirimanCOD('${esc(id)}')">🚚 Buat Pengiriman</button>` : ""}
+            ${isCOD && String(order.status||"") === "Dikirim" ? `<button type="button" onclick="tandaiCODLunas('${esc(id)}')">💰 COD Lunas</button>` : ""}
+          </div>
+        </div>`;
+      }).join("");
+    }).catch(e => {
+      box.innerHTML = '<div style="padding:14px;color:#c62828;">❌ Gagal memuat pembayaran: '+esc(e.message)+'</div>';
+    });
+  };
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", () => window.muatPembayaranAdmin());
+  } else {
+    window.muatPembayaranAdmin();
+  }
+})();
+</script>
+
 <!-- =========================
      VOUCHER DISKON
 ========================= -->
@@ -1962,24 +2153,24 @@ async function adminHapusUlasan(id){
     }).catch(e=>{box.textContent="Gagal memuat postingan: "+e.message;});
   }
   function classifyBoxes(){
-    document.querySelectorAll(".container > .box").forEach(box=>{
+    document.querySelectorAll(".box").forEach(box=>{
       const h=(box.querySelector("h2")?.textContent||"").toLowerCase();
       let sec="other";
       if(h.includes("pesanan masuk"))sec="pesanan";
       else if(h.includes("status pesanan"))sec="status";
       else if(h.includes("postingan beranda"))sec="postingan";
-      else if(h.includes("tambah produk")||h.includes("daftar produk"))sec="produk";
+      else if(h.includes("tambah produk")||h.includes("tambahkan produk")||h.includes("daftar produk"))sec="produk";
       else if(h.includes("pembayaran masuk"))sec="pembayaran";
       else if(h.includes("voucher diskon"))sec="voucher";
       else if(h.includes("ulasan"))sec="ulasan";
       else if(!h && box.textContent.toLowerCase().includes("keluar admin"))sec="persistent";
-      else if(!h && box.textContent.toLowerCase().includes("© 2026 subur mujur tani"))sec="persistent";
+      else if(!h && box.textContent.toLowerCase().includes("© 2026"))sec="persistent";
       else if(h.includes("ringkasan"))sec="pesanan";
       box.dataset.adminSection=sec;
     });
   }
   function showSection(sec){
-    document.querySelectorAll(".container > .box").forEach(b=>{
+    document.querySelectorAll(".box").forEach(b=>{
       const keep=b.dataset.adminSection==="persistent";
       b.style.display=(keep || b.dataset.adminSection===sec)?"block":"none";
     });
@@ -1988,6 +2179,16 @@ async function adminHapusUlasan(id){
   }
   function init(){
     classifyBoxes();
+    const explicit = {
+      kelolaPostingan:"postingan",
+      kelolaProduk:"produk",
+      kelolaPembayaran:"pembayaran",
+      statusPanduanAdmin:"status"
+    };
+    Object.entries(explicit).forEach(([id,sec])=>{
+      const el=document.getElementById(id);
+      if(el) el.dataset.adminSection=sec;
+    });
     document.querySelectorAll(".admin-tab").forEach(b=>b.addEventListener("click",()=>showSection(b.dataset.section)));
     document.getElementById("postText")?.addEventListener("input",updateLivePreview);
     document.getElementById("postProductSelect")?.addEventListener("change",updateLivePreview);
