@@ -142,12 +142,23 @@ exports.handler = async event => {
     const currentOngkir = Math.max(0, Math.round(Number(order.ongkir || 0)));
     const codAmount = Math.max(1000, Math.round(totalProduk + currentOngkir));
 
+    // Biteship mewajibkan destination_cash_on_delivery_type
+    // jika destination_cash_on_delivery dikirim.
+    const codType = safe(process.env.BITESHIP_COD_TYPE, "7_days");
+    if (!["3_days", "5_days", "7_days"].includes(codType)) {
+      return json(500, {
+        success: false,
+        message: "BITESHIP_COD_TYPE harus 3_days, 5_days, atau 7_days."
+      });
+    }
+
     const payload = {
       origin_postal_code: Number(originPostalCode),
       destination_postal_code: Number(destinationPostalCode),
       items,
       couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree",
-      destination_cash_on_delivery: codAmount
+      destination_cash_on_delivery: codAmount,
+      destination_cash_on_delivery_type: codType
     };
 
     const result = await callBiteship(apiKey, payload);
@@ -175,7 +186,9 @@ exports.handler = async event => {
       description: safe(s.description),
       available_for_cash_on_delivery: s.available_for_cash_on_delivery === true,
       cash_on_delivery_fee: Math.max(0, Math.round(Number(s.cash_on_delivery_fee || 0)))
-    })).filter(x => x.courier_code && x.courier_service_code) : [];
+    }))
+    .filter(x => x.courier_code && x.courier_service_code)
+    .filter(x => x.available_for_cash_on_delivery === true) : [];
 
     return json(200, {
       success: true,
@@ -183,6 +196,7 @@ exports.handler = async event => {
       totalProduk,
       currentOngkir,
       codAmount,
+      codType,
       destinationPostalCode,
       biteship_code: data.code || null
     });
