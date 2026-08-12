@@ -113,13 +113,13 @@ exports.handler = async event => {
       findFirst(data, ["id"]) ||
       ""
     ).trim();
-    const waybill = String(findFirst(payload, ["waybill_id"]) || findFirst(data, ["waybill_id"]) || "").trim();
-    const trackingId = String(findFirst(payload, ["tracking_id"]) || findFirst(data, ["tracking_id"]) || "").trim();
+    const waybill = String(findFirst(payload, ["waybill_id", "courier_waybill_id"]) || findFirst(data, ["waybill_id", "courier_waybill_id"]) || "").trim();
+    const trackingId = String(findFirst(payload, ["tracking_id", "courier_tracking_id"]) || findFirst(data, ["tracking_id", "courier_tracking_id"]) || "").trim();
     const courierCompany = String(findFirst(payload, ["company", "courier_company"]) || findFirst(data, ["company", "courier_company"]) || "").trim();
     const courierType = String(findFirst(payload, ["courier_type", "type"]) || findFirst(data, ["courier_type", "type"]) || "").trim();
     const rawStatus = String(findFirst(payload, ["status", "order_status"]) || findFirst(data, ["status", "order_status"]) || "").trim();
-    const price = Number(findFirst(payload, ["price"]) || findFirst(data, ["price"]) || 0);
-    const trackingUrl = String(findFirst(payload, ["link"]) || findFirst(data, ["link"]) || "").trim();
+    const price = Number(findFirst(payload, ["price", "order_price"]) || findFirst(data, ["price", "order_price"]) || 0);
+    const trackingUrl = String(findFirst(payload, ["link", "courier_link"]) || findFirst(data, ["link", "courier_link"]) || "").trim();
 
     const admin = getFirebaseAdmin();
     const db = admin.database();
