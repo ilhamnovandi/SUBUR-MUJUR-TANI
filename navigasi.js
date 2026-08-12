@@ -33,7 +33,7 @@
       <a href="lokasi.html" data-page="lokasi">
         <b>📍</b><span>Lokasi</span>
       </a>
-      <a href="admin.html" data-page="admin">
+      <a href="login.html" data-page="admin">
         <b>👤</b><span>Admin</span>
       </a>
     `;
