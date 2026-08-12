@@ -664,7 +664,7 @@ async function hitungTarifCOD(id) {
                 ${escapeAdmin(r.courier_name)} — ${escapeAdmin(r.courier_service_name)}
                 | Rp ${Number(r.price || 0).toLocaleString("id-ID")}
                 | ${escapeAdmin(r.duration || "-")}
-                ${r.available_for_cash_on_delivery ? " | COD ✓" : ""}
+                ${r.available_for_cash_on_delivery ? " | COD ✓" : " | COD ✕"}
               </option>
             `).join("")}
           </select>
@@ -691,6 +691,13 @@ async function pilihTarifCOD(id, index, silent) {
         const order = snap.val();
         if (!order) throw new Error("Pesanan tidak ditemukan.");
         if (order.biteshipOrderId || order.resi) throw new Error("Pengiriman Biteship sudah dibuat.");
+
+        // Tarif boleh ditampilkan semua. Namun pesanan COD hanya boleh
+        // memakai layanan yang memang mendukung COD.
+        if (String(order.metodePembayaran || "").toUpperCase() === "COD" &&
+            rate.available_for_cash_on_delivery !== true) {
+            throw new Error("Layanan ini tidak mendukung COD. Pilih layanan lain yang bertanda COD ✓.");
+        }
 
         const base = Math.max(0, Math.round(Number(order.totalProduk || 0)));
         const shipping = Math.max(0, Math.round(Number(rate.price || 0)));
