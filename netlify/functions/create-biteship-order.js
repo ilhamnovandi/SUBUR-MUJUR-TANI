@@ -207,8 +207,8 @@ exports.handler = async event => {
     const now = new Date().toLocaleString("id-ID");
 
     await orderRef.update({
-      status: "Dikirim",
-      statusKategori: "Dikirim",
+      status: "Buat Pengiriman",
+      statusKategori: "Buat Pengiriman",
       statusPengiriman: status,
       statusPembayaran: "COD - Menunggu Penagihan",
       biteshipOrderId: safe(data.id),
