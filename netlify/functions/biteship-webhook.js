@@ -119,17 +119,21 @@ async function processWebhook(payload) {
     ? payload.data
     : payload;
 
+  // `order_id` pada event Biteship adalah ID order Biteship,
+  // bukan ID lokal Firebase. ID lokal hanya diambil dari reference/local_order_id.
   let localOrderId = String(
-    first(payload, ["local_order_id"]) ||
-    first(payload, ["reference_id"]) ||
-    first(payload, ["order_id"]) ||
+    first(payload, ["local_order_id", "reference_id"]) ||
     (payload.metadata && payload.metadata.local_order_id) ||
     (data.metadata && data.metadata.local_order_id) ||
     ""
   ).trim();
 
+  // Pada event `order.status`, Biteship mengirim ID order melalui `order_id`.
+  // Beberapa bentuk payload lain menggunakan `id`.
   const biteshipOrderId = String(
-    first(payload, ["id"]) || first(data, ["id"]) || ""
+    first(payload, ["order_id", "id"]) ||
+    first(data, ["order_id", "id"]) ||
+    ""
   ).trim();
 
   const waybill = String(
@@ -187,18 +191,35 @@ async function processWebhook(payload) {
   if (!order && (biteshipOrderId || trackingId || waybill)) {
     const snap = await db.ref("pesanan").once("value");
     const all = snap.val() || {};
+    const entries = Object.entries(all);
 
-    for (const [id, value] of Object.entries(all)) {
-      if (
-        String(value?.biteshipOrderId || "") === biteshipOrderId ||
-        String(value?.biteshipTrackingId || "") === trackingId ||
-        String(value?.resi || "") === waybill
-      ) {
-        localOrderId = id;
-        orderRef = db.ref("pesanan/" + id);
-        order = value;
-        break;
-      }
+    // Prioritaskan Biteship Order ID agar dua pesanan yang kebetulan
+    // memakai resi/tracking yang sama tidak tertukar.
+    let found = null;
+
+    if (biteshipOrderId) {
+      found = entries.find(([id, value]) =>
+        String(value?.biteshipOrderId || "").trim() === biteshipOrderId
+      );
+    }
+
+    if (!found && trackingId) {
+      found = entries.find(([id, value]) =>
+        String(value?.biteshipTrackingId || "").trim() === trackingId
+      );
+    }
+
+    if (!found && waybill) {
+      found = entries.find(([id, value]) =>
+        String(value?.resi || "").trim() === waybill
+      );
+    }
+
+    if (found) {
+      const [id, value] = found;
+      localOrderId = id;
+      orderRef = db.ref("pesanan/" + id);
+      order = value;
     }
   }
 
