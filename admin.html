@@ -465,7 +465,7 @@ hasil += `
     ${data[id].metodePembayaran === "COD" ? `<button onclick="konfirmasiCOD('${id}')">🚚 Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Lunas</button>` : `<button onclick="verifikasiBayar('${id}')">✅ Lunas</button>`}
     <button onclick="tambahResi('${id}')">🚚 Resi</button>
     <button onclick="tolakPembayaran('${id}')">❌ Tolak</button>
-    ${bolehHapus ? `<button class="order-danger" onclick="hapusPesanan('${id}')">🗑️ Hapus Pesanan</button>` : ""}
+    <button class="order-danger" onclick="hapusPesanan('${id}')">🗑️ Hapus Pesanan</button>
   </div>
   ${data[id].metodePembayaran === "COD" ? `<div style="margin-top:8px;padding:8px 10px;background:#f7fbf8;border:1px solid #dfeee4;border-radius:9px;font-size:12px;color:#66716c;"><b>Kurir:</b> ${data[id].biteshipCourier || data[id].kurir || "-"} • <b>Resi:</b> ${data[id].resi || "Belum dibuat"} • <b>Pengiriman:</b> ${data[id].statusPengiriman || "Belum dibuat"}</div>` : ""}
 </div>`;
@@ -503,7 +503,7 @@ document.getElementById(
 
 
 async function ubahStatus(id, selectedStatus){
-    const allowed = ["Belum Bayar","Dikemas","Dikirim","Beri Penilaian"];
+    const allowed = ["Belum Bayar","Menunggu Konfirmasi COD","Dikemas","Dikirim","Beri Penilaian"];
     const status = allowed.includes(selectedStatus) ? selectedStatus : null;
     if(!status) return alert("Pilih status pesanan terlebih dahulu.");
 
@@ -1324,32 +1324,41 @@ async function hapusPesanan(id){
         if(!order) return alert("Pesanan tidak ditemukan.");
 
         const status = String(order.status || "Menunggu Pembayaran");
-        const amanDihapus = ["Pembayaran Ditolak","Ditolak","Dibatalkan","Batal","Belum Bayar","Menunggu Pembayaran","Menunggu Konfirmasi COD"].includes(status);
-        if(order.biteshipOrderId || order.resi) return alert("Pesanan ini sudah terhubung dengan pengiriman/resi, jadi tidak boleh dihapus.");
-        if(!amanDihapus) return alert("Pesanan hanya bisa dihapus jika masih batal, ditolak, atau belum diproses.");
+        const sudahDiproses = Boolean(order.biteshipOrderId || order.resi || order.statusPengiriman);
 
-        if(!confirm("Hapus pesanan " + (order.invoice || id) + "?\n\nStok produk yang sudah dipesan akan dikembalikan otomatis.")) return;
+        let pesan = "Hapus pesanan " + (order.invoice || id) + "?";
+        if(sudahDiproses){
+            pesan += "\n\n⚠️ Pesanan sudah terhubung dengan pengiriman/resi Biteship. Yang dihapus hanya data pesanan di website; pengiriman Biteship TIDAK dibatalkan.";
+        } else {
+            pesan += "\n\nStok produk akan dikembalikan otomatis.";
+        }
+        if(!confirm(pesan)) return;
 
-        const produk = Array.isArray(order.produk) ? order.produk : [];
-        for(const item of produk){
-            if(!item || !item.id) continue;
-            try {
-                await database.ref("produk/" + item.id).transaction(function(current){
-                    if(!current) return current;
-                    const jumlah = Math.max(0, Number(item.jumlah || 0));
-                    if(item.variantId && Array.isArray(current.variants)){
-                        const vi = current.variants.findIndex(v => String(v.id) === String(item.variantId));
-                        if(vi >= 0){
-                            current.variants[vi].stok = Number(current.variants[vi].stok || 0) + jumlah;
-                            current.stok = current.variants.reduce((sum,v)=>sum + Number(v.stok || 0),0);
+        // Stok hanya dikembalikan untuk pesanan yang belum masuk proses pengiriman.
+        // Pesanan yang sudah dibuatkan pengiriman tidak boleh mengembalikan stok
+        // karena barang bisa saja sudah keluar dari stok toko.
+        if(!sudahDiproses){
+            const produk = Array.isArray(order.produk) ? order.produk : [];
+            for(const item of produk){
+                if(!item || !item.id) continue;
+                try {
+                    await database.ref("produk/" + item.id).transaction(function(current){
+                        if(!current) return current;
+                        const jumlah = Math.max(0, Number(item.jumlah || 0));
+                        if(item.variantId && Array.isArray(current.variants)){
+                            const vi = current.variants.findIndex(v => String(v.id) === String(item.variantId));
+                            if(vi >= 0){
+                                current.variants[vi].stok = Number(current.variants[vi].stok || 0) + jumlah;
+                                current.stok = current.variants.reduce((sum,v)=>sum + Number(v.stok || 0),0);
+                            }
+                        }else{
+                            current.stok = Number(current.stok || 0) + jumlah;
                         }
-                    }else{
-                        current.stok = Number(current.stok || 0) + jumlah;
-                    }
-                    return current;
-                });
-            } catch(e){
-                console.warn("Gagal mengembalikan stok produk", item.id, e);
+                        return current;
+                    });
+                } catch(e){
+                    console.warn("Gagal mengembalikan stok produk", item.id, e);
+                }
             }
         }
 
@@ -1358,7 +1367,8 @@ async function hapusPesanan(id){
         updates["pembayaran/" + id] = null;
         if(order.invoice) updates["pelacakan/" + order.invoice] = null;
         await database.ref().update(updates);
-        alert("✅ Pesanan dihapus dan stok dikembalikan.");
+
+        alert("✅ Pesanan berhasil dihapus.");
     } catch(e){
         console.error("Hapus pesanan:", e);
         alert("❌ Gagal menghapus pesanan: " + e.message);

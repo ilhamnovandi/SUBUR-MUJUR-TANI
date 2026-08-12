@@ -483,7 +483,7 @@ body{background:#f5f6f2}
   box-shadow:0 12px 28px rgba(8,47,35,.30);font-size:24px;text-decoration:none;border:2px solid rgba(234,215,166,.55)
 }
 .pm-float-cart span{position:absolute;right:-3px;top:-4px;background:var(--pm-gold);color:#18271f;border-radius:50%;min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900}
-.pm-mobile-nav{display:none}
+.pm-mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;height:64px;background:rgba(255,255,255,.98);z-index:1000;border-top:1px solid var(--pm-line);justify-content:space-around;align-items:center;gap:2px;box-shadow:0 -4px 18px rgba(0,0,0,.08)}
 @media(max-width:768px){
   .pm-topbar{display:none}
   .pm-shopbar{top:46px;padding:8px 10px}
@@ -504,12 +504,12 @@ body{background:#f5f6f2}
   .pm-product-meta{margin:6px 10px 0}
   .pm-product-price{font-size:16px!important}
   .produk-card button.pm-add{width:calc(100% - 20px);margin:10px 10px 0;padding:9px 5px;font-size:11px}
-  .pm-float-cart{bottom:74px}
+  .pm-float-cart{bottom:78px}
   .pm-mobile-nav{
     display:flex;position:fixed;bottom:0;left:0;right:0;height:58px;background:rgba(255,255,255,.97);
     z-index:1000;border-top:1px solid var(--pm-line);justify-content:space-around;align-items:center
   }
-  .pm-mobile-nav a{font-size:10px;color:#59645d;text-decoration:none;text-align:center}
+  .pm-mobile-nav a{flex:1;min-width:0;font-size:11px;color:#59645d;text-decoration:none;text-align:center;white-space:nowrap;padding:4px 2px;border-radius:10px}
   .pm-mobile-nav b{display:block;font-size:18px;line-height:20px}
 }
 
@@ -626,7 +626,7 @@ input,select,textarea{max-width:100%;font-size:16px}
 button{cursor:pointer}
 @media (hover:none){button,a{outline:none}}
 /* iPhone safe areas */
-body{padding-bottom:env(safe-area-inset-bottom,0px)}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 .fixed-bottom,.bottom-nav,.mobile-bottom-nav,.nav-bottom,[class*="bottom-nav"]{padding-bottom:max(0px,env(safe-area-inset-bottom,0px))}
 /* Prevent fixed UI from covering content on notched phones */
 @supports (height:100dvh){.full-height,.min-vh{min-height:100dvh}}
@@ -683,25 +683,19 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 </div>
 </div>
 <a aria-label="Buka keranjang" class="pm-float-cart" href="checkout.html">🛒<span id="pmFloatCount">0</span></a>
-<div class="pm-mobile-nav">
-<a href="index.html"><b>⌂</b>Beranda</a>
-<a href="produk.html"><b>🌱</b>Produk</a>
-<a href="checkout.html"><b>🛒</b>Keranjang</a>
-<a href="checkout.html"><b>📦</b>Checkout</a>
-<a href="#lokasi"><b>📍</b>Lokasi</a>
+<div class="pm-mobile-nav" aria-label="Navigasi utama">
+  <a href="index.html"><b>⌂</b>Beranda</a>
+  <a href="produk.html"><b>🌱</b>Produk</a>
+  <a href="galeri.html"><b>🖼️</b>Galeri</a>
+  <a href="checkout.html"><b>🛒</b>Checkout</a>
+  <a href="#lokasi"><b>📍</b>Lokasi</a>
+  <a href="login.html"><b>👤</b>Admin</a>
 </div>
 <header>
 <h1>🌱 SUBUR MUJUR TANI</h1>
 <p>Pusat Bibit Tanaman Hortikultura Berkualitas</p>
 </header>
-<nav>
-<a href="index.html">Home</a>
-<a href="produk.html">Produk</a>
-<a href="galeri.html">Galeri</a>
-<a href="checkout.html">Checkout</a>
-<a href="#lokasi">📍 Lokasi Toko</a>
-<a href="login.html">Admin</a>
-</nav><div class="page-title"><h2>🌱 Produk Bibit</h2><p>Pilih bibit yang Anda butuhkan. Harga dan diskon tampil langsung pada produk.</p></div>
+<div class="page-title"><h2>🌱 Produk Bibit</h2><p>Pilih bibit yang Anda butuhkan. Harga dan diskon tampil langsung pada produk.</p></div>
 <section class="hero" id="home">
 <div>
 <h2>Tanam Kualitas.<br/>Panen Lebih Berarti.</h2>
