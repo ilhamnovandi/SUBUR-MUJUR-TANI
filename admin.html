@@ -152,6 +152,96 @@ color:#1b5e20;
 .status-tools button{width:auto;margin:0;padding:10px 14px;}
 .status-badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#f2ead6;color:#6b5422;font-weight:800;font-size:12px;}
 
+/* =========================================================
+   PESANAN MASUK — MINIMALIS & KOMPAK
+========================================================= */
+#pesanan{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(290px,1fr));
+  gap:10px;
+  align-items:start;
+}
+#pesanan .order-card-compact{
+  border:1px solid #e7ebe8;
+  background:#fff;
+  padding:12px;
+  border-radius:14px;
+  margin:0;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
+}
+#pesanan .order-card-compact h3{
+  margin:0;
+  font-size:15px;
+  line-height:1.25;
+  color:#174c34;
+}
+#pesanan .order-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px 10px;
+  margin:6px 0 8px;
+  color:#66716b;
+  font-size:11px;
+}
+#pesanan .order-total{
+  font-weight:800;
+  color:#173d2d;
+  font-size:14px;
+}
+#pesanan .order-status-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin:8px 0;
+}
+#pesanan .status-select{
+  margin:5px 0;
+  padding:8px 9px;
+  font-size:12px;
+  border-radius:8px;
+}
+#pesanan .status-tools{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:6px;
+}
+#pesanan .status-tools button,
+#pesanan .order-actions button{
+  flex:1 1 120px;
+  min-width:0;
+  padding:8px 9px;
+  font-size:11px;
+  border-radius:8px;
+}
+#pesanan .order-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:6px;
+}
+#pesanan .order-cod-info{
+  margin:7px 0;
+  padding:7px 9px;
+  background:#f7fbf8;
+  border:1px solid #e2eee7;
+  border-radius:9px;
+  color:#56645d;
+  font-size:11px;
+  line-height:1.45;
+}
+#pesanan .order-cod-info b{color:#244c39}
+#pesanan .status-badge{
+  padding:4px 8px;
+  font-size:10px;
+  white-space:nowrap;
+}
+@media(max-width:640px){
+  #pesanan{grid-template-columns:1fr;gap:8px}
+  #pesanan .order-card-compact{padding:11px}
+}
+
 #pemilihFotoProdukWrap label{
   user-select:none;
   -webkit-user-select:none;
@@ -425,19 +515,22 @@ for(let id in data){
 
 hasil += `
 
-<div class="card">
+<div class="order-card-compact card">
 
-<h3>${data[id].nama}</h3>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+  <h3>${data[id].nama || "Pelanggan"}</h3>
+  <span class="status-badge">${data[id].status || "Menunggu Pembayaran"}</span>
+</div>
 
-<p><b>WhatsApp:</b> ${data[id].whatsapp}</p>
+<div class="order-meta">
+  <span>📱 ${data[id].whatsapp || "-"}</span>
+  <span>💳 ${data[id].metodePembayaran === "COD" ? "COD" : (data[id].metodePembayaran || "-")}</span>
+  <span class="order-total">Rp ${Number(data[id].total || 0).toLocaleString("id-ID")}</span>
+</div>
 
-<p><b>Total:</b> Rp ${Number(data[id].total || 0).toLocaleString("id-ID")}</p>
-
-<p><b>Metode Pembayaran:</b> ${data[id].metodePembayaran === "COD" ? "🤝 COD — Bayar di Tempat" : (data[id].metodePembayaran || "-")}</p>
-
-<p><b>Status:</b> <span class="status-badge">${data[id].status || "Menunggu Pembayaran"}</span></p>
-
-<label for="status-${id}"><b>Atur status pesanan</b></label>
+<div class="order-status-row">
+  <label for="status-${id}" style="font-size:11px;color:#66716b;font-weight:700;">Status pesanan</label>
+</div>
 <select class="status-select" id="status-${id}">
   <option value="Belum Bayar" ${data[id].status === "Belum Bayar" || data[id].status === "Menunggu Pembayaran" ? "selected" : ""}>💳 Belum Bayar</option>
   <option value="Menunggu Konfirmasi COD" ${data[id].status === "Menunggu Konfirmasi COD" ? "selected" : ""}>🤝 Menunggu Konfirmasi COD</option>
@@ -445,19 +538,18 @@ hasil += `
   <option value="Dikirim" ${data[id].status === "Dikirim" ? "selected" : ""}>🚚 Dikirim</option>
   <option value="Beri Penilaian" ${data[id].status === "Beri Penilaian" || data[id].status === "Selesai" ? "selected" : ""}>⭐ Beri Penilaian</option>
 </select>
+
 <div class="status-tools">
   <button onclick="ubahStatus('${id}', document.getElementById('status-${id}').value)">📝 Simpan Status</button>
-  ${data[id].metodePembayaran === "COD" ? `<button onclick="konfirmasiCOD('${id}')">🚚 Konfirmasi COD & Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Dibayar</button>` : `<button onclick="verifikasiBayar('${id}')">✅ Lunas</button>`}
+  ${data[id].metodePembayaran === "COD" ? `<button onclick="konfirmasiCOD('${id}')">🚚 Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Lunas</button>` : `<button onclick="verifikasiBayar('${id}')">✅ Lunas</button>`}
 </div>
-${data[id].metodePembayaran === "COD" ? `<div style="margin-top:10px;padding:10px;background:#f7fbf8;border:1px solid #dfeee4;border-radius:10px;"><b>COD:</b> Rp ${Number(data[id].total || 0).toLocaleString("id-ID")}<br><b>Kurir:</b> ${data[id].biteshipCourier || data[id].kurir || "-"}<br><b>Resi:</b> ${data[id].resi || "Belum dibuat"}<br><b>Status pengiriman:</b> ${data[id].statusPengiriman || "Belum dibuat"}</div>` : ""}
 
-<button onclick="tambahResi('${id}')">
-🚚 Tambah Resi
-</button>
+${data[id].metodePembayaran === "COD" ? `<div class="order-cod-info"><b>COD:</b> Rp ${Number(data[id].total || 0).toLocaleString("id-ID")} &nbsp;•&nbsp; <b>Kurir:</b> ${data[id].biteshipCourier || data[id].kurir || "-"}<br><b>Resi:</b> ${data[id].resi || "Belum dibuat"} &nbsp;•&nbsp; <b>Pengiriman:</b> ${data[id].statusPengiriman || "Belum dibuat"}</div>` : ""}
 
-<button onclick="tolakPembayaran('${id}')">
-❌ Tolak
-</button>
+<div class="order-actions">
+  <button onclick="tambahResi('${id}')">🚚 Resi</button>
+  <button onclick="tolakPembayaran('${id}')">❌ Tolak</button>
+</div>
 
 </div>
 

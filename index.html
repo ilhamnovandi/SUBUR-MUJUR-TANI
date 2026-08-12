@@ -772,6 +772,53 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 }
 </style>
 
+<style>
+.checkout-final-cta{
+  margin-top:22px;
+  padding:14px;
+  border:1px solid #dfe9e2;
+  background:linear-gradient(135deg,#f8fcf9,#f2f8f4);
+  border-radius:14px;
+}
+.checkout-final-copy{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  margin-bottom:10px;
+  color:#173d2d;
+}
+.checkout-final-copy strong{font-size:15px}
+.checkout-final-copy span{font-size:12px;line-height:1.5;color:#66716b}
+.btn-buat-pesanan{
+  width:100%;
+  padding:13px 16px;
+  border-radius:11px;
+  border:0;
+  background:#17603e;
+  color:#fff;
+  font-size:15px;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 5px 14px rgba(23,96,62,.16);
+}
+.btn-buat-pesanan:hover{background:#0f4b30}
+.btn-buat-pesanan:disabled{opacity:.65;cursor:not-allowed}
+.checkout-secondary-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:9px;
+}
+.checkout-secondary-actions button{
+  margin:0;
+  padding:10px 12px;
+  border-radius:9px;
+  font-size:12px;
+}
+@media(max-width:600px){
+  .checkout-secondary-actions{grid-template-columns:1fr}
+}
+</style>
 </head>
 <body class="page-home">
 <div class="pm-topbar">
@@ -1178,16 +1225,20 @@ const DATA_PEMBAYARAN = {
 <!-- Metode transfer dibuat otomatis dari DATA_PEMBAYARAN. -->
 </div>
 </div>
-<hr style="margin:25px 0;"/>
-<button onclick="pesanWhatsApp()">
-💬 Kirim Pesanan ke WhatsApp
-</button>
-<button onclick="simpanPesanan()">
-📦 Simpan Pesanan
-</button>
-<button onclick="cetakInvoice()">
-🖨️ Cetak Invoice
-</button>
+<div class="checkout-final-cta">
+  <div class="checkout-final-copy">
+    <strong>Sudah selesai memilih produk?</strong>
+    <span>Pastikan data pembeli, pengiriman, dan pembayaran sudah benar, lalu tekan <b>Buat Pesanan</b>.</span>
+  </div>
+  <button id="btnBuatPesanan" class="btn-buat-pesanan" type="button" onclick="simpanPesanan()">
+    🛒 Buat Pesanan
+  </button>
+</div>
+
+<div class="checkout-secondary-actions">
+  <button type="button" onclick="pesanWhatsApp()">💬 Kirim ke WhatsApp</button>
+  <button type="button" onclick="cetakInvoice()">🖨️ Cetak Invoice</button>
+</div>
 </div>
 </section>
 <style>
@@ -2541,8 +2592,8 @@ async function simpanPesanan() {
     }
 
     finalOrderProcessing = true;
-    const btn = Array.from(document.querySelectorAll("button")).find(b => b.textContent.includes("Simpan Pesanan"));
-    if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Menyimpan..."; }
+    const btn = document.getElementById("btnBuatPesanan");
+    if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Membuat Pesanan..."; }
 
     const totals = finalGetTotals();
     const orderKey = db.ref("pesanan").push().key;
@@ -2647,7 +2698,7 @@ async function simpanPesanan() {
         alert("❌ Pesanan tidak disimpan: " + error.message);
     } finally {
         finalOrderProcessing = false;
-        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.oldText || "📦 Simpan Pesanan"; }
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.oldText || "🛒 Buat Pesanan"; }
     }
 }
 
