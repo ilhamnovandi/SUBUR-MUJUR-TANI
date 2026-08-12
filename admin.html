@@ -254,6 +254,15 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(max-width:640px){.admin-section-nav{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}.admin-section-nav::-webkit-scrollbar{display:none}.admin-tab{white-space:nowrap}.post-live-preview{padding:10px}}
 </style>
 
+
+<style>
+/* Universal bottom navigation: stays visible on every page */
+.universal-bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:64px;background:rgba(255,255,255,.98);z-index:99999;border-top:1px solid #dfe8e2;justify-content:space-around;align-items:center;box-shadow:0 -4px 18px rgba(0,0,0,.08);padding-bottom:env(safe-area-inset-bottom,0px)}
+.universal-bottom-nav a{flex:1;min-width:0;font-size:11px;color:#315d47;text-decoration:none;text-align:center;white-space:nowrap;padding:5px 2px;border-radius:10px}
+.universal-bottom-nav b{display:block;font-size:18px;line-height:20px}
+body{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+@media(min-width:769px){.universal-bottom-nav{height:68px}.universal-bottom-nav a{font-size:12px}}
+</style>
 </head>
 
 
@@ -415,6 +424,38 @@ let data=snapshot.val();
 
 
 
+/* Sinkronisasi pengiriman lama:
+   jika resi/order Biteship sudah ada dan status masih Dikemas,
+   pesanan harus dianggap sudah Dikirim. Ini membuat pesanan lama
+   tetap benar meskipun webhook sebelumnya masuk sebelum perbaikan. */
+if(data && typeof data === "object"){
+  const activeShipment = new Set(["confirmed","allocated","picking_up","picked","dropping_off","on_delivery","out_for_delivery","in_transit","delivering","ready_to_ship"]);
+  const migrate = {};
+  for(const [oid, ov] of Object.entries(data)){
+    if(!ov || typeof ov !== "object") continue;
+    const ship = String(ov.statusPengiriman || "").toLowerCase().trim();
+    const hasShipment = Boolean(ov.resi || ov.biteshipOrderId || ov.biteshipTrackingId);
+    const delivered = ["delivered","success","completed","complete"].includes(ship);
+    const cancelled = ["cancelled","rejected","returned"].includes(ship);
+    if(hasShipment && (ov.status === "Dikemas" || ov.status === "Diproses") && !delivered && !cancelled){
+      migrate[oid + "/status"] = "Dikirim";
+      migrate[oid + "/statusKategori"] = "Dikirim";
+      migrate[oid + "/statusTerakhirDiperbarui"] = new Date().toLocaleString("id-ID");
+      data[oid].status = "Dikirim";
+      data[oid].statusKategori = "Dikirim";
+    } else if(activeShipment.has(ship) && ov.status !== "Dikirim" && !delivered && !cancelled){
+      migrate[oid + "/status"] = "Dikirim";
+      migrate[oid + "/statusKategori"] = "Dikirim";
+      migrate[oid + "/statusTerakhirDiperbarui"] = new Date().toLocaleString("id-ID");
+      data[oid].status = "Dikirim";
+      data[oid].statusKategori = "Dikirim";
+    }
+  }
+  if(Object.keys(migrate).length){
+    database.ref("pesanan").update(migrate).catch(err => console.error("Sinkronisasi status pengiriman:", err));
+  }
+}
+
 let hasil="";
 
 
@@ -458,6 +499,9 @@ hasil += `
       <option value="Dikemas" ${orderStatus === "Dikemas" || orderStatus === "Diproses" || orderStatus === "Lunas" ? "selected" : ""}>📦 Dikemas</option>
       <option value="Dikirim" ${orderStatus === "Dikirim" ? "selected" : ""}>🚚 Dikirim</option>
       <option value="Beri Penilaian" ${orderStatus === "Beri Penilaian" || orderStatus === "Selesai" ? "selected" : ""}>⭐ Beri Penilaian</option>
+      <option value="Dibatalkan" ${orderStatus === "Dibatalkan" || orderStatus === "Ditolak" ? "selected" : ""}>❌ Dibatalkan</option>
+      <option value="Dikembalikan" ${orderStatus === "Dikembalikan" ? "selected" : ""}>↩️ Dikembalikan</option>
+      <option value="Ditahan" ${orderStatus === "Ditahan" ? "selected" : ""}>⏸️ Ditahan</option>
     </select>
     <button onclick="ubahStatus('${id}', document.getElementById('status-${id}').value)">📝 Simpan</button>
   </div>
@@ -503,7 +547,7 @@ document.getElementById(
 
 
 async function ubahStatus(id, selectedStatus){
-    const allowed = ["Belum Bayar","Menunggu Konfirmasi COD","Dikemas","Dikirim","Beri Penilaian"];
+    const allowed = ["Belum Bayar","Menunggu Konfirmasi COD","Dikemas","Dikirim","Beri Penilaian","Dibatalkan","Dikembalikan","Ditahan"];
     const status = allowed.includes(selectedStatus) ? selectedStatus : null;
     if(!status) return alert("Pilih status pesanan terlebih dahulu.");
 
@@ -2603,6 +2647,16 @@ async function adminHapusUlasan(id){
 </script>
 
 <script src="fitur-toko.js"></script>
+
+<!-- Universal bottom navigation -->
+<div class="pm-mobile-nav universal-bottom-nav" aria-label="Navigasi utama">
+  <a href="index.html"><b>⌂</b>Beranda</a>
+  <a href="produk.html"><b>🌱</b>Produk</a>
+  <a href="galeri.html"><b>🖼️</b>Galeri</a>
+  <a href="checkout.html"><b>🛒</b>Checkout</a>
+  <a href="index.html#lokasi"><b>📍</b>Lokasi</a>
+  <a href="admin.html"><b>👤</b>Admin</a>
+</div>
 </body>
 
 
