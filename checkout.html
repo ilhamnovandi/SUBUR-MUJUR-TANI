@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="id">
 <head>
@@ -687,53 +688,6 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 }
 </style>
 <meta name="theme-color" content="#063b2d"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default">
-<style>
-.checkout-final-cta{
-  margin-top:22px;
-  padding:14px;
-  border:1px solid #dfe9e2;
-  background:linear-gradient(135deg,#f8fcf9,#f2f8f4);
-  border-radius:14px;
-}
-.checkout-final-copy{
-  display:flex;
-  flex-direction:column;
-  gap:4px;
-  margin-bottom:10px;
-  color:#173d2d;
-}
-.checkout-final-copy strong{font-size:15px}
-.checkout-final-copy span{font-size:12px;line-height:1.5;color:#66716b}
-.btn-buat-pesanan{
-  width:100%;
-  padding:13px 16px;
-  border-radius:11px;
-  border:0;
-  background:#17603e;
-  color:#fff;
-  font-size:15px;
-  font-weight:800;
-  cursor:pointer;
-  box-shadow:0 5px 14px rgba(23,96,62,.16);
-}
-.btn-buat-pesanan:hover{background:#0f4b30}
-.btn-buat-pesanan:disabled{opacity:.65;cursor:not-allowed}
-.checkout-secondary-actions{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-  margin-top:9px;
-}
-.checkout-secondary-actions button{
-  margin:0;
-  padding:10px 12px;
-  border-radius:9px;
-  font-size:12px;
-}
-@media(max-width:600px){
-  .checkout-secondary-actions{grid-template-columns:1fr}
-}
-</style>
 </head>
 <body class="page-checkout">
 <div class="pm-topbar">
@@ -1111,45 +1065,152 @@ Pilih metode pembayaran. Untuk COD, pembayaran dilakukan saat barang diterima.
   <span class="cod-check" id="codCheck">○</span>
 </button>
 <button class="payment-main-toggle" onclick="toggleDaftarBank()" type="button">
-<span>🏦 Transfer Bank BRI</span><span class="payment-main-arrow" id="payment-main-arrow">⌄</span>
+<span>💳 Transfer Bank / E-Wallet / QRIS</span><span class="payment-main-arrow" id="payment-main-arrow">⌄</span>
 </button>
 <!-- =========================
      PENGATURAN PEMBAYARAN
-     Hanya Transfer Bank BRI yang tersedia. COD tetap tersedia terpisah.
+     EDIT BAGIAN INI JIKA INGIN MENGGANTI DATA REKENING/QRIS
 ========================= -->
 <script>
 // =========================
 // DATA PEMBAYARAN
-// Hanya satu metode transfer bank yang ditampilkan.
+// Tambahkan bank baru di sini.
+// File QRIS mengikuti nama file yang ditulis pada properti qris.
+// Contoh BRI: qris: "BRI.JPG" lalu upload BRI.JPG ke folder yang sama dengan index.html.
 // =========================
 const DATA_PEMBAYARAN = {
+    bca: {
+        bank: "BCA",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BCA.JPG"
+    },
     bri: {
         bank: "BRI",
-        rekening: "414401025887534",
-        nama: "MUHAMAD RIZAL HAKIM",
-        tipe: "bank"
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BRI.JPG"
+    },
+    bni: {
+        bank: "BNI",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BNI.JPG"
+    },
+    mandiri: {
+        bank: "Mandiri",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "MANDIRI.JPG"
+    },
+    btn: {
+        bank: "BTN",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BTN.JPG"
+    },
+    bsi: {
+        bank: "BSI",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "BSI.JPG"
+    },
+    cimb: {
+        bank: "CIMB Niaga",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "CIMB.JPG"
+    },
+    permata: {
+        bank: "PermataBank",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "PERMATA.JPG"
+    },
+    danamon: {
+        bank: "Danamon",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "DANAMON.JPG"
+    },
+    muamalat: {
+        bank: "Bank Muamalat",
+        rekening: "123456789",
+        nama: "Nama Pemilik Rekening",
+        qris: "MUAMALAT.JPG"
+    },
+
+    // =========================
+    // E-WALLET
+    // Nama file QRIS mengikuti nama yang ditulis di properti qris.
+    // Contoh: DANA.JPG, OVO.JPG, GOPAY.JPG, SHOPEEPAY.JPG, LINKAJA.JPG.
+    // =========================
+    dana: {
+        bank: "DANA",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "DANA.JPG",
+        tipe: "ewallet"
+    },
+    ovo: {
+        bank: "OVO",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "OVO.JPG",
+        tipe: "ewallet"
+    },
+    gopay: {
+        bank: "GoPay",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "GOPAY.JPG",
+        tipe: "ewallet"
+    },
+    shopeepay: {
+        bank: "ShopeePay",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "SHOPEEPAY.JPG",
+        tipe: "ewallet"
+    },
+    linkaja: {
+        bank: "LinkAja",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "LINKAJA.JPG",
+        tipe: "ewallet"
+    },
+    isaku: {
+        bank: "iSaku",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "ISAKU.JPG",
+        tipe: "ewallet"
+    },
+    sakuku: {
+        bank: "Sakuku",
+        rekening: "123456789",
+        nama: "Nama Pemilik",
+        qris: "SAKUKU.JPG",
+        tipe: "ewallet"
     }
 };
 </script>
 <div class="payment-bank-list" id="payment-bank-list">
 <div class="payment-accordion" id="payment-accordion-list">
-<!-- Metode transfer dibuat otomatis dari DATA_PEMBAYARAN. -->
+<!-- Semua bank dibuat otomatis dari DATA_PEMBAYARAN. -->
 </div>
 </div>
-<div class="checkout-final-cta">
-  <div class="checkout-final-copy">
-    <strong>Sudah selesai memilih produk?</strong>
-    <span>Pastikan data pembeli, pengiriman, dan pembayaran sudah benar, lalu tekan <b>Buat Pesanan</b>.</span>
-  </div>
-  <button id="btnBuatPesanan" class="btn-buat-pesanan" type="button" onclick="simpanPesanan()">
-    🛒 Buat Pesanan
-  </button>
-</div>
-
-<div class="checkout-secondary-actions">
-  <button type="button" onclick="pesanWhatsApp()">💬 Kirim ke WhatsApp</button>
-  <button type="button" onclick="cetakInvoice()">🖨️ Cetak Invoice</button>
-</div>
+<hr style="margin:25px 0;"/>
+<button onclick="pesanWhatsApp()">
+💬 Kirim Pesanan ke WhatsApp
+</button>
+<button onclick="simpanPesanan()">
+🛍️ Buat Pesanan
+</button>
+<button onclick="cetakInvoice()">
+🖨️ Cetak Invoice
+</button>
 </div>
 </section>
 <style>
@@ -1303,6 +1364,35 @@ const DATA_PEMBAYARAN = {
     color: #777;
 }
 
+.qris-placeholder {
+    text-align: center;
+    padding: 18px 10px;
+}
+
+.qris-placeholder strong {
+    display: block;
+    font-size: 20px;
+    margin-top: 5px;
+}
+
+.qris-image {
+    display: block;
+    width: min(280px, 90%);
+    max-height: 360px;
+    object-fit: contain;
+    margin: 15px auto;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.qris-placeholder p {
+    margin: 8px 0 4px;
+}
+
+.qris-placeholder small {
+    color: #777;
+}
+
 @media (max-width: 600px) {
     .payment-toggle {
         padding: 14px;
@@ -1323,15 +1413,20 @@ const DATA_PEMBAYARAN = {
         button.type = "button";
         button.className = "payment-toggle";
         button.setAttribute("onclick", "togglePembayaran('" + id + "')");
-        button.innerHTML = `<span>🏦 ${d.bank}</span><span class="payment-arrow" id="arrow-${id}">⌄</span>`;
+        button.innerHTML = `<span>${d.tipe === "ewallet" ? "📱" : "🏦"} ${d.bank}</span><span class="payment-arrow" id="arrow-${id}">⌄</span>`;
 
         const content = document.createElement("div");
         content.id = "payment-" + id;
         content.className = "payment-content";
         content.innerHTML = `
-            <p><b>Nomor Rekening:</b> <span>${d.rekening || "Belum diisi"}</span></p>
+            <p><b>${d.tipe === "ewallet" ? "Nomor HP / Akun:" : "Nomor Rekening:"}</b> <span>${d.rekening || "Belum diisi"}</span></p>
             <p><b>Atas Nama:</b> <span>${d.nama || "Belum diisi"}</span></p>
-            <p class="payment-note">Silakan transfer ke rekening BRI di atas, lalu lakukan konfirmasi pembayaran sesuai petunjuk toko.</p>
+            <div class="qris-placeholder">
+                <strong>QRIS ${d.bank}</strong>
+                <img src="${d.qris}" alt="QRIS ${d.bank}" class="qris-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p class="qris-error" style="display:none;">File QRIS belum tersedia. Upload <b>${d.qris}</b> ke folder yang sama dengan index.html.</p>
+                <p>Scan QRIS ${d.bank} untuk melakukan pembayaran.</p>
+            </div>
         `;
 
         container.appendChild(button);
@@ -1466,11 +1561,10 @@ Belum ada data.
 <section class="container" id="lokasi">
 <div class="box">
 <h2>📍 Lokasi SUBUR MUJUR TANI</h2>
-<iframe height="350" loading="lazy" src="https://www.google.com/maps?q=-6.748705,108.425477&amp;z=17&amp;output=embed" style="
-border:0;
-border-radius:10px;
-" width="100%">
-</iframe>
+<div style="padding:18px;border:1px solid #e5ebe7;border-radius:14px;background:#f8fbf9;text-align:center;">
+<p style="margin:0 0 12px;color:#53615b;">Kunjungi lokasi toko SUBUR MUJUR TANI di Google Maps.</p>
+<a href="https://maps.app.goo.gl/yvHxge7Mmd2Rk7zW6" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 18px;border-radius:10px;background:#1b5e20;color:#fff;text-decoration:none;font-weight:700;">📍 Buka Lokasi Toko di Google Maps</a>
+</div>
 </div>
 </section>
 <footer>
@@ -2727,8 +2821,8 @@ async function simpanPesanan() {
     }
 
     finalOrderProcessing = true;
-    const btn = document.getElementById("btnBuatPesanan");
-    if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Membuat Pesanan..."; }
+    const btn = Array.from(document.querySelectorAll("button")).find(b => b.textContent.includes("Buat Pesanan"));
+    if (btn) { btn.disabled = true; btn.dataset.oldText = btn.innerHTML; btn.innerHTML = "⏳ Menyimpan..."; }
 
     const totals = finalGetTotals();
     const orderKey = db.ref("pesanan").push().key;
@@ -2811,7 +2905,7 @@ async function simpanPesanan() {
         simpanKeranjang();
         renderKeranjang();
 
-        alert("✅ Pesanan berhasil disimpan. Stok otomatis sudah diperbarui.");
+        alert("✅ Pesanan berhasil dibuat. Stok otomatis sudah diperbarui.");
         cetakInvoice(orderData);
 
     } catch (error) {
@@ -2836,10 +2930,10 @@ async function simpanPesanan() {
             } catch(e) { console.error("Rollback stok gagal", e); }
         }
 
-        alert("❌ Pesanan tidak disimpan: " + error.message);
+        alert("❌ Pesanan tidak berhasil dibuat: " + error.message);
     } finally {
         finalOrderProcessing = false;
-        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.oldText || "🛒 Buat Pesanan"; }
+        if (btn) { btn.disabled = false; btn.innerHTML = btn.dataset.oldText || "🛍️ Buat Pesanan"; }
     }
 }
 

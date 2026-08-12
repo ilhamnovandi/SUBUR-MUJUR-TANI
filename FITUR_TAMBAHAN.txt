@@ -30,7 +30,7 @@ Jangan menghapus netlify/functions atau netlify.toml.
 
 FITUR COD (10 Agustus 2026)
 - Checkout memiliki pilihan pembayaran COD / Bayar di Tempat.
-- COD tidak memerlukan pemilihan rekening. Transfer non-COD hanya menggunakan BRI.
+- COD tidak memerlukan pemilihan rekening atau QRIS.
 - Pesanan COD disimpan dengan status Menunggu Konfirmasi COD.
 - Admin dapat Konfirmasi COD untuk memindahkan pesanan ke Dikemas.
 - Admin dapat menandai COD sudah dibayar setelah uang diterima.

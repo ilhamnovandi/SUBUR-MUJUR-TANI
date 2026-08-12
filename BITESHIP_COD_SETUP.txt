@@ -33,15 +33,11 @@ JANGAN masukkan file JSON ini ke GitHub.
 FIREBASE_DATABASE_URL
 Value: https://subur-mujur-tani-6ff54-default-rtdb.asia-southeast1.firebasedatabase.app
 
-BITESHIP_WEBHOOK_SIGNATURE_KEY (OPSIONAL)
-UNTUK PEMBUATAN WEBHOOK: KOSONGKAN DULU.
-Setelah webhook berhasil dibuat, baru isi jika ingin memakai signature.
-Nilainya harus sama persis dengan Headers Signature Key di Biteship.
+BITESHIP_WEBHOOK_SIGNATURE_KEY
+Value: nama header rahasia yang Anda buat di pengaturan Webhook Biteship, misalnya: x-smt-biteship
 
-BITESHIP_WEBHOOK_SIGNATURE_SECRET (OPSIONAL)
-UNTUK PEMBUATAN WEBHOOK: KOSONGKAN DULU.
-Setelah webhook berhasil dibuat, baru isi jika ingin memakai signature.
-Nilainya harus sama persis dengan Headers Signature Secret di Biteship.
+BITESHIP_WEBHOOK_SIGNATURE_SECRET
+Value: secret yang sama dengan secret pada Webhook Biteship.
 
 BITESHIP_ADMIN_EMAILS (opsional tetapi disarankan)
 Value: email akun admin Firebase. Jika diisi, hanya email ini yang boleh menekan tombol pembuatan pengiriman COD.
@@ -51,16 +47,6 @@ Value: email akun admin Firebase. Jika diisi, hanya email ini yang boleh menekan
 https://DOMAIN-KAMU/.netlify/functions/biteship-webhook
 
 3) Biteship Webhook
-
-URL yang dipasang di Biteship HARUS endpoint publik ini:
-
-`https://DOMAIN-KAMU/.netlify/functions/biteship-webhook`
-
-Jangan memasang URL `biteship-webhook-background`.
-
-Endpoint publik menerima validasi awal Biteship dan mengembalikan HTTP 200 + `ok`, termasuk saat body validasi kosong atau hanya berisi event/type. Setelah webhook berhasil dibuat, pasang signature key/secret yang sama di Netlify dan Biteship untuk pengiriman event nyata.
-
-
 
 Di Integrasi > Webhook > Tambah Webhook:
 - URL: endpoint di atas
@@ -73,7 +59,7 @@ Di Integrasi > Webhook > Tambah Webhook:
 4) Alur
 
 Checkout COD -> pesanan Firebase -> Admin "Konfirmasi COD & Buat Pengiriman"
--> Netlify Function -> Biteship /v1/orders -> status "Dikemas" + resi/tracking ID masuk Firebase
+-> Netlify Function -> Biteship /v1/orders -> resi/tracking ID masuk Firebase
 -> webhook Biteship -> status pengiriman otomatis diperbarui.
 
 5) Catatan testing
