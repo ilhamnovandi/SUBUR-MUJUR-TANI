@@ -105,6 +105,9 @@ exports.handler = async event => {
     if (String(order.metodePembayaran || "").toUpperCase() !== "COD") {
       return json(400, { success: false, message: "Pesanan ini bukan pesanan COD." });
     }
+    if (String(order.status || "") !== "Dikemas") {
+      return json(400, { success: false, message: "Pesanan harus berstatus Dikemas sebelum pengiriman dibuat." });
+    }
     if (order.biteshipOrderId || order.resi) {
       return json(409, {
         success: false,
@@ -144,7 +147,19 @@ exports.handler = async event => {
     const courierCompany = safe(order.kurirKode || order.kurir).toLowerCase();
     const courierType = safe(order.layananKode);
     if (!courierCompany || !courierType) {
-      return json(400, { success: false, message: "Kurir atau kode layanan belum tersimpan. Pilih layanan ongkir lagi sebelum membuat pesanan COD." });
+      return json(400, { success: false, message: "Kurir atau layanan belum dipilih di Admin. Hitung tarif lalu pilih layanan terlebih dahulu." });
+    }
+
+    // Lock singkat untuk mencegah dua klik Admin membuat dua order Biteship.
+    // Lock tidak dibuka sampai request selesai; jika request gagal, dilepas.
+    const lockRef = orderRef.child("biteshipCreateLock");
+    const lockNow = Date.now();
+    const lockResult = await lockRef.transaction(current => {
+      if (current && Number(current.until || 0) > lockNow) return;
+      return { until: lockNow + 120000, at: new Date(lockNow).toISOString() };
+    });
+    if (!lockResult.committed) {
+      return json(409, { success: false, message: "Pembuatan pengiriman sedang diproses. Tunggu sampai selesai sebelum mencoba lagi." });
     }
 
     const destinationPhone = normalizePhone(order.whatsapp);
@@ -210,6 +225,7 @@ exports.handler = async event => {
 
     const result = await callBiteship(apiKey, payload);
     if (result.status < 200 || result.status >= 300 || result.data?.success === false) {
+      await lockRef.remove().catch(() => {});
       return json(result.status || 502, {
         success: false,
         message: messageOf(result.data),
@@ -239,8 +255,10 @@ exports.handler = async event => {
       biteshipTrackingUrl: safe(courier.link),
       biteshipCOD: codAmount,
       biteshipCODType: safe(payload.destination_cash_on_delivery_type),
+      biteshipShippingPrice: Number(order.ongkir || 0),
       biteshipCreatedAt: now,
-      statusTerakhirDiperbarui: now
+      statusTerakhirDiperbarui: now,
+      biteshipCreateLock: null
     });
 
     if (order.invoice) {
@@ -278,6 +296,9 @@ exports.handler = async event => {
     });
   } catch (err) {
     console.error("create-biteship-order:", err);
+    try {
+      if (typeof orderRef !== "undefined" && orderRef) await orderRef.child("biteshipCreateLock").remove();
+    } catch (_) {}
     return json(500, { success: false, message: err.message || "Gagal membuat order Biteship." });
   }
 };
