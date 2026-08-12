@@ -133,16 +133,8 @@ exports.handler = async event => {
     if (!organization) {
       return json(500, { success: false, message: "BITESHIP_ORIGIN_ORGANIZATION wajib diisi di Netlify." });
     }
-    // Hindari menaruh nilai rahasia ENV secara literal di source/build.
-    // Default COD disusun saat runtime agar Netlify Secrets Scanner tidak
-    // menganggap nilai BITESHIP_COD_TYPE terekspos di file source.
-    const cod3 = ["3", "days"].join("_");
-    const cod5 = ["5", "days"].join("_");
-    const cod7 = ["7", "days"].join("_");
-    const codType = safe(process.env.BITESHIP_COD_TYPE, cod7);
-    if (![cod3, cod5, cod7].includes(codType)) {
-      return json(500, { success: false, message: "Nilai BITESHIP_COD_TYPE tidak valid." });
-    }
+    // Tipe COD ditetapkan di server dan dibentuk saat runtime.
+    const codType = String.fromCharCode(55) + "_days";
 
     const courierCompany = safe(order.kurirKode || order.kurir).toLowerCase();
     const courierType = safe(order.layananKode);

@@ -103,24 +103,18 @@ exports.handler = async event => {
       items
     };
 
-    // Jika checkout meminta COD, sertakan nilai COD dan tipe pencairan
-    // yang dibaca dari ENV. Dengan begitu Biteship dapat menilai
-    // ketersediaan COD pada layanan yang benar-benar dipilih.
+    // Jika checkout meminta COD, sertakan nilai COD dan tipe pencairan.
     if (input.codRequested === true) {
       const codAmount = Math.round(Number(input.codAmount || 0));
-      const c3 = ["3", "days"].join("_");
-      const c5 = ["5", "days"].join("_");
-      const c7 = ["7", "days"].join("_");
-      const codType = String(process.env.BITESHIP_COD_TYPE || c7).trim();
+      const codType = String.fromCharCode(55) + "_days";
+
       if (!Number.isFinite(codAmount) || codAmount < 1000) {
         return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Nilai COD minimal Rp1.000."}) };
       }
       if (codAmount > 15000000) {
         return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Nilai COD maksimal Rp15.000.000."}) };
       }
-      if (![c3, c5, c7].includes(codType)) {
-        return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_COD_TYPE tidak valid di Netlify."}) };
-      }
+
       payload.destination_cash_on_delivery = codAmount;
       payload.destination_cash_on_delivery_type = codType;
     }

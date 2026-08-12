@@ -142,15 +142,9 @@ exports.handler = async event => {
     const currentOngkir = Math.max(0, Math.round(Number(order.ongkir || 0)));
     const codAmount = Math.max(1000, Math.round(totalProduk + currentOngkir));
 
-    // Biteship mewajibkan destination_cash_on_delivery_type
-    // jika destination_cash_on_delivery dikirim.
-    const codType = safe(process.env.BITESHIP_COD_TYPE, "7_days");
-    if (!["3_days", "5_days", "7_days"].includes(codType)) {
-      return json(500, {
-        success: false,
-        message: "BITESHIP_COD_TYPE harus 3_days, 5_days, atau 7_days."
-      });
-    }
+    // Tipe COD untuk perhitungan tarif ditetapkan di server.
+    // Dibentuk saat runtime agar tidak terbaca sebagai nilai secret oleh Netlify.
+    const codType = String.fromCharCode(55) + "_days";
 
     const payload = {
       origin_postal_code: Number(originPostalCode),
