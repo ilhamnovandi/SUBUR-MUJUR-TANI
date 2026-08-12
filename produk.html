@@ -2909,9 +2909,7 @@ function cetakInvoice(data) {
         "<div class='thanks'>Terima kasih telah berbelanja di SUBUR MUJUR TANI.</div>" +
         "<div class='actions'><button onclick='window.print()'>🖨️ Cetak / Simpan PDF</button></div>" +
         "</main>" +
-        "" +
-        "<script src="navigasi.js"></script>
-</body></html>";
+        "</body></html>";
 
     const blob = new Blob([invoiceHtml], {type:"text/html;charset=utf-8"});
     const url = URL.createObjectURL(blob);
@@ -3308,5 +3306,6 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
 })();
 </script>
 
+<script src="navigasi.js"></script>
 </body>
 </html>

@@ -67,3 +67,14 @@ body{
     font-size:12px;
   }
 }
+
+/* ===== SATU-SATUNYA NAVIGASI WEBSITE =====
+   Hapus/hilangkan navigasi lama yang mungkin masih terbawa dari versi sebelumnya.
+   Navigasi utama website hanya .smt-bottom-nav. */
+body > nav:not(.smt-bottom-nav),
+body > .pm-mobile-nav,
+body > .mobile-bottom-nav,
+body > .bottom-nav,
+body > .nav-bottom {
+  display:none !important;
+}

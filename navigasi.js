@@ -5,6 +5,12 @@
 ========================================================= */
 (function () {
   function buildNavigation() {
+    // Versi lama website pernah memiliki navigasi lain. Hapus semuanya agar
+    // setiap halaman hanya memiliki SATU navigasi global di bagian bawah.
+    document.querySelectorAll(
+      'body > nav:not(.smt-bottom-nav), body > .pm-mobile-nav, body > .mobile-bottom-nav, body > .bottom-nav, body > .nav-bottom'
+    ).forEach(el => el.remove());
+
     if (document.querySelector(".smt-bottom-nav")) return;
 
     const nav = document.createElement("nav");

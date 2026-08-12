@@ -500,7 +500,11 @@ hasil += `
     <button onclick="ubahStatus('${id}', document.getElementById('status-${id}').value)">📝 Simpan</button>
   </div>
   <div class="order-actions">
-    ${data[id].metodePembayaran === "COD" ? `<button onclick="konfirmasiCOD('${id}')">🚚 Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Lunas</button>` : `<button onclick="verifikasiBayar('${id}')">✅ Lunas</button>`}
+    ${data[id].metodePembayaran === "COD" ? (
+      (data[id].biteshipOrderId || data[id].resi)
+        ? `<span style="display:inline-flex;align-items:center;gap:6px;padding:10px 12px;border-radius:10px;background:#e8f5e9;color:#1b5e20;font-weight:800;">🚚 Pengiriman sudah dibuat</span><button onclick="tandaiCODLunas('${id}')">💰 COD Lunas</button>`
+        : `<button onclick="konfirmasiCOD('${id}')">🚚 Buat Pengiriman</button><button onclick="tandaiCODLunas('${id}')">💰 COD Lunas</button>`
+    ) : `<button onclick="verifikasiBayar('${id}')">✅ Lunas</button>`}
     <button onclick="tambahResi('${id}')">🚚 Resi</button>
     <button onclick="tolakPembayaran('${id}')">❌ Tolak</button>
     <button class="order-danger" onclick="hapusPesanan('${id}')">🗑️ Hapus Pesanan</button>
@@ -601,7 +605,7 @@ async function tambahResi(id){
         const order = snap.val();
         if(!order) return alert("Pesanan tidak ditemukan.");
 
-        await ref.update({resi: resi, statusTerakhirDiperbarui:new Date().toLocaleString("id-ID")});
+        await ref.update({resi: resi, status:"Dikirim", statusKategori:"Dikirim", statusTerakhirDiperbarui:new Date().toLocaleString("id-ID")});
 
         if(order.invoice){
             await database.ref("pelacakan/" + order.invoice).update({
