@@ -130,8 +130,11 @@ exports.handler = async event => {
     if (!organization) {
       return json(500, { success: false, message: "BITESHIP_ORIGIN_ORGANIZATION wajib diisi di Netlify." });
     }
-    if (!safe(process.env.BITESHIP_COD_TYPE)) {
-      return json(500, { success: false, message: "BITESHIP_COD_TYPE wajib diisi di Netlify." });
+    // Biteship menerima 3_days, 5_days, atau 7_days. Jika ENV belum diisi,
+    // gunakan 7_days sebagai default sesuai dokumentasi Biteship.
+    const codType = safe(process.env.BITESHIP_COD_TYPE, "7_days");
+    if (!["3_days", "5_days", "7_days"].includes(codType)) {
+      return json(500, { success: false, message: "BITESHIP_COD_TYPE harus 3_days, 5_days, atau 7_days." });
     }
 
     const courierCompany = safe(order.kurirKode || order.kurir).toLowerCase();
@@ -163,6 +166,13 @@ exports.handler = async event => {
     if (!items.length) return json(400, { success: false, message: "Produk pesanan kosong." });
 
     const codAmount = Math.max(1, Math.round(Number(order.total || 0)));
+    if (codAmount < 1000) {
+      return json(400, { success: false, message: "Nilai COD minimal Rp1.000." });
+    }
+    if (codAmount > 10000000) {
+      return json(400, { success: false, message: "Nilai COD maksimal Rp10.000.000 per paket." });
+    }
+
     const payload = {
       shipper_contact_name: originName,
       shipper_contact_phone: originPhone,
@@ -178,7 +188,7 @@ exports.handler = async event => {
       destination_address: destinationAddress,
       destination_postal_code: Number(order.kodePos),
       destination_cash_on_delivery: codAmount,
-      destination_cash_on_delivery_type: safe(process.env.BITESHIP_COD_TYPE),
+      destination_cash_on_delivery_type: codType,
       courier_company: courierCompany,
       courier_type: courierType,
       delivery_type: "now",
@@ -188,6 +198,7 @@ exports.handler = async event => {
         invoice: safe(order.invoice),
         payment_method: "COD"
       },
+      reference_id: safe(order.invoice, orderId),
       items
     };
 
