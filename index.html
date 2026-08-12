@@ -652,7 +652,7 @@ body.page-checkout #tentang,
 body.page-checkout #produk,
 body.page-checkout #galeri,
 body.page-checkout #ulasan,
-body.page-checkout #lacak,
+body.page-checkout #lacak{display:none!important;}
 
 body.page-checkout #keranjang,
 body.page-checkout #checkout,
@@ -769,6 +769,54 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 }
 </style>
 
+<link rel="stylesheet" href="navigasi.css">
+<style>
+
+/* ===== PERBAIKAN HALAMAN KHUSUS ===== */
+body.page-checkout #home,
+body.page-checkout #tentang,
+body.page-checkout #produk,
+body.page-checkout #galeri,
+body.page-checkout #ulasan,
+body.page-checkout #lacak{
+  display:none !important;
+}
+body.page-produk #home,
+body.page-produk #tentang,
+body.page-produk #galeri,
+body.page-produk #ulasan,
+body.page-produk #keranjang,
+body.page-produk #checkout,
+body.page-produk #pengiriman,
+body.page-produk #ringkasan,
+body.page-produk #pembayaran,
+body.page-produk #lacak{
+  display:none !important;
+}
+body.page-galeri #home,
+body.page-galeri #tentang,
+body.page-galeri #produk,
+body.page-galeri #ulasan,
+body.page-galeri #keranjang,
+body.page-galeri #checkout,
+body.page-galeri #pengiriman,
+body.page-galeri #ringkasan,
+body.page-galeri #pembayaran,
+body.page-galeri #lacak{
+  display:none !important;
+}
+/* Elemen umum tidak ikut muncul di halaman khusus. */
+body.page-produk #lokasi,
+body.page-produk #trackingBox,
+body.page-produk #riwayatSection,
+body.page-galeri #lokasi,
+body.page-galeri #trackingBox,
+body.page-galeri #riwayatSection,
+body.page-checkout #lokasi{
+  display:none !important;
+}
+
+</style>
 </head>
 <body class="page-home">
 <div class="pm-topbar">
@@ -817,14 +865,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 </section>
 
 <a aria-label="Buka keranjang" class="pm-float-cart" href="checkout.html">🛒<span id="pmFloatCount">0</span></a>
-<div class="pm-mobile-nav" aria-label="Navigasi utama">
-  <a href="index.html"><b>⌂</b>Beranda</a>
-  <a href="produk.html"><b>🌱</b>Produk</a>
-  <a href="galeri.html"><b>🖼️</b>Galeri</a>
-  <a href="checkout.html"><b>🛒</b>Checkout</a>
-  <a href="index.html#lokasi"><b>📍</b>Lokasi</a>
-  <a href="login.html"><b>👤</b>Admin</a>
-</div>
+
 <header>
 <h1>🌱 SUBUR MUJUR TANI</h1>
 <p>Pusat Bibit Tanaman Hortikultura Berkualitas</p>
@@ -2936,7 +2977,8 @@ function cetakInvoice(data) {
         "<div class='actions'><button onclick='window.print()'>🖨️ Cetak / Simpan PDF</button></div>" +
         "</main>" +
         "" +
-        "</body></html>";
+        "<script src="navigasi.js"></script>
+</body></html>";
 
     const blob = new Blob([invoiceHtml], {type:"text/html;charset=utf-8"});
     const url = URL.createObjectURL(blob);
