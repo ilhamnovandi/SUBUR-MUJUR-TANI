@@ -85,14 +85,12 @@ exports.handler = async event => {
     const items = rawItems.length ? rawItems.map((item, i) => ({
       name: String(item.name || `Produk ${i+1}`),
       description: String(item.description || "Bibit tanaman"),
-      category: "outdoor_gear",
       value: Math.max(1, Math.round(Number(item.value || 1))),
       weight: Math.max(1, Math.round(Number(item.weight || 1))),
       quantity: Math.max(1, Math.round(Number(item.quantity || 1)))
     })) : [{
       name: "Paket Bibit Tanaman",
       description: "Paket pesanan",
-      category: "outdoor_gear",
       value: 1,
       weight: totalWeight,
       quantity: 1
@@ -104,6 +102,28 @@ exports.handler = async event => {
       couriers: courier,
       items
     };
+
+    // Jika checkout meminta COD, sertakan nilai COD dan tipe pencairan
+    // yang dibaca dari ENV. Dengan begitu Biteship dapat menilai
+    // ketersediaan COD pada layanan yang benar-benar dipilih.
+    if (input.codRequested === true) {
+      const codAmount = Math.round(Number(input.codAmount || 0));
+      const c3 = ["3", "days"].join("_");
+      const c5 = ["5", "days"].join("_");
+      const c7 = ["7", "days"].join("_");
+      const codType = String(process.env.BITESHIP_COD_TYPE || c7).trim();
+      if (!Number.isFinite(codAmount) || codAmount < 1000) {
+        return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Nilai COD minimal Rp1.000."}) };
+      }
+      if (codAmount > 15000000) {
+        return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Nilai COD maksimal Rp15.000.000."}) };
+      }
+      if (![c3, c5, c7].includes(codType)) {
+        return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_COD_TYPE tidak valid di Netlify."}) };
+      }
+      payload.destination_cash_on_delivery = codAmount;
+      payload.destination_cash_on_delivery_type = codType;
+    }
 
     const result = await callBiteship(apiKey, payload);
     const data = result.data || {};

@@ -161,7 +161,6 @@ exports.handler = async event => {
     const items = Array.isArray(order.produk) ? order.produk.map((item, i) => ({
       name: safe(item.variantNama ? `${item.nama} - ${item.variantNama}` : item.nama, `Produk ${i + 1}`),
       description: "Bibit tanaman",
-      category: "outdoor_gear",
       value: Math.max(1, Math.round(Number(item.harga || item.subtotal || 1))),
       quantity: Math.max(1, Math.round(Number(item.jumlah || 1))),
       weight: Math.max(1, Math.round(Number(item.berat || 1000)))
@@ -173,8 +172,8 @@ exports.handler = async event => {
     if (codAmount < 1000) {
       return json(400, { success: false, message: "Nilai COD minimal Rp1.000." });
     }
-    if (codAmount > 10000000) {
-      return json(400, { success: false, message: "Nilai COD maksimal Rp10.000.000 per paket." });
+    if (codAmount > 15000000) {
+      return json(400, { success: false, message: "Nilai COD maksimal Rp15.000.000 per paket." });
     }
 
     const payload = {
