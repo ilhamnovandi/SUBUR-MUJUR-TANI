@@ -1,0 +1,27 @@
+PERBAIKAN ALUR PESANAN - FINAL
+================================
+
+Alur COD sekarang dikunci:
+Menunggu Konfirmasi COD
+-> Konfirmasi COD
+-> Dikemas
+-> Buat Pengiriman
+-> Resi
+-> Dikirim
+-> COD Lunas
+
+Perubahan:
+1. Konfirmasi COD tidak lagi langsung membuat pengiriman.
+2. Buat Pengiriman hanya muncul saat status Dikemas.
+3. Setelah order Biteship dibuat, status menjadi Buat Pengiriman.
+4. Tombol Resi hanya muncul setelah pengiriman dibuat.
+5. Resi diproses menjadi status Resi.
+6. Dikirim hanya bisa dilakukan dari tahap Resi dan harus sudah ada nomor resi.
+7. COD Lunas hanya muncul setelah status Dikirim.
+8. Menu Simpan status tidak bisa melompati tahapan.
+9. Pesanan lama yang sudah Dikirim tidak diubah otomatis; perubahan ini hanya mengunci alur ke depan.
+10. Netlify function create-biteship-order diperbarui agar hasil pembuatan pengiriman berstatus Buat Pengiriman, bukan langsung Dikirim.
+
+File utama yang diperbaiki:
+- admin.html
+- netlify/functions/create-biteship-order.js
