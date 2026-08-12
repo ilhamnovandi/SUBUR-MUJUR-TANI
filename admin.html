@@ -605,10 +605,11 @@ async function buatPengirimanCOD(id){
         const order = snap.val();
         if(!order) return alert("Pesanan tidak ditemukan.");
         if(String(order.metodePembayaran || "").toUpperCase() !== "COD") return alert("Pesanan ini bukan COD.");
+        if(order.status !== "Dikemas") return alert("⛔ Buat Pengiriman hanya bisa dilakukan setelah tahap Dikemas.");
         if(order.biteshipOrderId || order.resi) return alert("Pesanan ini sudah memiliki order Biteship/resi.");
         if(!order.kurirKode || !order.layananKode) return alert("Kode kurir/layanan belum tersedia. Minta pembeli memilih layanan ongkir lalu buat pesanan COD kembali.");
 
-        if(!confirm("Konfirmasi COD dan buat order pengiriman resmi ke Biteship sekarang?")) return;
+        if(!confirm("Buat pengiriman COD ke Biteship sekarang?")) return;
 
         const button = Array.from(document.querySelectorAll("button")).find(b => b.getAttribute("onclick") === `buatPengirimanCOD('${id}')`);
         if(button){ button.disabled = true; button.dataset.oldText = button.innerHTML; button.innerHTML = "⏳ Membuat pengiriman..."; }

@@ -224,7 +224,9 @@ appId: "1:338009458768:web:c562a610cee4940b856955"
 
 firebase.initializeApp(firebaseConfig);
 
-
+// Setiap kali menu Admin dibuka, tampilkan lagi halaman login.
+// Sesi lama tidak boleh membuat tombol Admin langsung masuk dashboard.
+firebase.auth().signOut().catch(function(){});
 
 function login(){
 

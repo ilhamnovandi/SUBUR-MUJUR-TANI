@@ -1,7 +1,11 @@
-FINAL: WEBSITE MENGGUNAKAN BITESHIP UNTUK HITUNG ONGKIR
+FINAL — WEBSITE MENGGUNAKAN BITESHIP
 
-Environment Variable wajib:
-BITESHIP_API_KEY
-BITESHIP_ORIGIN_POSTAL_CODE
+Environment Variables yang wajib tersedia di Netlify:
+- BITESHIP_API_KEY
+- BITESHIP_ORIGIN_POSTAL_CODE
 
-Pastikan keduanya tersedia untuk Functions di Netlify.
+Untuk COD juga diperlukan konfigurasi asal, kontak, alamat, tipe COD,
+dan Firebase sesuai kebutuhan function.
+
+Jangan masukkan nilai API key atau secret ke HTML, JavaScript, TXT, MD,
+atau repository.

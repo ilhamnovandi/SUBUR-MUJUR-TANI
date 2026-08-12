@@ -1,17 +1,12 @@
 SETELAH PINDAH KE BITESHIP
 
 Netlify Environment Variables:
-1. BITESHIP_API_KEY = API Key Biteship kamu
-2. BITESHIP_ORIGIN_POSTAL_CODE = kode pos toko (5 digit)
+1. BITESHIP_API_KEY
+2. BITESHIP_ORIGIN_POSTAL_CODE
 
-Jangan masukkan API key ke index.html atau GitHub.
-Setelah variable dibuat, deploy ulang Netlify.
+Isi nilainya langsung di Netlify. Jangan tulis nilai sebenarnya di source code.
 
-Hitung ongkir menggunakan:
-POST https://api.biteship.com/v1/rates/couriers
+Endpoint backend aplikasi:
+POST /.netlify/functions/ongkir
 
-Destination menggunakan kode pos pelanggan.
-Berat item dikirim dalam gram.
-
-Catatan:
-Cargo hanya muncul bila kurir/rute/berat memenuhi syarat kurir. Contoh JNE JTR dan SiCepat GOKIL umumnya punya batas minimum berat.
+Frontend tidak mengirim API key langsung ke Biteship.
