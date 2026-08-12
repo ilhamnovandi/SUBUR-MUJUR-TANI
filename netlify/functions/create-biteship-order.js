@@ -177,7 +177,6 @@ exports.handler = async event => {
       courier_type: courierType,
       delivery_type: "now",
       order_note: `Pesanan ${safe(order.invoice, orderId)} - COD Subur Mujur Tani`,
-      reference_id: orderId,
       metadata: {
         local_order_id: orderId,
         invoice: safe(order.invoice),
@@ -208,8 +207,8 @@ exports.handler = async event => {
     const now = new Date().toLocaleString("id-ID");
 
     await orderRef.update({
-      status: "Dikemas",
-      statusKategori: "Dikemas",
+      status: "Dikirim",
+      statusKategori: "Dikirim",
       statusPengiriman: status,
       statusPembayaran: "COD - Menunggu Penagihan",
       biteshipOrderId: safe(data.id),
@@ -229,13 +228,13 @@ exports.handler = async event => {
       const trackSnap = await trackRef.once("value");
       const track = trackSnap.val() || {};
       const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
-      history.push({ status: "Dikemas", waktu: now, sumber: "Biteship" });
+      history.push({ status: "Dikirim", waktu: now });
       await trackRef.update({
         invoice: order.invoice,
         nama: order.nama || "",
         total: Number(order.total || 0),
-        status: "Dikemas",
-        statusKategori: "Dikemas",
+        status: "Dikirim",
+        statusKategori: "Dikirim",
         resi: waybill || track.resi || "",
         kurir: safe(courier.company, courierCompany),
         biteshipOrderId: safe(data.id),

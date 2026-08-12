@@ -51,8 +51,14 @@ if(typeof firebase === "undefined"){
 // INIT FIREBASE
 // ===============================
 
-if (firebase.apps.length === 0) {
+if(firebase.apps.length === 0){
+
+    if (!firebase.apps.length) {
+if (!firebase.apps.length) {
     firebase.initializeApp(firebaseConfig);
+}
+}
+
 }
 
 

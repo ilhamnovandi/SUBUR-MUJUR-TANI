@@ -69,11 +69,7 @@ exports.handler = async event => {
   // biteship-webhook.js so the public webhook can answer Biteship immediately.
   if (event.httpMethod !== "POST") return response(405, { success: false, message: "Method harus POST." });
 
-  const internalSecret = String(
-    process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET ||
-    process.env.BITESHIP_WEBHOOK_HEADER_SECRET ||
-    ""
-  ).trim();
+  const internalSecret = String(process.env.BITESHIP_WEBHOOK_SIGNATURE_SECRET || "").trim();
   const receivedInternalSecret = headerValue(event.headers, "x-smt-webhook-internal");
   if (!safeEqual(receivedInternalSecret, internalSecret)) {
     return response(401, { success: false, message: "Unauthorized." });
@@ -89,33 +85,21 @@ exports.handler = async event => {
 
     let localOrderId = String(
       findFirst(payload, ["local_order_id"]) ||
-      findFirst(payload, ["reference_id"]) ||
       findFirst(payload, ["order_id"]) ||
+      findFirst(payload, ["reference_id"]) ||
       (payload.metadata && payload.metadata.local_order_id) ||
       (data.metadata && data.metadata.local_order_id) ||
       ""
     ).trim();
 
     const biteshipOrderId = String(findFirst(payload, ["id"]) || findFirst(data, ["id"]) || "").trim();
-    const waybill = String(
-      findFirst(payload, ["waybill_id", "courier_waybill_id"]) ||
-      findFirst(data, ["waybill_id", "courier_waybill_id"]) ||
-      ""
-    ).trim();
-    const trackingId = String(
-      findFirst(payload, ["tracking_id", "courier_tracking_id"]) ||
-      findFirst(data, ["tracking_id", "courier_tracking_id"]) ||
-      ""
-    ).trim();
+    const waybill = String(findFirst(payload, ["waybill_id"]) || findFirst(data, ["waybill_id"]) || "").trim();
+    const trackingId = String(findFirst(payload, ["tracking_id"]) || findFirst(data, ["tracking_id"]) || "").trim();
     const courierCompany = String(findFirst(payload, ["company", "courier_company"]) || findFirst(data, ["company", "courier_company"]) || "").trim();
     const courierType = String(findFirst(payload, ["courier_type", "type"]) || findFirst(data, ["courier_type", "type"]) || "").trim();
     const rawStatus = String(findFirst(payload, ["status", "order_status"]) || findFirst(data, ["status", "order_status"]) || "").trim();
     const price = Number(findFirst(payload, ["price"]) || findFirst(data, ["price"]) || 0);
-    const trackingUrl = String(
-      findFirst(payload, ["link", "courier_link"]) ||
-      findFirst(data, ["link", "courier_link"]) ||
-      ""
-    ).trim();
+    const trackingUrl = String(findFirst(payload, ["link"]) || findFirst(data, ["link"]) || "").trim();
 
     const admin = getFirebaseAdmin();
     const db = admin.database();
