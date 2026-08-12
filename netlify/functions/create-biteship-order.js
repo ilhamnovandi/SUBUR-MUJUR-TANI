@@ -228,13 +228,13 @@ exports.handler = async event => {
       const trackSnap = await trackRef.once("value");
       const track = trackSnap.val() || {};
       const history = Array.isArray(track.riwayatStatus) ? track.riwayatStatus : [];
-      history.push({ status: "Dikirim", waktu: now });
+      history.push({ status: "Buat Pengiriman", waktu: now });
       await trackRef.update({
         invoice: order.invoice,
         nama: order.nama || "",
         total: Number(order.total || 0),
-        status: "Dikirim",
-        statusKategori: "Dikirim",
+        status: "Buat Pengiriman",
+        statusKategori: "Buat Pengiriman",
         resi: waybill || track.resi || "",
         kurir: safe(courier.company, courierCompany),
         biteshipOrderId: safe(data.id),

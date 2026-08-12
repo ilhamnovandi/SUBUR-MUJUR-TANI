@@ -36,32 +36,11 @@ function findFirst(obj, keys, depth = 0) {
   return "";
 }
 
-function normalizeStatus(raw) {
-  const s = String(raw || "").toLowerCase().trim();
-  // Once Biteship has accepted/created the shipment, the order has left
-  // the packing stage from the store's point of view. Therefore confirmed
-  // and all active pickup/transit states must be shown as "Dikirim" in the
-  // admin/customer UI. Previously confirmed/allocated were mapped to
-  // "Dikemas", which caused the UI to jump back to Dikemas after every
-  // Biteship webhook even though a waybill already existed.
-  const map = {
-    confirmed: "Dikirim",
-    allocated: "Dikirim",
-    picking_up: "Dikirim",
-    picked: "Dikirim",
-    dropping_off: "Dikirim",
-    on_delivery: "Dikirim",
-    out_for_delivery: "Dikirim",
-    in_transit: "Dikirim",
-    delivering: "Dikirim",
-    ready_to_ship: "Dikirim",
-    delivered: "Beri Penilaian",
-    cancelled: "Dibatalkan",
-    rejected: "Dibatalkan",
-    returned: "Dikembalikan",
-    on_hold: "Ditahan"
-  };
-  return map[s] || (s ? String(raw).replace(/_/g, " ") : "Dikirim");
+function normalizeStatus(raw, currentStatus) {
+  // Biteship status is stored separately in statusPengiriman. It must never
+  // overwrite the store's local workflow (Dikemas -> Buat Pengiriman ->
+  // Resi -> Dikirim -> COD Lunas).
+  return currentStatus || "Dikemas";
 }
 
 function isDelivered(raw) {
@@ -166,7 +145,7 @@ exports.handler = async event => {
     }
 
     const now = new Date().toLocaleString("id-ID");
-    const nextStatus = normalizeStatus(rawStatus);
+    const nextStatus = normalizeStatus(rawStatus, order.status);
     const updates = {
       statusPengiriman: rawStatus || order.statusPengiriman || "",
       statusTerakhirDiperbarui: now,
@@ -183,8 +162,6 @@ exports.handler = async event => {
     if (price > 0) updates.biteshipShippingPrice = price;
 
     if (eventName === "order.status" || rawStatus) {
-      updates.status = nextStatus;
-      updates.statusKategori = nextStatus;
       if (isDelivered(rawStatus) && String(order.metodePembayaran || "").toUpperCase() === "COD") {
         updates.statusPembayaran = "COD - Menunggu Pencairan";
         updates.codDeliveredAt = now;
