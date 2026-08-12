@@ -65,9 +65,7 @@ exports.handler = async event => {
 
     // Ekspedisi yang diizinkan tampil di website.
     const allowedCouriers = new Set([
-      "jne", "jnt", "sicepat", "anteraja", "ninja",
-      "lion", "pos", "tiki", "wahana", "sap",
-      "idexpress", "rpx", "sentralcargo", "paxel", "deliveree"
+      "jne", "jnt", "sicepat", "anteraja", "ninja", "lion", "pos", "tiki", "wahana", "sap", "idexpress", "rpx", "sentralcargo", "paxel", "deliveree", "jdl"
     ]);
     if (!allowedCouriers.has(courier)) {
       return {

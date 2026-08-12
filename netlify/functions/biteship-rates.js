@@ -150,7 +150,7 @@ exports.handler = async event => {
       origin_postal_code: Number(originPostalCode),
       destination_postal_code: Number(destinationPostalCode),
       items,
-      couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree",
+      couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree,jdl",
       destination_cash_on_delivery: codAmount,
       destination_cash_on_delivery_type: codType
     };
@@ -181,8 +181,7 @@ exports.handler = async event => {
       available_for_cash_on_delivery: s.available_for_cash_on_delivery === true,
       cash_on_delivery_fee: Math.max(0, Math.round(Number(s.cash_on_delivery_fee || 0)))
     }))
-    .filter(x => x.courier_code && x.courier_service_code)
-    .filter(x => x.available_for_cash_on_delivery === true) : [];
+    .filter(x => x.courier_code && x.courier_service_code) : [];
 
     return json(200, {
       success: true,
