@@ -198,9 +198,6 @@ color:#1b5e20;
 @media(max-width:600px){.biteship-admin-grid{grid-template-columns:1fr}}
 </style>
 
-</style>
-
-
 <style id="sm-cross-platform-fix">
 /* Cross-platform compatibility: Android, iOS/iPadOS and desktop */
 *,*::before,*::after{box-sizing:border-box}
@@ -1208,11 +1205,15 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
   <button class="no-print" onclick="window.print()" style="margin-top:6mm;width:100%;padding:12px;font-size:16px;font-weight:800;">🖨️ CETAK</button>
 </div>
 <script>window.addEventListener("load",function(){setTimeout(function(){window.print()},350)});<\/script>
-
-
-
-
-
+</body>
+</html>
+`);
+        win.document.close();
+    } catch (error) {
+        console.error("Gagal mencetak label:", error);
+        alert("❌ Gagal mencetak label: " + (error.message || error));
+    }
+}</script>
 
 <div class="box admin-logout-bottom" id="adminLogoutBox" style="margin-top:28px;text-align:center;border:1px solid #ead6d6;background:#fffafa;">
   <button type="button" onclick="logout()" style="background:#b3261e;width:100%;max-width:420px;font-weight:800;">🚪 Keluar Admin</button>
@@ -1259,6 +1260,7 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
   else start();
 })();
 </script>
+
 </body>
 </html>`);
         win.document.close();
@@ -2126,7 +2128,7 @@ async function hapusSemuaVarianProduk(){
         console.warn("Pembersihan varian dilewati:", e);
     }
 }
-\nwindow.addEventListener("load", function(){
+window.addEventListener("load", function(){
     adminMuatDaftarProduk();
     hapusSemuaVarianProduk();
 });

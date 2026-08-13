@@ -1,0 +1,22 @@
+PERBAIKAN FINAL - SUBUR MUJUR TANI
+
+1. admin.html diperbaiki:
+   - Memperbaiki JavaScript yang sebelumnya terpotong pada fungsi cetak label.
+   - Memperbaiki karakter \n yang salah sebelum window.addEventListener pada fungsi produk.
+   - Menambahkan kembali blok logout admin di posisi HTML yang benar.
+   - Menambahkan migrasi aman untuk menghapus field varian lama dari Firebase.
+   - Kolom Deskripsi / Keterangan Produk tersedia setelah Berat.
+   - Form admin tidak menampilkan Varian Produk.
+
+2. netlify/lib TETAP DISERTAKAN.
+   Jangan hapus folder netlify/lib karena dipakai oleh fungsi Netlify/Biteship.
+
+3. produk.html sudah memiliki:
+   - preview deskripsi di kartu produk
+   - detail produk saat produk diklik
+   - deskripsi/keterangan ditampilkan pada detail produk
+   - sistem varian dinonaktifkan pada katalog.
+
+Setelah upload/deploy:
+- Buka admin.html dari URL Netlify terbaru.
+- Jika browser masih menampilkan versi lama, tutup tab lama lalu buka ulang URL.
