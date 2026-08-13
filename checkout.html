@@ -992,7 +992,10 @@ gap:10px;
 <select id="kurirOngkir">
   <option value="all">Semua kurir yang tersedia</option>
 </select>
-<div style="font-size:13px;color:#666;margin:8px 0 10px;">Kurir dan layanan yang muncul adalah yang benar-benar tersedia untuk rute, berat, lokasi, dan akun Biteship kamu.</div>
+<div style="font-size:13px;color:#666;margin:8px 0 10px;">
+Kurir dan layanan yang muncul adalah yang benar-benar tersedia untuk rute, berat, lokasi, dan akun Biteship kamu.
+Untuk CARGO, beberapa layanan seperti JNE Trucking, SiCepat GOKIL, dan Indah Cargo umumnya mensyaratkan berat minimum sekitar 10 kg.
+</div>
 
 <label>Layanan Pengiriman</label>
 <select id="layananOngkir">
@@ -2351,45 +2354,63 @@ function ambilLokasiInstant() {
 }
 
 function kategoriRate(rate) {
-    // Biteship mengirimkan beberapa field yang bisa dipakai untuk menentukan
-    // kategori layanan. Gunakan courier/service code terlebih dahulu karena
-    // nama layanan dapat berbeda-beda antar kurir.
-    const st = String(rate.service_type || "").toLowerCase();
-    const sht = String(rate.shipping_type || "").toLowerCase();
-    const courier = String(rate.courier_code || rate.company || "").toLowerCase();
-    const serviceCode = String(rate.courier_service_code || rate.type || "").toLowerCase();
+    // Klasifikasi harus mengikuti field yang benar-benar dikirim Biteship.
+    // Jangan menganggap kata "pickup" sebagai cargo karena pickup juga
+    // merupakan metode collection pada layanan reguler.
+    const st = String(rate.service_type || "").toLowerCase().trim();
+    const sht = String(rate.shipping_type || "").toLowerCase().trim();
+    const courier = String(rate.courier_code || rate.company || "").toLowerCase().trim();
+    const serviceCode = String(rate.courier_service_code || rate.type || "").toLowerCase().trim();
     const name = (
         String(rate.courier_name || "") + " " +
         String(rate.courier_service_name || "") + " " +
+        String(rate.description || "") + " " +
         serviceCode
     ).toLowerCase();
 
-    const instantCodes = [
+    const instantServiceCodes = [
         "instant", "same_day", "same-day", "on_demand", "ondemand",
-        "instant_delivery", "instant_car", "gosend", "grabinstant",
-        "grab_instant", "lalamove", "borzo"
+        "instant_delivery", "instant_car"
     ];
-    const instantCourierCodes = ["gojek", "grab", "gosend", "lalamove", "borzo", "paxel"];
-    const cargoCodes = [
-        "jtr", "cargo", "trucking", "bigpack", "big_pack", "heavy", "jumbo",
-        "fuso", "cdd", "engkel", "tronton", "pickup", "truck", "freight"
+    const instantCourierCodes = [
+        "gojek", "grab", "gosend", "lalamove", "borzo", "paxel"
     ];
-    const cargoCourierCodes = ["sentralcargo", "deliveree"];
 
-    if (
-        instantCodes.some(x => st.includes(x) || serviceCode.includes(x) || courier.includes(x)) ||
-        instantCourierCodes.includes(courier) && !cargoCodes.some(x => name.includes(x))
-    ) return "instant";
+    const cargoKeywords = [
+        "cargo", "trucking", "freight", "heavy", "bigpack", "big_pack",
+        "gokil", "jtr", "jntcargo", "jnt_cargo", "indahcargo", "indah_cargo",
+        "sentralcargo", "sentral_cargo", "tronton", "fuso", "cdd",
+        "engkel", "wing_box", "wingbox", "pickup_truck", "box_truck"
+    ];
+    const cargoCourierCodes = [
+        "deliveree", "sentralcargo", "sentral_cargo", "indahcargo",
+        "indah_cargo", "jntcargo", "jnt_cargo"
+    ];
 
+    // Instant/Kendaraan
     if (
-        sht.includes("cargo") || st.includes("cargo") ||
-        cargoCodes.some(x => serviceCode.includes(x) || name.includes(x)) ||
-        cargoCourierCodes.includes(courier)
-    ) return "cargo";
+        instantServiceCodes.some(x => st === x || serviceCode === x || name.includes(x)) ||
+        instantCourierCodes.includes(courier)
+    ) {
+        // Jangan memasukkan layanan cargo milik courier yang juga punya
+        // layanan kendaraan jika service-nya jelas cargo/trucking.
+        if (!cargoKeywords.some(x => serviceCode.includes(x) || name.includes(x))) {
+            return "instant";
+        }
+    }
+
+    // Cargo
+    if (
+        sht === "cargo" || sht === "freight" ||
+        st === "cargo" || st === "freight" ||
+        cargoCourierCodes.includes(courier) ||
+        cargoKeywords.some(x => serviceCode.includes(x) || name.includes(x))
+    ) {
+        return "cargo";
+    }
 
     return "reguler";
 }
-
 function updateCourierFilterOptions() {
     const sel = document.getElementById("kurirOngkir");
     if (!sel) return;
