@@ -31,46 +31,6 @@ function callBiteship(apiKey, payload) {
   });
 }
 
-
-function callBiteshipCouriers(apiKey) {
-  return new Promise((resolve, reject) => {
-    const req = https.request({
-      hostname: "api.biteship.com",
-      path: "/v1/couriers",
-      method: "GET",
-      headers: {
-        Authorization: apiKey,
-        Accept: "application/json"
-      },
-      timeout: 20000
-    }, res => {
-      let raw = "";
-      res.setEncoding("utf8");
-      res.on("data", chunk => raw += chunk);
-      res.on("end", () => {
-        let data = {};
-        try { data = raw ? JSON.parse(raw) : {}; }
-        catch { data = { raw }; }
-        resolve({ status: res.statusCode || 0, data });
-      });
-    });
-    req.on("timeout", () => req.destroy(new Error("Koneksi ke Biteship Courier API timeout (20 detik).")));
-    req.on("error", reject);
-    req.end();
-  });
-}
-
-async function getAvailableCourierCodes(apiKey) {
-  const result = await callBiteshipCouriers(apiKey);
-  if (result.status < 200 || result.status >= 300) {
-    return [];
-  }
-  const list = Array.isArray(result.data?.couriers) ? result.data.couriers : [];
-  return [...new Set(
-    list.map(c => String(c.courier_code || "").trim().toLowerCase()).filter(Boolean)
-  )];
-}
-
 function errorMessage(data) {
   if (!data) return "Biteship mengembalikan respons kosong.";
   if (typeof data === "string") return data;
@@ -106,19 +66,19 @@ exports.handler = async event => {
     if (!/^\d{5}$/.test(destination)) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Kode pos tujuan harus 5 digit."}) };
 
 
-    // Jika user memilih courier tertentu, tetap validasi terhadap daftar courier
-    // Biteship. Jika "all", jangan memakai daftar hard-code karena Biteship
-    // dapat menambah/mengubah courier (termasuk cargo) dari waktu ke waktu.
-    const fallbackCouriers = new Set([
-      "jne", "jnt", "sicepat", "anteraja", "ninja", "lion", "pos", "tiki",
-      "wahana", "sap", "idexpress", "rpx", "sentralcargo", "paxel",
-      "deliveree", "jdl", "lalamove", "grab", "gojek", "gosend", "borzo",
-      "indahcargo", "jntcargo"
+    // Ekspedisi yang diizinkan tampil di website.
+    const allowedCouriers = new Set([
+      "jne", "jnt", "sicepat", "anteraja", "ninja", "lion", "pos", "tiki", "wahana", "sap", "idexpress", "rpx", "sentralcargo", "paxel", "deliveree", "jdl", "lalamove", "grab", "gosend", "borzo"
     ]);
-
-    if (courier !== "all" && !fallbackCouriers.has(courier)) {
-      // Validasi tambahan dilakukan lewat Courier API di bawah agar courier
-      // baru yang aktif di akun Biteship juga dapat digunakan.
+    if (courier !== "all" && !allowedCouriers.has(courier)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          success:false,
+          message:"Ekspedisi tersebut tidak tersedia di website ini."
+        })
+      };
     }
 
     const rawItems = Array.isArray(input.items) ? input.items : [];
@@ -137,21 +97,11 @@ exports.handler = async event => {
       quantity: 1
     }];
 
-    let requestedCouriers = courier;
-    if (courier === "all") {
-      // Ambil daftar courier aktual dari akun Biteship agar courier cargo baru
-      // (mis. Indah Cargo/J&T Cargo atau courier lain yang aktif) tidak hilang
-      // hanya karena tidak tercantum di daftar hard-code aplikasi.
-      const dynamicCouriers = await getAvailableCourierCodes(apiKey);
-      requestedCouriers = dynamicCouriers.length
-        ? dynamicCouriers.join(",")
-        : Array.from(fallbackCouriers).join(",");
-    }
-
+    const allCouriers = Array.from(allowedCouriers).join(",");
     const payload = {
       origin_postal_code: Number(origin),
       destination_postal_code: Number(destination),
-      couriers: requestedCouriers,
+      couriers: courier === "all" ? allCouriers : courier,
       items
     };
     // Biteship membutuhkan koordinat untuk Instant seperti Lalamove/Paxel/Grab/GoSend.
@@ -215,10 +165,7 @@ exports.handler = async event => {
       service_type:s.service_type || "",
       type:s.type || "",
       available_for_cash_on_delivery: s.available_for_cash_on_delivery === true,
-      cash_on_delivery_fee: Number(s.cash_on_delivery_fee || 0),
-      // Simpan field mentah yang berguna untuk klasifikasi frontend.
-      company: s.company || s.courier_code || "",
-      currency: s.currency || "IDR"
+      cash_on_delivery_fee: Number(s.cash_on_delivery_fee || 0)
     })) : [];
 
     return { statusCode:200, headers, body:JSON.stringify({ success:true, pricing, origin:data.origin, destination:data.destination, biteship_code:data.code || null }) };

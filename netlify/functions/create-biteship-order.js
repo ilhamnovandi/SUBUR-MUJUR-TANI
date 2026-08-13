@@ -249,8 +249,21 @@ exports.handler = async event => {
 
     const data = result.data || {};
     const courier = data.courier || {};
-    const waybill = safe(courier.waybill_id);
-    const trackingId = safe(courier.tracking_id);
+    // Biteship biasanya mengembalikan AWB di courier.waybill_id.
+    // Beberapa response/event dapat menaruhnya di level order, jadi gunakan
+    // fallback agar nomor resi tidak hilang di Admin.
+    const waybill = safe(
+      courier.waybill_id ||
+      data.waybill_id ||
+      data.waybill ||
+      data.courier_waybill_id
+    );
+    const trackingId = safe(
+      courier.tracking_id ||
+      data.tracking_id ||
+      data.courier_tracking_id
+    );
+    const trackingUrl = safe(courier.link || data.link || data.courier_link);
     const status = safe(data.status, "confirmed");
     const now = new Date().toLocaleString("id-ID");
 
@@ -264,7 +277,7 @@ exports.handler = async event => {
       resi: waybill,
       biteshipCourier: safe(courier.company, courierCompany),
       biteshipCourierType: safe(courier.type, courierType),
-      biteshipTrackingUrl: safe(courier.link),
+      biteshipTrackingUrl: trackingUrl,
       biteshipCOD: codAmount,
       biteshipCODType: safe(payload.destination_cash_on_delivery_type),
       biteshipShippingPrice: Number(order.ongkir || 0),
@@ -288,7 +301,7 @@ exports.handler = async event => {
         resi: waybill || track.resi || "",
         kurir: safe(courier.company, courierCompany),
         biteshipOrderId: safe(data.id),
-        biteshipTrackingUrl: safe(courier.link),
+        biteshipTrackingUrl: trackingUrl,
         whatsappLast4: String(order.whatsapp || "").replace(/\D/g, "").slice(-4),
         updatedAt: now,
         riwayatStatus: history.slice(-20)
@@ -304,7 +317,8 @@ exports.handler = async event => {
       tracking_id: trackingId,
       courier_company: safe(courier.company, courierCompany),
       courier_type: safe(courier.type, courierType),
-      status
+      status,
+      tracking_url: trackingUrl
     });
   } catch (err) {
     console.error("create-biteship-order:", err);
