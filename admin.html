@@ -450,7 +450,7 @@ database.ref("pesanan").on("value", function(snapshot) {
             const shippingPrice = Number(order.ongkir || order.biteshipShippingPrice || 0);
 
             let shippingBox = "";
-            if (isCOD && ["Dikemas", "Buat Pengiriman", "Dikirim", "COD Lunas", "Beri Penilaian"].includes(orderStatus)) {
+            if (["Dikemas", "Buat Pengiriman", "Dikirim", "COD Lunas", "Beri Penilaian"].includes(orderStatus) && !order.biteshipRejected) {
                 const hasCreated = Boolean(order.biteshipOrderId || order.resi);
 
                 shippingBox = `
@@ -460,7 +460,7 @@ database.ref("pesanan").on("value", function(snapshot) {
                     <div><small>Kurir</small><b>${escapeAdmin(selectedShipping)}</b></div>
                     <div><small>Layanan</small><b>${escapeAdmin(selectedService)}</b></div>
                     <div><small>Ongkir</small><b>Rp ${shippingPrice.toLocaleString("id-ID")}</b></div>
-                    <div><small>Total COD</small><b>Rp ${Number(order.total || 0).toLocaleString("id-ID")}</b></div>
+                    ${isCOD ? `<div><small>Total COD</small><b>Rp ${Number(order.total || 0).toLocaleString("id-ID")}</b></div>` : `<div><small>Pembayaran</small><b>${escapeAdmin(order.metodePembayaran || "BRI")}</b></div>`}
                   </div>
                   ${hasCreated ? `
                     <div class="biteship-result">
@@ -481,8 +481,8 @@ database.ref("pesanan").on("value", function(snapshot) {
                         <div class="selected-rate">
                           <div>✅ Layanan dipilih: <b>${escapeAdmin(order.kurirNama || order.kurirKode)}</b> — <b>${escapeAdmin(order.layananNama || order.layananKode)}</b></div>
                           <div>Ongkir: <b>Rp ${shippingPrice.toLocaleString("id-ID")}</b></div>
-                          <div>Total COD: <b>Rp ${Number(order.total || 0).toLocaleString("id-ID")}</b></div>
-                          <button type="button" onclick="buatPengirimanCOD('${id}')" class="btn-create">🚚 Buat Pengiriman</button>
+                          ${isCOD ? `<div>Total COD: <b>Rp ${Number(order.total || 0).toLocaleString("id-ID")}</b></div>` : `<div>Pembayaran: <b>${escapeAdmin(order.metodePembayaran || "BRI")}</b></div>`}
+                          <button type="button" onclick="buatPengirimanBiteship('${id}')" class="btn-create">🚚 Buat Pengiriman</button>
                         </div>
                       ` : `<div class="rate-hint">Pilih kurir dan layanan terlebih dahulu, lalu tombol Buat Pengiriman akan muncul.</div>`}
                     </div>
@@ -573,11 +573,16 @@ async function ubahStatus(id, selectedStatus){
         // akan diubah otomatis oleh webhook saat Biteship mengirim status
         // pickup (picking_up/picked/dropping_off).
         if (selectedStatus === "Buat Pengiriman") {
-            if (!isCOD) return alert("Pembuatan pengiriman Biteship otomatis saat ini tersedia untuk pesanan COD.");
             if (current !== "Dikemas") {
                 return alert(`⛔ Buat Pengiriman hanya bisa dilakukan saat status pesanan Dikemas.\n\nStatus sekarang: ${current}`);
             }
-            return await buatPengirimanCOD(id);
+            return await buatPengirimanBiteship(id);
+        }
+
+        // Status Dikirim bukan tombol manual. Status ini berasal dari webhook
+        // Biteship setelah kurir mulai mengambil/menangani paket.
+        if (selectedStatus === "Dikirim" && selectedStatus !== current) {
+            return alert("🚚 Status Dikirim diatur otomatis dari webhook Biteship setelah kurir pickup. Jangan menaikkannya manual.");
         }
 
         const nextMap = isCOD ? {
@@ -591,7 +596,8 @@ async function ubahStatus(id, selectedStatus){
         } : {
             "Belum Bayar":"Dikemas",
             "Menunggu Pembayaran":"Dikemas",
-            "Dikemas":"Dikirim",
+            "Dikemas":"Buat Pengiriman",
+            "Buat Pengiriman":"Dikirim",
             "Dikirim":"Beri Penilaian",
             "Beri Penilaian":"Beri Penilaian"
         };
@@ -633,7 +639,7 @@ async function getAdminIdToken() {
     return await user.getIdToken(true);
 }
 
-async function hitungTarifCOD(id) {
+async function hitungTarifBiteship(id) {
     const box = document.getElementById("rate-result-" + id);
     if (!box) return;
 
@@ -659,12 +665,13 @@ async function hitungTarifCOD(id) {
         window.adminBiteshipRates[id] = rates;
 
         if (!rates.length) {
-            box.innerHTML = '<div class="rate-hint">❌ Tidak ada layanan Biteship COD yang tersedia untuk tujuan ini.</div>';
+            box.innerHTML = '<div class="rate-hint">❌ Tidak ada layanan Biteship yang tersedia untuk tujuan ini.</div>';
             return;
         }
 
         const current = await database.ref("pesanan/" + id).once("value");
         const order = current.val() || {};
+        const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
         const selectedIndex = rates.findIndex(r =>
             String(r.courier_code) === String(order.kurirKode || "") &&
             String(r.courier_service_code) === String(order.layananKode || "")
@@ -672,14 +679,14 @@ async function hitungTarifCOD(id) {
 
         box.innerHTML = `
           <label style="font-size:12px;font-weight:800;color:#355c4c;">Pilih Kurir & Layanan</label>
-          <select id="rate-select-${id}" onchange="pilihTarifCOD('${id}', this.value)">
+          <select id="rate-select-${id}" onchange="pilihTarifBiteship('${id}', this.value)">
             <option value="">Pilih layanan pengiriman</option>
             ${rates.map((r, i) => `
               <option value="${i}" ${i === selectedIndex ? "selected" : ""}>
                 ${escapeAdmin(r.courier_name)} — ${escapeAdmin(r.courier_service_name)}
                 | Rp ${Number(r.price || 0).toLocaleString("id-ID")}
                 | ${escapeAdmin(r.duration || "-")}
-                ${r.available_for_cash_on_delivery ? " | COD ✓" : " | COD ✕"}
+                ${isCOD ? (r.available_for_cash_on_delivery ? " | COD ✓" : " | COD ✕") : ""}
               </option>
             `).join("")}
           </select>
@@ -687,7 +694,7 @@ async function hitungTarifCOD(id) {
         `;
 
         if (selectedIndex >= 0) {
-            await pilihTarifCOD(id, String(selectedIndex), true);
+            await pilihTarifBiteship(id, String(selectedIndex), true);
         }
     } catch (error) {
         console.error("Tarif Biteship Admin:", error);
@@ -695,7 +702,7 @@ async function hitungTarifCOD(id) {
     }
 }
 
-async function pilihTarifCOD(id, index, silent) {
+async function pilihTarifBiteship(id, index, silent) {
     const rates = window.adminBiteshipRates[id] || [];
     const rate = rates[Number(index)];
     if (!rate) return;
@@ -743,25 +750,27 @@ async function pilihTarifCOD(id, index, silent) {
 
         if (!silent) {
             const box = document.getElementById("rate-result-" + id);
-            if (box) box.innerHTML += `<div class="rate-hint">✅ ${escapeAdmin(rate.courier_name)} ${escapeAdmin(rate.courier_service_name)} dipilih — Ongkir Rp ${shipping.toLocaleString("id-ID")}. Total COD Rp ${totalCOD.toLocaleString("id-ID")}.</div>`;
+            if (box) box.innerHTML += `<div class="rate-hint">✅ ${escapeAdmin(rate.courier_name)} ${escapeAdmin(rate.courier_service_name)} dipilih — Ongkir Rp ${shipping.toLocaleString("id-ID")}${String(order.metodePembayaran || "").toUpperCase() === "COD" ? ". Total COD Rp " + totalCOD.toLocaleString("id-ID") + "." : ". Pembayaran BRI/non-COD."}</div>`;
         }
     } catch (error) {
         alert("❌ Gagal menyimpan layanan: " + (error.message || error));
     }
 }
 
-async function buatPengirimanCOD(id) {
+async function hitungTarifCOD(id) { return hitungTarifBiteship(id); }
+async function pilihTarifCOD(id, index, silent) { return pilihTarifBiteship(id, index, silent); }
+
+async function buatPengirimanBiteship(id) {
     try {
         const snap = await database.ref("pesanan/" + id).once("value");
         const order = snap.val();
 
         if (!order) return alert("Pesanan tidak ditemukan.");
-        if (String(order.metodePembayaran || "").toUpperCase() !== "COD") return alert("Pesanan ini bukan COD.");
         if (order.status !== "Dikemas") return alert("⛔ Buat Pengiriman hanya bisa dilakukan setelah tahap Dikemas.");
         if (order.biteshipOrderId || order.resi) return alert("Pesanan ini sudah memiliki pengiriman/resi.");
         if (!order.kurirKode || !order.layananKode) return alert("Pilih kurir dan layanan Biteship terlebih dahulu.");
 
-        if (!confirm(`Buat pengiriman ${order.kurirNama || order.kurirKode} ${order.layananNama || order.layananKode} dengan ongkir Rp ${Number(order.ongkir || 0).toLocaleString("id-ID")} dan COD Rp ${Number(order.total || 0).toLocaleString("id-ID")}?`)) return;
+        if (!confirm(`Buat pengiriman ${order.kurirNama || order.kurirKode} ${order.layananNama || order.layananKode} dengan ongkir Rp ${Number(order.ongkir || 0).toLocaleString("id-ID")}${String(order.metodePembayaran || "").toUpperCase() === "COD" ? ` dan COD Rp ${Number(order.total || 0).toLocaleString("id-ID")}` : ""}?`)) return;
 
         const panel = document.getElementById("shipping-panel-" + id);
         const createBtn = panel ? panel.querySelector(".btn-create") : null;
@@ -794,11 +803,14 @@ async function buatPengirimanCOD(id) {
 
         location.reload();
     } catch (error) {
-        console.error("Buat pengiriman COD:", error);
+        console.error("Buat pengiriman:", error);
         alert("❌ Gagal membuat pengiriman: " + (error.message || error));
     }
 }
 
+
+// Kompatibilitas dengan tombol lama/markup lama.
+const buatPengirimanCOD = buatPengirimanBiteship;
 
 async function cetakLabelPengiriman(id){
     try {
