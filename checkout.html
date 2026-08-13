@@ -3121,6 +3121,22 @@ async function simpanPesanan() {
             waktu: orderData.waktu
         });
 
+        // Beri tahu HP admin melalui Firebase Cloud Messaging.
+        // Tidak memblokir checkout: jika server notifikasi gagal, pesanan
+        // tetap tersimpan normal dan tombol WhatsApp tetap bekerja.
+        try {
+            fetch("/api/notify-new-order", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                keepalive: true,
+                body: JSON.stringify({ orderId: orderKey })
+            }).catch(function(err) {
+                console.warn("Notifikasi admin tidak terkirim:", err);
+            });
+        } catch (notifyError) {
+            console.warn("Pemanggilan notifikasi admin gagal:", notifyError);
+        }
+
         finalLastOrderId = orderKey;
         localStorage.setItem("smt_last_order_id", orderKey);
 

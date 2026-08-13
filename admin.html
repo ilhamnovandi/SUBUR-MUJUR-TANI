@@ -316,6 +316,16 @@ SUBUR MUJUR TANI
 📦 Pesanan Masuk
 </h2>
 
+<div id="notifikasiPesananAdmin" style="margin:0 0 14px;padding:12px 14px;border:1px solid #dfe9e2;border-radius:14px;background:#f7fbf8;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;">
+  <div style="min-width:220px;flex:1;">
+    <b style="color:#0b3d2e;">🔔 Notifikasi Pesanan Baru</b>
+    <div id="statusNotifikasiPesanan" style="font-size:12px;color:#66716c;margin-top:3px;">Belum diaktifkan.</div>
+  </div>
+  <button type="button" id="btnAktifkanNotifikasi" onclick="aktifkanNotifikasiPesanan()" style="width:auto;margin:0;padding:10px 14px;border-radius:10px;">
+    🔔 Aktifkan Notifikasi
+  </button>
+</div>
+
 <input
 id="cariPesanan"
 placeholder="Cari nama pelanggan..."
@@ -348,6 +358,7 @@ Memuat data pesanan...
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 
 
 
@@ -370,6 +381,15 @@ const firebaseConfig = {
   appId: "1:338009458768:web:c562a610cee4940b856955"
 };
 
+/* =========================================================
+   FCM WEB PUSH
+   Setelah membuat Web Push certificate di Firebase Console,
+   tempel PUBLIC VAPID KEY di bawah ini.
+   Jangan pernah menaruh private/service-account key di browser.
+========================================================= */
+const SMT_FCM_VAPID_KEY = "BDpUyXqNXP5fhvRlGChOYtltydRSeoaIlfn5OBF2ipU8ADwLAaXzCgdxXbCQC8ng-HTgqKKUCtvt0NGohJqpR2g";
+
+
 firebase.initializeApp(firebaseConfig);
 
 
@@ -383,11 +403,258 @@ const storage = firebase.storage();
 window.database = database;
 window.storage = storage;
 window.FirebaseApp = window.FirebaseApp || {};
+
 window.FirebaseApp.database = database;
 window.FirebaseApp.storage = storage;
 
 
+/* =========================================================
+   NOTIFIKASI PESANAN BARU UNTUK HP ADMIN
+   - Tidak bergantung pada tombol WhatsApp pembeli.
+   - Memakai Notification API browser.
+   - Notifikasi muncul saat halaman admin masih aktif di browser,
+     termasuk ketika browser berada di background jika OS/browser
+     mengizinkannya.
+   - Pesanan lama tidak memicu notifikasi.
+========================================================= */
+let notifikasiPesananSiap = false;
+let notifikasiPesananTertunda = [];
+let notifikasiPesananLama = new Set();
+let notifikasiPesananListenerTerpasang = false;
 
+function setStatusNotifikasiPesanan(text, ok) {
+    const el = document.getElementById("statusNotifikasiPesanan");
+    const btn = document.getElementById("btnAktifkanNotifikasi");
+    if (el) {
+        el.textContent = text;
+        el.style.color = ok ? "#28714c" : "#8a5a00";
+    }
+    if (btn) {
+        if (window.Notification && Notification.permission === "granted") {
+            btn.textContent = "✅ Notifikasi Aktif";
+            btn.disabled = true;
+            btn.style.opacity = "0.75";
+        } else if (window.Notification && Notification.permission === "denied") {
+            btn.textContent = "⚠️ Izin Ditolak";
+            btn.disabled = false;
+            btn.style.opacity = "1";
+        }
+    }
+}
+
+function ringNotifikasiPesanan() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.22);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.24);
+        setTimeout(() => { try { ctx.close(); } catch(e) {} }, 400);
+    } catch(e) {}
+}
+
+function tampilkanNotifikasiPesanan(order, id) {
+    if (!order) return;
+
+    const invoice = order.invoice || id || "-";
+    const nama = order.nama || "Pelanggan";
+    const total = Number(order.total || 0).toLocaleString("id-ID");
+    const metode = order.metodePembayaran || "-";
+
+    // Banner di halaman admin selalu ditampilkan.
+    try {
+        const box = document.getElementById("notifikasiPesananAdmin");
+        if (box) {
+            box.style.borderColor = "#c7a15a";
+            box.style.background = "#fffaf0";
+            box.animate(
+                [{transform:"scale(1)"},{transform:"scale(1.015)"},{transform:"scale(1)"}],
+                {duration:450}
+            );
+        }
+    } catch(e) {}
+
+    ringNotifikasiPesanan();
+
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+    }
+
+    try {
+        const n = new Notification("🔔 Pesanan Baru - Subur Mujur Tani", {
+            body: invoice + " • " + nama + "\nTotal Rp " + total + " • " + metode,
+            tag: "smt-pesanan-" + id,
+            renotify: true,
+            requireInteraction: true
+        });
+
+        n.onclick = function() {
+            try { window.focus(); } catch(e) {}
+            try { n.close(); } catch(e) {}
+        };
+    } catch(e) {
+        console.warn("Browser tidak dapat menampilkan notifikasi:", e);
+    }
+}
+
+async function aktifkanNotifikasiPesanan() {
+    if (!("Notification" in window)) {
+        setStatusNotifikasiPesanan("Browser ini tidak mendukung notifikasi.", false);
+        alert("Browser HP ini tidak mendukung notifikasi web.");
+        return;
+    }
+    if (!("serviceWorker" in navigator)) {
+        setStatusNotifikasiPesanan("Browser tidak mendukung Service Worker.", false);
+        alert("Browser ini belum mendukung notifikasi push.");
+        return;
+    }
+    if (!SMT_FCM_VAPID_KEY || SMT_FCM_VAPID_KEY.startsWith("ISI_")) {
+        setStatusNotifikasiPesanan("Public VAPID Key belum dipasang.", false);
+        alert("Public VAPID Key Firebase belum dipasang di admin.html. Ikuti panduan FCM yang disertakan di ZIP.");
+        return;
+    }
+
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            setStatusNotifikasiPesanan("Silakan login sebagai admin terlebih dahulu.", false);
+            return;
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+            setStatusNotifikasiPesanan(
+                permission === "denied"
+                    ? "Izin ditolak. Izinkan notifikasi situs ini dari pengaturan browser."
+                    : "Izin notifikasi belum diberikan.",
+                false
+            );
+            return;
+        }
+
+        const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: "/" });
+        const messaging = firebase.messaging();
+        const token = await messaging.getToken({
+            vapidKey: SMT_FCM_VAPID_KEY,
+            serviceWorkerRegistration: registration
+        });
+
+        if (!token) throw new Error("FCM token tidak berhasil dibuat.");
+
+        const idToken = await user.getIdToken(true);
+        const response = await fetch("/api/register-admin-token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + idToken
+            },
+            body: JSON.stringify({ token })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || "Server gagal mendaftarkan HP ini.");
+        }
+
+        localStorage.setItem("smt_fcm_registered", "1");
+        setStatusNotifikasiPesanan("✅ Aktif di HP ini. Pesanan baru tetap bisa masuk meskipun halaman Admin ditutup.", true);
+        const tes = new Notification("✅ Notifikasi pesanan aktif", {
+            body: "HP ini sudah terdaftar sebagai penerima pesanan baru."
+        });
+        setTimeout(() => { try { tes.close(); } catch(e) {} }, 5000);
+    } catch(e) {
+        console.error("FCM:", e);
+        setStatusNotifikasiPesanan("Gagal mengaktifkan FCM: " + (e.message || e), false);
+        alert("❌ Gagal mengaktifkan notifikasi push:\n\n" + (e.message || e));
+    }
+}
+
+
+async function cekStatusFCMAdmin() {
+    try {
+        const btn = document.getElementById("btnAktifkanNotifikasi");
+        if (!btn) return;
+        if (localStorage.getItem("smt_fcm_registered") === "1" && Notification.permission === "granted") {
+            setStatusNotifikasiPesanan("✅ Aktif di HP ini. Menunggu pesanan baru…", true);
+            btn.textContent = "✅ Notifikasi Aktif di HP Ini";
+        }
+    } catch(e) {}
+}
+
+function siapkanNotifikasiPesanan() {
+    if (!database || notifikasiPesananListenerTerpasang) return;
+    notifikasiPesananListenerTerpasang = true;
+
+    if (!("Notification" in window)) {
+        setStatusNotifikasiPesanan("Browser tidak mendukung notifikasi web.", false);
+    } else if (Notification.permission === "granted") {
+        setStatusNotifikasiPesanan("Aktif. Menunggu pesanan baru…", true);
+    } else if (Notification.permission === "denied") {
+        setStatusNotifikasiPesanan("Izin ditolak. Izinkan notifikasi situs ini dari pengaturan browser.", false);
+    } else {
+        setStatusNotifikasiPesanan("Tekan tombol untuk mengaktifkan notifikasi otomatis.", false);
+    }
+
+    const ordersRef = database.ref("pesanan");
+
+    // Pasang listener lebih dulu agar order yang masuk saat snapshot awal
+    // sedang dibaca tidak terlewat.
+    ordersRef.on("child_added", function(snapshot) {
+        const id = snapshot.key;
+        const order = snapshot.val() || {};
+
+        if (!notifikasiPesananSiap) {
+            notifikasiPesananTertunda.push({id, order});
+            return;
+        }
+
+        if (notifikasiPesananLama.has(id)) return;
+        notifikasiPesananLama.add(id);
+        tampilkanNotifikasiPesanan(order, id);
+    });
+
+    // Tandai semua order yang sudah ada sebagai order lama.
+    ordersRef.once("value").then(function(snapshot) {
+        const data = snapshot.val() || {};
+        Object.keys(data).forEach(id => notifikasiPesananLama.add(id));
+
+        const pending = notifikasiPesananTertunda.slice();
+        notifikasiPesananTertunda = [];
+        notifikasiPesananSiap = true;
+
+        // Hanya pending order yang benar-benar tidak ada pada snapshot awal
+        // yang dianggap pesanan baru.
+        pending.forEach(item => {
+            if (!notifikasiPesananLama.has(item.id)) {
+                notifikasiPesananLama.add(item.id);
+                tampilkanNotifikasiPesanan(item.order, item.id);
+            }
+        });
+
+        setStatusNotifikasiPesanan(
+            ("Notification" in window && Notification.permission === "granted")
+                ? "Aktif. Menunggu pesanan baru…"
+                : "Tekan tombol untuk mengaktifkan notifikasi otomatis.",
+            ("Notification" in window && Notification.permission === "granted")
+        );
+    }).catch(function(error) {
+        console.error("Inisialisasi notifikasi pesanan:", error);
+        notifikasiPesananSiap = true;
+        setStatusNotifikasiPesanan("Gagal menyiapkan pemantauan pesanan: " + (error.message || error), false);
+    });
+}
+
+window.addEventListener("load", function() {
+    setTimeout(function(){ siapkanNotifikasiPesanan(); cekStatusFCMAdmin(); }, 500);
+});
 
 
 /* =========================
@@ -883,6 +1150,30 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
  .sheet{margin:0;width:100mm;min-height:150mm;border:0}
  .no-print{display:none}
 }
+<style>
+/* Varian produk: setiap pilihan punya harga, berat, dan stok sendiri. */
+#daftarVarianProduk{margin-top:10px;}
+.smt-varian-row{
+  display:grid !important;
+  grid-template-columns:minmax(150px,1.5fr) minmax(120px,1fr) minmax(110px,1fr) minmax(100px,1fr) auto !important;
+  gap:10px !important;
+  padding:12px !important;
+  margin-bottom:10px !important;
+  border:1px solid #dfe8df !important;
+  border-radius:12px !important;
+  background:#fff !important;
+  align-items:end !important;
+}
+.smt-varian-field{display:flex;flex-direction:column;gap:5px;min-width:0;}
+.smt-varian-field label{font-size:12px;font-weight:700;color:#315b4c;}
+.smt-varian-field input{width:100%;box-sizing:border-box;margin:0 !important;}
+.smt-varian-delete{padding:10px 11px !important;border:0;border-radius:9px;background:#c62828;color:#fff;font-weight:700;cursor:pointer;}
+@media(max-width:700px){
+  .smt-varian-row{grid-template-columns:1fr 1fr !important;align-items:stretch !important;}
+  .smt-varian-field:first-child{grid-column:1 / -1;}
+  .smt-varian-delete{grid-column:1 / -1;width:100%;}
+}
+</style>
 </style>
 </head>
 <body>
@@ -1664,6 +1955,132 @@ async function uploadSemuaGambarProduk(files, productId){
 /* =========================================================
    TAMBAH / EDIT PRODUK
 ========================================================= */
+
+/* =========================================================
+   DAFTAR + HAPUS PRODUK
+   Produk katalog tersimpan di Firebase Realtime Database:
+   node "produk".
+========================================================= */
+function adminEscProduk(v){
+    return String(v == null ? "" : v).replace(/[&<>"']/g, c => ({
+        "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#039;"
+    }[c]));
+}
+
+function adminRenderDaftarProduk(data){
+    const box = document.getElementById("daftarProdukAdmin");
+    if(!box) return;
+
+    const items = Object.entries(data || {}).sort((a,b) =>
+        String(a[1]?.nama || "").localeCompare(String(b[1]?.nama || ""), "id")
+    );
+
+    if(!items.length){
+        box.innerHTML = '<div style="padding:14px;border:1px dashed #ccc;border-radius:10px;color:#777;">Belum ada produk.</div>';
+        return;
+    }
+
+    box.innerHTML = items.map(([id,p]) => {
+        p = p || {};
+        const variants = Array.isArray(p.variants) ? p.variants : [];
+        const stok = variants.length
+            ? variants.reduce((n,v) => n + Number(v?.stok || 0), 0)
+            : Number(p.stok || 0);
+        const harga = Number(p.harga || 0);
+        const gambar = p.gambar || (Array.isArray(p.gambarList) ? p.gambarList[0] : "") || "";
+
+        return `
+          <div style="display:flex;gap:12px;align-items:center;border:1px solid #e5e0d5;border-radius:14px;padding:12px;margin:10px 0;background:#fff;">
+            ${gambar ? `<img src="${adminEscProduk(gambar)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:10px;flex:none;">` : `<div style="width:72px;height:72px;border-radius:10px;background:#eef3ef;display:grid;place-items:center;flex:none;">🌱</div>`}
+            <div style="flex:1;min-width:0;">
+              <b style="display:block;font-size:15px;">${adminEscProduk(p.nama || "Produk tanpa nama")}</b>
+              <small style="color:#666;">
+                ${variants.length ? `${variants.length} varian · ` : ""}
+                Stok: ${stok.toLocaleString("id-ID")} · Mulai Rp ${harga.toLocaleString("id-ID")}
+              </small>
+            </div>
+            <button type="button"
+              style="background:#c62828;width:auto;min-width:90px;"
+              onclick="adminHapusProduk('${adminEscProduk(id)}')">
+              🗑️ Hapus
+            </button>
+          </div>`;
+    }).join("");
+}
+
+function adminMuatDaftarProduk(){
+    const box = document.getElementById("daftarProdukAdmin");
+    if(!box) return;
+
+    try {
+        database.ref("produk").on("value", snapshot => {
+            adminRenderDaftarProduk(snapshot.val() || {});
+        }, error => {
+            box.innerHTML = `<div style="padding:14px;color:#c62828;">❌ Gagal memuat produk: ${adminEscProduk(error.message)}</div>`;
+        });
+    } catch(e) {
+        box.innerHTML = `<div style="padding:14px;color:#c62828;">❌ Firebase belum siap: ${adminEscProduk(e.message)}</div>`;
+    }
+}
+
+async function adminHapusProduk(id){
+    if(!id) return;
+
+    const snap = await database.ref("produk/" + id).once("value");
+    if(!snap.exists()){
+        alert("Produk sudah tidak ditemukan.");
+        return;
+    }
+
+    const p = snap.val() || {};
+    const nama = p.nama || "produk ini";
+
+    if(!confirm('Yakin ingin menghapus "' + nama + '" dari katalog?\\n\\nProduk akan hilang dari halaman Produk dan tidak bisa dipulihkan lewat tombol ini.')) {
+        return;
+    }
+
+    try {
+        /* Hapus data produk dari Realtime Database terlebih dahulu. */
+        await database.ref("produk/" + id).remove();
+
+        /* Coba hapus foto dari Firebase Storage jika URL-nya masih tersedia.
+           Jika gagal karena Storage Rules atau foto berupa data URL, penghapusan
+           produk tetap dianggap berhasil. */
+        const urls = [];
+        if(p.gambar) urls.push(p.gambar);
+        if(Array.isArray(p.gambarList)) urls.push(...p.gambarList);
+        const uniqueUrls = [...new Set(urls.filter(u => typeof u === "string" && u.startsWith("http")))];
+
+        const storage = window.storage || (window.FirebaseApp && window.FirebaseApp.storage);
+        if(storage && uniqueUrls.length){
+            for(const url of uniqueUrls){
+                try {
+                    await storage.refFromURL(url).delete();
+                } catch(storageError) {
+                    console.warn("Foto produk tidak ikut terhapus dari Storage:", storageError);
+                }
+            }
+        }
+
+        if(String(editID || "") === String(id)){
+            editID = null;
+            fileGambarProduk = [];
+            gambarProdukLama = "";
+            gambarProdukLamaList = [];
+            kosongkanForm();
+        }
+
+        alert('✅ "' + nama + '" berhasil dihapus dari katalog.');
+    } catch(e) {
+        console.error("Gagal menghapus produk:", e);
+        alert("❌ Gagal menghapus produk:\\n\\n" + (e.message || e));
+    }
+}
+
+window.addEventListener("load", function(){
+    adminMuatDaftarProduk();
+});
+
 async function tambahProduk(){
 
     const btn = document.getElementById("btnProduk");
@@ -1687,15 +2104,22 @@ async function tambahProduk(){
         const stokInput = document.getElementById("stokProduk").value || "";
         const beratInput = document.getElementById("beratProduk").value || "";
 
-        const hargaNormal = parseInt(hargaInput.replace(/\D/g, ""), 10) || 0;
-        const diskon = Math.min(100, Math.max(0, parseInt(diskonInput, 10) || 0));
+        const hargaInputAngka = parseInt(hargaInput.replace(/\D/g, ""), 10) || 0;
+        let diskon = Math.min(100, Math.max(0, parseInt(diskonInput, 10) || 0));
+        const daftarVarian = bacaVarianProduk();
 
-        if(hargaNormal <= 0){
+        /* Jika memakai varian, harga tiap varian adalah harga jual final masing-masing.
+           Harga produk utama otomatis menjadi harga varian termurah agar tampilan katalog
+           tetap kompatibel dengan data lama. */
+        let hargaNormal = hargaInputAngka;
+        if(daftarVarian.length){
+            hargaNormal = Math.min(...daftarVarian.map(v=>Number(v.harga||0)));
+            diskon = 0;
+        }else if(hargaNormal <= 0){
             alert("❌ Harga produk harus lebih dari 0.");
             return;
         }
 
-        const daftarVarian = bacaVarianProduk();
         const stokDasar = parseInt(stokInput, 10) || 0;
         const beratDasar = parseInt(beratInput, 10) || 0;
         const stokFinal = daftarVarian.length
@@ -1850,15 +2274,34 @@ function tambahBarisVarian(data){
     const row = document.createElement("div");
     row.className = "smt-varian-row";
     row.dataset.id = id;
-    row.style.cssText = "display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:9px;align-items:center;";
+    const nomor = box.querySelectorAll(".smt-varian-row").length + 1;
     row.innerHTML = `
-      <input class="varianNama" placeholder="Nama pilihan" value="${adminEscVar(data.nama || "")}">
-      <input class="varianHarga" type="number" min="0" placeholder="Harga" value="${Number(data.harga || 0) || ""}">
-      <input class="varianBerat" type="number" min="0" placeholder="Berat (g)" value="${Number(data.berat || 0) || ""}">
-      <input class="varianStok" type="number" min="0" placeholder="Stok" value="${Number(data.stok || 0) || ""}">
-      <button type="button" onclick="this.closest('.smt-varian-row').remove()" style="padding:8px 10px;">🗑</button>
+      <div class="smt-varian-field">
+        <label>Nama varian ${nomor}</label>
+        <input class="varianNama" placeholder="Contoh: Manalagi" value="${adminEscVar(data.nama || "")}">
+      </div>
+      <div class="smt-varian-field">
+        <label>Harga varian (Rp)</label>
+        <input class="varianHarga" type="number" min="1" inputmode="numeric" placeholder="Contoh: 25000" value="${Number(data.harga || 0) || ""}">
+      </div>
+      <div class="smt-varian-field">
+        <label>Berat (gram)</label>
+        <input class="varianBerat" type="number" min="0" inputmode="numeric" placeholder="Contoh: 500" value="${Number(data.berat || 0) || ""}">
+      </div>
+      <div class="smt-varian-field">
+        <label>Stok</label>
+        <input class="varianStok" type="number" min="0" inputmode="numeric" placeholder="Contoh: 10" value="${Number(data.stok || 0) || ""}">
+      </div>
+      <button type="button" class="smt-varian-delete" onclick="this.closest('.smt-varian-row').remove();adminRefreshVariantLabels();">🗑 Hapus</button>
     `;
     box.appendChild(row);
+}
+
+function adminRefreshVariantLabels(){
+    document.querySelectorAll("#daftarVarianProduk .smt-varian-row").forEach((row, i)=>{
+        const label=row.querySelector(".smt-varian-field:first-child label");
+        if(label) label.textContent="Nama varian " + (i+1);
+    });
 }
 
 function renderVarianProduk(list){
@@ -2113,8 +2556,8 @@ async function adminHapusUlasan(id){
   <p style="margin-top:0;color:#666;">Tambahkan bibit/produk baru ke katalog. Foto dapat dipilih langsung dari HP.</p>
 
   <input id="namaProduk" type="text" placeholder="Nama produk, contoh: Bibit Durian Musang King">
-  <input id="hargaProduk" type="number" min="0" inputmode="numeric" placeholder="Harga (Rp)">
-  <input id="diskonProduk" type="number" min="0" max="100" inputmode="numeric" placeholder="Diskon (%) — isi 0 jika tidak ada">
+  <input id="hargaProduk" type="number" min="0" inputmode="numeric" placeholder="Harga dasar (Rp) — kosongkan jika memakai varian">
+  <input id="diskonProduk" type="number" min="0" max="100" inputmode="numeric" placeholder="Diskon (%) — tidak dipakai jika memakai varian">
   <input id="stokProduk" type="number" min="0" inputmode="numeric" placeholder="Stok">
   <input id="beratProduk" type="number" min="0" inputmode="numeric" placeholder="Berat per produk (gram)">
 
@@ -2139,13 +2582,18 @@ async function adminHapusUlasan(id){
 
   <div style="margin-top:16px;padding:14px;border:1px solid #e5e0d5;border-radius:12px;background:#fafcf9;">
     <b>🔖 Varian Produk (opsional)</b>
-    <p style="font-size:13px;color:#666;margin:6px 0 10px;">Jika produk memiliki ukuran/varian berbeda, tambahkan di sini.</p>
+    <p style="font-size:13px;color:#666;margin:6px 0 10px;">Setiap varian punya <b>harga, berat, dan stok sendiri</b>. Contoh: Manalagi Rp25.000, Golek Rp30.000, Harum Manis Rp35.000.</p>
     <div id="daftarVarianProduk"></div>
-    <button type="button" onclick="tambahBarisVarian()">➕ Tambah Varian</button>
+    <button type="button" onclick="tambahBarisVarian();adminRefreshVariantLabels();">➕ Tambah Varian</button>
   </div>
 
   <button id="btnProduk" type="button" onclick="tambahProduk()" style="margin-top:16px;width:100%;font-size:16px;">🌱 Simpan Produk</button>
   <div id="statusSimpanProduk" style="margin-top:10px;"></div>
+
+  <hr style="margin:24px 0">
+  <h3>🗑️ Daftar Produk</h3>
+  <p style="margin-top:0;color:#666;">Produk yang tampil di halaman Produk berasal dari Firebase. Hapus dari sini jika ingin menghilangkannya dari katalog.</p>
+  <div id="daftarProdukAdmin">Memuat produk...</div>
 </div>
 
 

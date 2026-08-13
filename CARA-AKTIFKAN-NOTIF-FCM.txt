@@ -1,0 +1,117 @@
+# NOTIFIKASI PESANAN OTOMATIS — SUBUR MUJUR TANI
+
+Fitur ini mempertahankan tombol "Kirim Pesanan ke WhatsApp".
+Tambahan baru: setelah checkout berhasil tersimpan, server mencoba mengirim
+push notification ke semua HP admin yang sudah mengaktifkan FCM.
+
+## Yang didukung
+
+- Banyak HP admin sekaligus.
+- Pindah HP: buka Admin di HP baru, aktifkan notifikasi, HP baru otomatis terdaftar.
+- Website/Admin tidak harus sedang terbuka untuk menerima push notification setelah
+  Service Worker + FCM terpasang dan browser/OS mengizinkan notifikasi.
+- Pesanan tetap tersimpan walaupun layanan notifikasi sedang gagal.
+- Tombol WhatsApp tidak dihapus.
+
+## LANGKAH 1 — Firebase Console
+
+1. Buka Firebase Console dan pilih project:
+   `subur-mujur-tani-6ff54`
+2. Masuk ke Project settings (ikon roda gigi).
+3. Pilih tab General.
+4. Di bagian Your apps, pilih aplikasi Web kamu.
+5. Cari bagian Cloud Messaging.
+6. Pada Web configuration / Web Push certificates, buat/generate Web Push certificate.
+7. Salin Public key (VAPID key). Jangan salin private key.
+
+## LANGKAH 2 — Tempel Public VAPID Key
+
+Buka:
+`admin.html`
+
+Cari:
+`const SMT_FCM_VAPID_KEY = "BDpUyXqNXP5fhvRlGChOYtltydRSeoaIlfn5OBF2ipU8ADwLAaXzCgdxXbCQC8ng-HTgqKKUCtvt0NGohJqpR2g";`
+
+Ganti isi di antara tanda kutip dengan Public VAPID key dari Firebase.
+
+Contoh bentuk:
+`const SMT_FCM_VAPID_KEY = "BLABLA...";`
+
+Jangan memasukkan Firebase Service Account JSON atau private key ke admin.html.
+
+## LANGKAH 3 — Netlify Environment Variables
+
+Project ini sudah mempunyai Firebase Admin function. Pastikan Netlify
+sudah memiliki:
+
+- FIREBASE_SERVICE_ACCOUNT_JSON
+
+atau tiga variabel:
+- FIREBASE_PROJECT_ID
+- FIREBASE_CLIENT_EMAIL
+- FIREBASE_PRIVATE_KEY
+
+Opsional tetapi disarankan:
+- `ADMIN_EMAILS` = email akun admin, misalnya:
+  `admin@contoh.com`
+
+Jika ADMIN_EMAILS diisi, hanya akun dengan email tersebut yang boleh mendaftarkan
+HP sebagai penerima notifikasi.
+
+Jika ADMIN_EMAILS dikosongkan, akun yang berhasil login Firebase dapat
+mendaftarkan perangkat.
+
+## LANGKAH 4 — Deploy ulang ke Netlify
+
+Upload/deploy ZIP ini ke project Netlify yang sama.
+Jangan membuka firebase-messaging-sw.js dengan cara file://; notifikasi Web Push
+harus berjalan dari domain HTTPS.
+
+## LANGKAH 5 — Daftarkan HP admin
+
+Setelah deploy:
+
+1. Buka website dari HP admin.
+2. Login ke Admin.
+3. Masuk ke `📦 Pesanan Masuk`.
+4. Tekan `🔔 Aktifkan Notifikasi`.
+5. Saat browser bertanya izin notifikasi, pilih Allow / Izinkan.
+6. Akan muncul notifikasi tes.
+7. HP tersebut sekarang terdaftar.
+
+Untuk HP kedua:
+- buka website di HP kedua,
+- login Admin,
+- tekan `🔔 Aktifkan Notifikasi`,
+- izinkan notifikasi.
+
+Kedua HP akan menerima pesanan baru.
+
+## LANGKAH 6 — Uji
+
+Gunakan HP pembeli/test untuk membuat satu checkout.
+Setelah pesanan tersimpan:
+- pesanan masuk ke Firebase,
+- server `/api/notify-new-order` mengirim FCM,
+- semua token HP admin menerima notifikasi.
+
+Contoh:
+`🔔 Pesanan Baru - Subur Mujur Tani`
+`SMT-xxxx • Budi • Rp 150.000`
+
+Menekan notifikasi akan membuka `admin.html`.
+
+## CATATAN PENTING
+
+FCM Web bergantung pada dukungan browser/Android dan izin notifikasi.
+Mode hemat baterai, izin situs, atau pengaturan notifikasi OS dapat menunda/mematikan
+notifikasi pada sebagian perangkat.
+
+Jika setelah deploy tombol masih mengatakan "Public VAPID Key belum dipasang",
+berarti langkah 2 belum dilakukan.
+
+Jika muncul "Firebase Admin belum dikonfigurasi", berarti Environment Variables
+Netlify untuk Firebase Admin belum benar.
+
+Tombol WhatsApp tetap ada dan tidak perlu ditekan oleh pembeli agar push notification
+terkirim.

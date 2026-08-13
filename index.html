@@ -2128,8 +2128,9 @@ function pmRenderProducts(){
     list.forEach(function(p){
         const id = p.id;
         const stok = Number(p.stok || 0);
-        const hargaAsli = Number(p.harga || 0);
-        const diskon = Math.min(100, Math.max(0, Number(p.diskon || 0)));
+        const variants = Array.isArray(p.variants) ? p.variants.filter(v=>v && v.nama && Number(v.harga||0)>0) : [];
+        const hargaAsli = variants.length ? Math.min(...variants.map(v=>Number(v.harga||0))) : Number(p.harga || 0);
+        const diskon = variants.length ? 0 : Math.min(100, Math.max(0, Number(p.diskon || 0)));
         const harga = Math.round(hargaAsli * (1 - diskon / 100));
         const safe = JSON.stringify({
             id:id, nama:p.nama, harga:harga, hargaAsli:hargaAsli, diskon:diskon, gambar:p.gambar,
@@ -2147,6 +2148,7 @@ function pmRenderProducts(){
             <h3>${pmEscape(p.nama || "Produk")}</h3>
             <div class="pm-product-meta">
                 <p class="pm-product-price">
+                    ${variants.length ? `<span style="font-size:12px;color:#666;display:block;">Mulai dari</span>` : ""}
                     ${diskon > 0 && harga < hargaAsli ? `<span style="text-decoration:line-through;color:#888;font-size:13px;display:block;">Rp ${hargaAsli.toLocaleString("id-ID")}</span>` : ""}
                     <b style="${diskon > 0 ? "color:#c62828;" : ""}">Rp ${harga.toLocaleString("id-ID")}</b>
                 </p>

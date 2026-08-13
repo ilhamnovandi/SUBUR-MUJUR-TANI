@@ -1,0 +1,27 @@
+FITUR NOTIFIKASI PESANAN BARU
+==============================
+
+Fitur ini ditambahkan tanpa menghapus tombol "Kirim Pesanan ke WhatsApp".
+
+Cara pakai:
+1. Deploy/update website dari ZIP ini.
+2. Login sebagai Admin di HP yang ingin menerima notifikasi.
+3. Buka tab "Pesanan Masuk".
+4. Tekan "🔔 Aktifkan Notifikasi".
+5. Izinkan notifikasi saat browser meminta izin.
+6. Setelah aktif, pembeli tidak perlu menekan tombol WhatsApp agar admin mendapat notifikasi.
+
+Yang memicu notifikasi:
+- Saat ada data baru masuk ke Firebase Realtime Database pada /pesanan/{id}.
+- Pesanan lama yang sudah ada sebelum listener aktif tidak akan menimbulkan notifikasi.
+
+Isi notifikasi:
+- Invoice
+- Nama pelanggan
+- Total
+- Metode pembayaran
+
+Catatan penting:
+- Tombol WhatsApp tetap ada dan tidak diubah.
+- Notifikasi ini menggunakan Notification API browser, jadi HTTPS diperlukan.
+- Jika browser/OS mematikan halaman website sepenuhnya, notifikasi dari halaman tidak bisa dijamin muncul. Untuk notifikasi yang tetap masuk ketika halaman/site benar-benar ditutup, diperlukan push notification FCM + service worker + pengiriman push dari server.
