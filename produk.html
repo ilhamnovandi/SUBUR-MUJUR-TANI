@@ -535,7 +535,9 @@ body{background:#f5f6f2}
  .pm-product-actions button{min-height:42px;font-size:11px;padding:9px 5px!important}
 }
 
+.smt-product-description-preview{margin:8px 0 0!important;color:#5b665f;font-size:13px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 </style>
+<style id="smtNoVariantsProduct">/* Sistem varian produk dinonaktifkan. Katalog memakai harga, stok, dan berat produk utama. */ #smtVariantModal{display:none!important}</style>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
@@ -698,6 +700,24 @@ body.page-checkout #lokasi{
 }
 
 </style>
+
+<style id="smtProductDetailStyle">
+#smtProductDetailModal{display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.62);align-items:flex-end;justify-content:center;padding:0}
+#smtProductDetailModal.smt-open{display:flex}
+#smtProductDetailModal .smt-detail-card{width:min(720px,100%);max-height:88vh;overflow:auto;background:#fff;border-radius:28px 28px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.2)}
+#smtProductDetailModal .smt-detail-head{position:sticky;top:0;z-index:2;background:#fff;padding:18px 20px 10px;border-bottom:1px solid #edf0ee;display:flex;justify-content:space-between;align-items:center}
+#smtProductDetailModal .smt-detail-title{font-size:23px;font-weight:850;color:#173d2f;margin:0}
+#smtProductDetailModal .smt-detail-close{border:0;background:#f1f3f2;width:44px;height:44px;border-radius:50%;font-size:28px;line-height:1;color:#777;cursor:pointer}
+#smtProductDetailModal .smt-detail-body{padding:18px 20px 28px}
+#smtProductDetailModal .smt-detail-image{width:100%;max-height:330px;object-fit:cover;border-radius:18px;background:#f5f7f6}
+#smtProductDetailModal .smt-detail-price{font-size:24px;font-weight:850;color:#c94a1a;margin-top:14px}
+#smtProductDetailModal .smt-detail-meta{color:#666;font-size:15px;margin-top:6px}
+#smtProductDetailModal .smt-detail-section{margin-top:20px;padding:16px;border-radius:16px;background:#f7faf8;border:1px solid #e2ebe5}
+#smtProductDetailModal .smt-detail-section-title{font-size:18px;font-weight:850;color:#173d2f;margin-bottom:8px}
+#smtProductDetailModal .smt-detail-description{font-size:15px;line-height:1.7;color:#4b5550;white-space:pre-wrap}
+#smtProductDetailModal .smt-detail-buy{margin-top:18px;width:100%;padding:14px 16px;border:0;border-radius:14px;background:#0b3d2e;color:#fff;font-size:16px;font-weight:800}
+</style>
+
 </head>
 <body class="page-produk">
 <div class="pm-topbar">
@@ -2095,24 +2115,26 @@ function pmRenderProducts(){
     list.forEach(function(p){
         const id = p.id;
         const stok = Number(p.stok || 0);
-        const variants = Array.isArray(p.variants) ? p.variants.filter(v=>v && v.nama && Number(v.harga||0)>0) : [];
-        const hargaAsli = variants.length ? Math.min(...variants.map(v=>Number(v.harga||0))) : Number(p.harga || 0);
-        const diskon = variants.length ? 0 : Math.min(100, Math.max(0, Number(p.diskon || 0)));
+        // Sistem varian dinonaktifkan: katalog selalu memakai harga, stok, dan berat produk utama.
+        const variants = [];
+        const hargaAsli = Number(p.harga || 0);
+        const diskon = Math.min(100, Math.max(0, Number(p.diskon || 0)));
         const harga = Math.round(hargaAsli * (1 - diskon / 100));
         const safe = JSON.stringify({
-            id:id, nama:p.nama, harga:harga, hargaAsli:hargaAsli, diskon:diskon, gambar:p.gambar,
-            stok:stok, berat:Number(p.berat || 1000),
-            variants:Array.isArray(p.variants) ? p.variants : []
+            id:id, nama:p.nama, deskripsi:p.deskripsi || p.description || p.keterangan || "",
+            harga:harga, hargaAsli:hargaAsli, diskon:diskon, gambar:p.gambar,
+            gambarList:Array.isArray(p.gambarList) ? p.gambarList : [],
+            stok:stok, berat:Number(p.berat || 1000)
         }).replace(/'/g, "&apos;");
 
         const badge = diskon > 0 ? `-${diskon}%` : (stok > 0 ? "Pilihan" : "Habis");
         const stockText = stok > 0 ? `Stok ${stok}` : "Stok habis";
 
         container.innerHTML += `
-        <div class="produk-card pm-product-wrap" data-product-id="${pmEscape(id)}" onclick="pmOpenGalleryById('${pmEscape(id)}')" style="cursor:pointer;">
+        <div class="produk-card pm-product-wrap" data-product-id="${pmEscape(id)}" onclick="smtOpenProductDetail(pmProducts.find(x => String(x.id) === String('${pmEscape(id)}')))" style="cursor:pointer;">
             <span class="pm-product-badge">${badge}</span>
-            <img src="${pmEscape(p.gambar || '')}" alt="${pmEscape(p.nama || 'Produk')}" loading="lazy" onclick="pmOpenGalleryById('${pmEscape(id)}')" style="cursor:zoom-in;">
-            <h3 onclick="pmOpenGalleryById('${pmEscape(id)}')" style="cursor:pointer;">${pmEscape(p.nama || "Produk")}</h3>
+            <img src="${pmEscape(p.gambar || '')}" alt="${pmEscape(p.nama || 'Produk')}" loading="lazy" onclick="smtOpenProductDetail(pmProducts.find(x => String(x.id) === String('${pmEscape(id)}')))" style="cursor:pointer;">
+            <h3 onclick="smtOpenProductDetail(pmProducts.find(x => String(x.id) === String('${pmEscape(id)}')))" style="cursor:pointer;">${pmEscape(p.nama || "Produk")}</h3>
             <div class="pm-product-meta">
                 <p class="pm-product-price">
                     ${variants.length ? `<span style="font-size:12px;color:#666;display:block;">Mulai dari</span>` : ""}
@@ -2122,6 +2144,7 @@ function pmRenderProducts(){
                 <span class="pm-product-stock">${stockText}</span>
             </div>
             <p style="margin-top:7px!important">🌿 Bibit berkualitas</p>
+            <p class="smt-product-description-preview">${pmEscape(String(p.deskripsi || p.description || p.keterangan || "").trim())}</p>
             <div class="pm-product-actions">
                 <button type="button" class="pm-buy-now" ${stok <= 0 ? "disabled" : ""} onclick='event.stopPropagation();beliSekarang(${safe})'>
                     ${stok > 0 ? "⚡ Beli Sekarang" : "Stok Habis"}
@@ -2541,7 +2564,7 @@ async function simpanPesanan() {
             if (!result.committed) {
                 throw new Error("Stok tidak cukup untuk produk: " + item.nama);
             }
-            changed.push({id:item.id, variantId:item.variantId || "", jumlah:Number(item.jumlah || 0)});
+            changed.push({id:item.id, jumlah:Number(item.jumlah || 0)});
         }
 
         const orderData = {
@@ -2551,8 +2574,6 @@ async function simpanPesanan() {
                 id:item.id, nama:item.nama, harga:Number(item.harga||0),
                 hargaAsli:Number(item.hargaAsli || item.harga || 0),
                 diskon:Number(item.diskon || 0),
-                variantId:item.variantId || "",
-                variantNama:item.variantNama || "",
                 jumlah:Number(item.jumlah||0), berat:Number(item.berat||0),
                 subtotal:Number(item.harga||0)*Number(item.jumlah||0)
             })),
@@ -2764,7 +2785,116 @@ function cetakInvoice(data) {
         "<div class='thanks'>Terima kasih telah berbelanja di SUBUR MUJUR TANI.</div>" +
         "<div class='actions'><button onclick='window.print()'>🖨️ Cetak / Simpan PDF</button></div>" +
         "</main>" +
-        "</body></html>";
+        "
+<div id="smtProductDetailModal" aria-hidden="true">
+  <div class="smt-detail-card" role="dialog" aria-modal="true" aria-labelledby="smtDetailTitle">
+    <div class="smt-detail-head">
+      <h2 id="smtDetailTitle" class="smt-detail-title">Detail Produk</h2>
+      <button type="button" class="smt-detail-close" onclick="smtCloseProductDetail()" aria-label="Tutup">×</button>
+    </div>
+    <div class="smt-detail-body">
+      <img id="smtDetailImage" class="smt-detail-image" src="" alt="Produk">
+      <div id="smtDetailPrice" class="smt-detail-price"></div>
+      <div id="smtDetailMeta" class="smt-detail-meta"></div>
+      <div class="smt-detail-section">
+        <div class="smt-detail-section-title">📝 Deskripsi / Keterangan</div>
+        <div id="smtDetailDescription" class="smt-detail-description">Belum ada deskripsi.</div>
+      </div>
+      <button type="button" id="smtDetailBuy" class="smt-detail-buy">🛒 Beli Sekarang</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+(function(){
+  function smtEscDetail(v){
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c];
+    });
+  }
+  function smtDescriptionOf(p){
+    if(!p || typeof p !== "object") return "";
+    return String(p.deskripsi ?? p.description ?? p.keterangan ?? p.detail ?? p.desc ?? "").trim();
+  }
+  window.smtOpenProductDetail = function(product){
+    if(!product) return;
+    const modal=document.getElementById("smtProductDetailModal");
+    if(!modal) return;
+    const title=document.getElementById("smtDetailTitle");
+    const img=document.getElementById("smtDetailImage");
+    const price=document.getElementById("smtDetailPrice");
+    const meta=document.getElementById("smtDetailMeta");
+    const desc=document.getElementById("smtDetailDescription");
+    const buy=document.getElementById("smtDetailBuy");
+
+    const hargaAsli=Number(product.harga||0);
+    const diskon=Math.min(100,Math.max(0,Number(product.diskon||0)));
+    const harga=Math.round(hargaAsli*(1-diskon/100));
+    const stok=Number(product.stok||0);
+    const berat=Number(product.berat||0);
+
+    title.textContent=product.nama || "Produk";
+    img.src=product.gambar || "";
+    img.alt=product.nama || "Produk";
+    price.textContent="Rp "+harga.toLocaleString("id-ID");
+    meta.textContent="⚖️ "+berat.toLocaleString("id-ID")+" gram · Stok "+stok.toLocaleString("id-ID");
+    desc.textContent=smtDescriptionOf(product) || "Belum ada deskripsi untuk produk ini.";
+    buy.disabled=stok<=0;
+    buy.textContent=stok>0 ? "🛒 Beli Sekarang" : "Stok Habis";
+    buy.onclick=function(){
+      if(stok<=0) return;
+      smtCloseProductDetail();
+      if(typeof beliSekarang==="function") beliSekarang(product);
+    };
+
+    modal.classList.add("smt-open");
+    modal.setAttribute("aria-hidden","false");
+    document.body.style.overflow="hidden";
+  };
+  window.smtCloseProductDetail=function(){
+    const modal=document.getElementById("smtProductDetailModal");
+    if(!modal) return;
+    modal.classList.remove("smt-open");
+    modal.setAttribute("aria-hidden","true");
+    document.body.style.overflow="";
+  };
+  document.addEventListener("click",function(e){
+    const modal=document.getElementById("smtProductDetailModal");
+    if(e.target===modal) smtCloseProductDetail();
+  });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape") smtCloseProductDetail();
+  });
+})();
+</script>
+
+
+<script id="smtStripOldVariants">
+(function(){
+  try{
+    const keys=["keranjang","cart","smt_keranjang"];
+    keys.forEach(function(k){
+      const raw=localStorage.getItem(k);
+      if(!raw) return;
+      let arr;
+      try{arr=JSON.parse(raw)}catch(e){return}
+      if(!Array.isArray(arr)) return;
+      let changed=false;
+      arr=arr.map(function(item){
+        const x={...item};
+        if("variantId" in x){delete x.variantId;changed=true}
+        if("variantNama" in x){delete x.variantNama;changed=true}
+        if("namaVarian" in x){delete x.namaVarian;changed=true}
+        if("variantName" in x){delete x.variantName;changed=true}
+        return x;
+      });
+      if(changed) localStorage.setItem(k,JSON.stringify(arr));
+    });
+  }catch(e){}
+})();
+</script>
+</body></html>";
 
     const blob = new Blob([invoiceHtml], {type:"text/html;charset=utf-8"});
     const url = URL.createObjectURL(blob);
@@ -2901,13 +3031,27 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
 .smt-vm-product{display:flex;gap:12px;align-items:center;margin:10px 0 16px}
 .smt-vm-product img{width:72px;height:72px;object-fit:cover;border-radius:12px}
 .smt-vm-option{
-  display:flex;justify-content:space-between;gap:10px;align-items:center;
-  width:100%;text-align:left;padding:14px;margin:8px 0;border:2px solid #e5e5e5;
-  background:#fff;border-radius:14px;cursor:pointer;
+  display:flex !important;justify-content:space-between !important;gap:14px !important;align-items:center !important;
+  width:100% !important;box-sizing:border-box !important;text-align:left !important;padding:14px !important;margin:8px 0 !important;
+  border:2px solid #e5e5e5 !important;background:#fff !important;border-radius:14px !important;cursor:pointer !important;
+  color:#173d2f !important;-webkit-text-fill-color:#173d2f !important;
 }
-.smt-vm-option:hover{border-color:#268a4b;background:#f7fff8}
-.smt-vm-option .smt-v-price{font-weight:800;font-size:17px;color:#d84315}
-.smt-vm-option .smt-v-meta{font-size:13px;color:#666;margin-top:4px}
+.smt-vm-option-info{display:block !important;min-width:0 !important;flex:1 !important;color:#173d2f !important;-webkit-text-fill-color:#173d2f !important;}
+.smt-vm-option-name{
+  display:block !important;font-size:17px !important;line-height:1.25 !important;font-weight:800 !important;
+  color:#173d2f !important;-webkit-text-fill-color:#173d2f !important;margin:0 0 5px !important;
+  opacity:1 !important;visibility:visible !important;
+}
+.smt-vm-option:hover{border-color:#268a4b !important;background:#f7fff8 !important}
+.smt-vm-option .smt-v-price{
+  display:block !important;flex:0 0 auto !important;font-weight:800 !important;font-size:17px !important;
+  color:#d84315 !important;-webkit-text-fill-color:#d84315 !important;white-space:nowrap !important;
+}
+.smt-vm-option .smt-v-meta{
+  display:block !important;font-size:13px !important;line-height:1.35 !important;
+  color:#666 !important;-webkit-text-fill-color:#666 !important;margin-top:0 !important;
+}
+.smt-vm-option[disabled]{opacity:.45;cursor:not-allowed}
 .smt-vm-option[disabled]{opacity:.45;cursor:not-allowed}
 @media(max-width:600px){
   #smtVariantModal .smt-vm-card{padding:16px}
@@ -2942,8 +3086,31 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
   function smtEsc(v){
     return String(v == null ? "" : v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c]));
   }
+  function smtVariantName(v){
+    if(!v || typeof v !== "object") return "";
+    const raw =
+      v.namaVarian ?? v.nama_varian ?? v.variantName ?? v.variant_name ??
+      v.nama ?? v.name ?? v.label ?? v.jenis ?? v.varian ?? v.variant ??
+      v.jenisBibit ?? v.tipe ?? v.title ?? "";
+    return String(raw == null ? "" : raw).trim();
+  }
+  function smtVariantPrice(v){
+    if(!v || typeof v !== "object") return 0;
+    const raw=v.harga ?? v.price ?? v.hargaVarian ?? 0;
+    const digits=String(raw).replace(/[^0-9]/g, "");
+    return digits ? Number(digits) : 0;
+  }
+  function smtVariantWeight(v){
+    if(!v || typeof v !== "object") return 0;
+    return Number(v.berat ?? v.weight ?? 0) || 0;
+  }
+  function smtVariantStock(v){
+    if(!v || typeof v !== "object") return 0;
+    return Number(v.stok ?? v.stock ?? 0) || 0;
+  }
+
   function smtVariants(p){
-    return Array.isArray(p && p.variants) ? p.variants.filter(v=>v && v.nama) : [];
+    return Array.isArray(p && p.variants) ? p.variants.filter(v=>smtVariantName(v)) : [];
   }
   function smtCartKey(id, variantId){
     return String(id) + (variantId ? "::" + String(variantId) : "");
@@ -2983,13 +3150,15 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
       <small>Pilih salah satu pilihan di bawah</small></div>`;
 
     options.innerHTML=variants.map((v,i)=>{
-      const stok=Number(v.stok||0), harga=Number(v.harga||0), berat=Number(v.berat||0);
+      const nama=smtVariantName(v), stok=smtVariantStock(v), harga=smtVariantPrice(v), berat=smtVariantWeight(v);
+      const namaTampil = nama || ("Varian " + (i + 1));
       return `<button type="button" class="smt-vm-option" ${stok<=0?"disabled":""}
         onclick="smtPilihVarian(${i})">
-        <span><b>${smtEsc(v.nama)}</b>
-          <div class="smt-v-meta">⚖️ ${berat.toLocaleString("id-ID")} gram · Stok ${stok}</div>
+        <span class="smt-vm-option-info">
+          <span class="smt-vm-option-name" style="display:block!important;color:#173d2f!important;-webkit-text-fill-color:#173d2f!important;font-size:18px!important;font-weight:800!important;line-height:1.25!important;opacity:1!important;visibility:visible!important;">${smtEsc(namaTampil)}</span>
+          <span class="smt-v-meta" style="display:block!important;color:#666!important;-webkit-text-fill-color:#666!important;">⚖️ ${berat.toLocaleString("id-ID")} gram · Stok ${stok}</span>
         </span>
-        <span class="smt-v-price">Rp ${harga.toLocaleString("id-ID")}</span>
+        <span class="smt-v-price" style="color:#d84315!important;-webkit-text-fill-color:#d84315!important;">Rp ${harga.toLocaleString("id-ID")}</span>
       </button>`;
     }).join("");
 
@@ -3028,8 +3197,8 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
       const v=variants.find(x=>String(x.id)===String(variant.id));
       if(!v){alert("Varian tersebut sudah tidak tersedia.");return false;}
 
-      const stok=Number(v.stok||0);
-      if(stok<=0){alert("Stok varian \""+(v.nama||"")+"\" habis.");return false;}
+      const stok=smtVariantStock(v);
+      if(stok<=0){alert("Stok varian \""+(smtVariantName(v)||"")+"\" habis.");return false;}
 
       pastikanKeranjangArray();
       const key=smtCartKey(id,v.id);
@@ -3042,26 +3211,26 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
           return false;
         }
         item.stok=stok;
-        item.harga=Number(v.harga||0);
-        item.hargaAsli=Number(v.harga||0);
+        item.harga=smtVariantPrice(v);
+        item.hargaAsli=smtVariantPrice(v);
         item.diskon=0;
-        item.berat=Number(v.berat||0);
-        item.variantNama=v.nama||"";
+        item.berat=smtVariantWeight(v);
+        item.variantNama=smtVariantName(v);
         item.jumlah=Number(item.jumlah||0)+1;
       }else{
         keranjang.push({
           id:id,
           cartKey:key,
           variantId:String(v.id),
-          variantNama:v.nama||"",
-          nama:(current.nama||product.nama||"") + " - " + (v.nama||""),
-          harga:Number(v.harga||0),
-          hargaAsli:Number(v.harga||0),
+          variantNama:smtVariantName(v),
+          nama:(current.nama||product.nama||"") + " - " + smtVariantName(v),
+          harga:smtVariantPrice(v),
+          hargaAsli:smtVariantPrice(v),
           diskon:0,
           gambar:current.gambar||product.gambar||"",
           stok:stok,
           jumlah:1,
-          berat:Number(v.berat||0)
+          berat:smtVariantWeight(v)
         });
       }
       simpanKeranjang();
@@ -3080,10 +3249,6 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
       try{product=JSON.parse(product)}catch(e){alert("Data produk tidak valid.");return;}
     }
     if(!product || !product.id){alert("Produk tidak valid.");return;}
-    if(smtVariants(product).length){
-      smtOpenVariantModal(product,"cart");
-      return;
-    }
     return ORIGINAL_ADD ? ORIGINAL_ADD(product) : undefined;
   };
 
@@ -3092,10 +3257,6 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
       try{product=JSON.parse(product)}catch(e){alert("Data produk tidak valid.");return;}
     }
     if(!product || !product.id){alert("Produk tidak valid.");return;}
-    if(smtVariants(product).length){
-      smtOpenVariantModal(product,"buy");
-      return;
-    }
     return ORIGINAL_BUY ? ORIGINAL_BUY(product) : undefined;
   };
 
@@ -3112,12 +3273,12 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
       const p=snap.val();
       const v=Array.isArray(p && p.variants) ? p.variants.find(x=>String(x.id)===String(item.variantId)) : null;
       if(!v){alert("Varian sudah tidak tersedia.");return;}
-      const stok=Number(v.stok||0);
+      const stok=smtVariantStock(v);
       if(Number(item.jumlah||0)>=stok){alert("Stok varian habis.");return;}
       item.stok=stok;
-      item.harga=Number(v.harga||0);
-      item.hargaAsli=Number(v.harga||0);
-      item.berat=Number(v.berat||0);
+      item.harga=smtVariantPrice(v);
+      item.hargaAsli=smtVariantPrice(v);
+      item.berat=smtVariantWeight(v);
       item.jumlah=Number(item.jumlah||0)+1;
       simpanKeranjang();renderKeranjang();
     }catch(e){alert("Gagal mengecek stok varian.");}
@@ -3137,10 +3298,10 @@ document.addEventListener("DOMContentLoaded", muatUlasan);
           const v=Array.isArray(p.variants) ? p.variants.find(x=>String(x.id)===String(item.variantId)) : null;
           if(!v || Number(v.stok||0)<=0){keranjang.splice(i,1);continue;}
           item.stok=Number(v.stok||0);
-          item.harga=Number(v.harga||0);
-          item.hargaAsli=Number(v.harga||0);
+          item.harga=smtVariantPrice(v);
+          item.hargaAsli=smtVariantPrice(v);
           item.diskon=0;
-          item.berat=Number(v.berat||0);
+          item.berat=smtVariantWeight(v);
           item.variantNama=v.nama||item.variantNama||"";
           item.nama=(p.nama||item.nama||"") + " - " + item.variantNama;
           if(item.jumlah>item.stok)item.jumlah=item.stok;

@@ -1,0 +1,26 @@
+SUBUR MUJUR TANI - PERBAIKAN TERBARU
+
+1. WEBHOOK BITESHIP
+- Route khusus /api/biteship-webhook ditambahkan di netlify.toml.
+- Endpoint webhook menerima GET, HEAD, OPTIONS, dan POST.
+- POST application/json dengan body kosong, {}, atau payload validasi sederhana mengembalikan HTTP 200 + "ok".
+- Direct function URL tetap tersedia:
+  /.netlify/functions/biteship-webhook
+- Setelah upload/deploy ke Netlify, gunakan URL site Netlify milik Anda:
+  https://NAMA-SITE-ANDA.netlify.app/api/biteship-webhook
+
+2. PRODUK
+- UI varian produk dinonaktifkan/dihapus dari katalog utama.
+- Harga, stok, berat, dan diskon memakai data produk utama.
+- Form Tambahkan Produk memiliki Deskripsi / Keterangan Produk.
+- Saat kartu produk diklik, muncul Detail Produk berisi:
+  nama, foto, harga, berat, stok, dan deskripsi/keterangan.
+- Deskripsi lama juga didukung melalui field deskripsi, description, atau keterangan.
+
+3. KOMPATIBILITAS
+- Kode kompatibilitas lama untuk data pesanan/keranjang lama tidak dihapus secara agresif agar pesanan lama tidak rusak.
+- Produk baru tidak lagi memakai varian.
+
+4. VALIDASI
+- File JavaScript webhook telah dicek dengan Node.js.
+- Handler webhook telah diuji untuk GET, HEAD, POST kosong, POST {}, dan payload validasi.

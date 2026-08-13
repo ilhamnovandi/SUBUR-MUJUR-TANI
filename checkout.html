@@ -1661,6 +1661,20 @@ window.addEventListener("load", loadProvinsi);
 // SISTEM KERANJANG - PART 1
 // ==========================
 
+function variantNameOf(v){
+    return String(v?.nama ?? v?.name ?? v?.varian ?? v?.label ?? "").trim();
+}
+function variantPriceOf(v){
+    const raw=v?.harga ?? v?.price ?? v?.hargaJual ?? v?.harga_jual ?? v?.price_after_discount ?? 0;
+    if(typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+    return Number(String(raw ?? "").replace(/\D/g,"") || 0);
+}
+function variantWeightOf(v){
+    const raw=v?.berat ?? v?.weight ?? 0;
+    if(typeof raw === "number") return Number.isFinite(raw) ? raw : 0;
+    return Number(String(raw ?? "").replace(/\D/g,"") || 0);
+}
+
 function angkaUang(value) {
     if (typeof value === "number" && Number.isFinite(value)) return value;
     if (value === null || value === undefined || value === "") return 0;
@@ -1698,8 +1712,11 @@ function hargaItem(item) {
 function normalisasiItemKeranjang(item) {
     if (!item || typeof item !== "object") return null;
     const h = hargaItem(item);
+    const variantNama = item.variantNama || item.variantName || "";
+
     return {
         ...item,
+        variantNama: String(variantNama || ""),
         harga: h.harga,
         hargaAsli: h.hargaAsli,
         diskon: h.diskon,

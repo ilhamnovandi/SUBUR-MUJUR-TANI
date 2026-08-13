@@ -1,0 +1,8 @@
+SUBUR MUJUR TANI - FINAL
+Versi: 2026-08-13
+- Varian produk dihapus/dinonaktifkan.
+- Data variants lama dibersihkan saat Admin dibuka.
+- Deskripsi produk disimpan di field deskripsi dan ditampilkan saat produk dibuka.
+- Webhook Biteship: /.netlify/functions/netlify
+- Webhook menerima POST kosong untuk validasi dan membalas HTTP 200 "ok".
+- Tidak memakai FIREBASE_SERVICE_ACCOUNT_JSON.

@@ -277,6 +277,20 @@ body{padding-bottom:env(safe-area-inset-bottom,0px)}
 
 
 <link rel="stylesheet" href="navigasi.css">
+<style>
+/* Varian produk dinonaktifkan sesuai permintaan. */
+#daftarVarianProduk,
+#daftarVarianProduk + button { display:none !important; }
+</style><style id="smtNoVariantsAdmin">
+/* FINAL: varian produk sepenuhnya dinonaktifkan. */
+#daftarVarianProduk,
+#daftarVarianProduk ~ button,
+.smt-varian-row,
+.smt-varian-field,
+.smt-varian-delete,
+[id*="varian" i],
+[class*="varian" i] { display:none !important; }
+</style>
 </head>
 
 
@@ -1150,31 +1164,7 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
  .sheet{margin:0;width:100mm;min-height:150mm;border:0}
  .no-print{display:none}
 }
-<style>
-/* Varian produk: setiap pilihan punya harga, berat, dan stok sendiri. */
-#daftarVarianProduk{margin-top:10px;}
-.smt-varian-row{
-  display:grid !important;
-  grid-template-columns:minmax(150px,1.5fr) minmax(120px,1fr) minmax(110px,1fr) minmax(100px,1fr) auto !important;
-  gap:10px !important;
-  padding:12px !important;
-  margin-bottom:10px !important;
-  border:1px solid #dfe8df !important;
-  border-radius:12px !important;
-  background:#fff !important;
-  align-items:end !important;
-}
-.smt-varian-field{display:flex;flex-direction:column;gap:5px;min-width:0;}
-.smt-varian-field label{font-size:12px;font-weight:700;color:#315b4c;}
-.smt-varian-field input{width:100%;box-sizing:border-box;margin:0 !important;}
-.smt-varian-delete{padding:10px 11px !important;border:0;border-radius:9px;background:#c62828;color:#fff;font-weight:700;cursor:pointer;}
-@media(max-width:700px){
-  .smt-varian-row{grid-template-columns:1fr 1fr !important;align-items:stretch !important;}
-  .smt-varian-field:first-child{grid-column:1 / -1;}
-  .smt-varian-delete{grid-column:1 / -1;width:100%;}
-}
-</style>
-</style>
+
 </head>
 <body>
 <div class="sheet">
@@ -1227,6 +1217,48 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
 <div class="box admin-logout-bottom" id="adminLogoutBox" style="margin-top:28px;text-align:center;border:1px solid #ead6d6;background:#fffafa;">
   <button type="button" onclick="logout()" style="background:#b3261e;width:100%;max-width:420px;font-weight:800;">🚪 Keluar Admin</button>
 </div>
+
+<script id="smtRemoveVariantsMigration">
+(function(){
+  function migrateProductsWithoutVariants(){
+    try{
+      if(!window.database || !window.database.ref) return;
+      window.database.ref("produk").once("value").then(function(snap){
+        const data=snap.val() || {};
+        const updates={};
+        Object.keys(data).forEach(function(id){
+          const p=data[id] || {};
+          if(!Array.isArray(p.variants)) return;
+          const first=p.variants[0] || {};
+          const clean={...p};
+          if(!Number(clean.harga) && Number(first.harga)) clean.harga=Number(first.harga);
+          if(!Number(clean.berat) && Number(first.berat)) clean.berat=Number(first.berat);
+          if(!Number(clean.stok) && Array.isArray(p.variants)){
+            clean.stok=p.variants.reduce((n,v)=>n+Number(v.stok||0),0);
+          }
+          delete clean.variants;
+          delete clean.variant;
+          delete clean.variantId;
+          delete clean.variantNama;
+          delete clean.namaVarian;
+          delete clean.variantName;
+          updates["produk/"+id]=clean;
+        });
+        if(Object.keys(updates).length) return window.database.ref().update(updates);
+      }).catch(function(e){ console.warn("Pembersihan varian dilewati:",e); });
+    }catch(e){ console.warn("Pembersihan varian dilewati:",e); }
+  }
+  function start(){
+    let tries=0;
+    const t=setInterval(function(){
+      if(window.database){ clearInterval(t); migrateProductsWithoutVariants(); }
+      if(++tries>80) clearInterval(t);
+    },250);
+  }
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",start);
+  else start();
+})();
+</script>
 </body>
 </html>`);
         win.document.close();
@@ -1982,10 +2014,8 @@ function adminRenderDaftarProduk(data){
 
     box.innerHTML = items.map(([id,p]) => {
         p = p || {};
-        const variants = Array.isArray(p.variants) ? p.variants : [];
-        const stok = variants.length
-            ? variants.reduce((n,v) => n + Number(v?.stok || 0), 0)
-            : Number(p.stok || 0);
+        const variants = [];
+        const stok = Number(p.stok || 0);
         const harga = Number(p.harga || 0);
         const gambar = p.gambar || (Array.isArray(p.gambarList) ? p.gambarList[0] : "") || "";
 
@@ -2077,8 +2107,28 @@ async function adminHapusProduk(id){
     }
 }
 
-window.addEventListener("load", function(){
+
+async function hapusSemuaVarianProduk(){
+    try{
+        const snap = await database.ref("produk").once("value");
+        const data = snap.val() || {};
+        const updates = {};
+        Object.keys(data).forEach(id => {
+            if(data[id] && Object.prototype.hasOwnProperty.call(data[id], "variants")){
+                updates["produk/" + id + "/variants"] = null;
+            }
+        });
+        if(Object.keys(updates).length){
+            await database.ref().update(updates);
+            console.log("Varian produk dihapus:", Object.keys(updates).length);
+        }
+    }catch(e){
+        console.warn("Pembersihan varian dilewati:", e);
+    }
+}
+\nwindow.addEventListener("load", function(){
     adminMuatDaftarProduk();
+    hapusSemuaVarianProduk();
 });
 
 async function tambahProduk(){
@@ -2106,25 +2156,17 @@ async function tambahProduk(){
 
         const hargaInputAngka = parseInt(hargaInput.replace(/\D/g, ""), 10) || 0;
         let diskon = Math.min(100, Math.max(0, parseInt(diskonInput, 10) || 0));
-        const daftarVarian = bacaVarianProduk();
-
-        /* Jika memakai varian, harga tiap varian adalah harga jual final masing-masing.
-           Harga produk utama otomatis menjadi harga varian termurah agar tampilan katalog
-           tetap kompatibel dengan data lama. */
-        let hargaNormal = hargaInputAngka;
-        if(daftarVarian.length){
-            hargaNormal = Math.min(...daftarVarian.map(v=>Number(v.harga||0)));
-            diskon = 0;
-        }else if(hargaNormal <= 0){
+        // Varian produk dinonaktifkan. Harga, stok, dan berat hanya berasal dari produk utama.
+        const daftarVarian = [];
+        const hargaNormal = hargaInputAngka;
+        if(hargaNormal <= 0){
             alert("❌ Harga produk harus lebih dari 0.");
             return;
         }
 
         const stokDasar = parseInt(stokInput, 10) || 0;
         const beratDasar = parseInt(beratInput, 10) || 0;
-        const stokFinal = daftarVarian.length
-            ? daftarVarian.reduce((total, v) => total + Number(v.stok || 0), 0)
-            : stokDasar;
+        const stokFinal = stokDasar;
 
         /*
          * Buat ID terlebih dahulu agar semua foto mempunyai folder
@@ -2166,15 +2208,17 @@ async function tambahProduk(){
             return;
         }
 
+        const deskripsi = (document.getElementById("deskripsiProduk")?.value || "").trim();
+
         const produk = {
             nama: nama,
+            deskripsi: deskripsi,
             harga: hargaNormal,
             diskon: diskon,
             stok: stokFinal,
             berat: beratDasar,
             gambar: gambar,
-            gambarList: gambarList,
-            variants: daftarVarian
+            gambarList: gambarList
         };
 
         if(btn) btn.innerHTML = "⏳ Menyimpan produk...";
@@ -2236,9 +2280,9 @@ function kosongkanForm(){
     document.getElementById("diskonProduk").value = "";
     document.getElementById("stokProduk").value = "";
     document.getElementById("beratProduk").value = "";
+    const deskripsiProduk = document.getElementById("deskripsiProduk");
+    if(deskripsiProduk) deskripsiProduk.value = "";
     document.getElementById("gambarProduk").value = "";
-    const daftarVarian = document.getElementById("daftarVarianProduk");
-    if(daftarVarian) daftarVarian.innerHTML = "";
 
     const fileInput = document.getElementById("fileGambarProduk");
     if(fileInput) fileInput.value = "";
@@ -2252,95 +2296,6 @@ function kosongkanForm(){
 
 }
 
-
-/* =========================================================
-   VARIAN PRODUK
-   Setiap varian menyimpan harga, berat, stok, dan ID sendiri.
-========================================================= */
-let adminVariants = [];
-
-function adminEscVar(v){
-    return String(v == null ? "" : v).replace(/[&<>"']/g, function(c){
-        return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[c];
-    });
-}
-
-function tambahBarisVarian(data){
-    data = data || {};
-    const id = data.id || ("v" + Date.now() + Math.random().toString(36).slice(2,7));
-    const box = document.getElementById("daftarVarianProduk");
-    if(!box) return;
-
-    const row = document.createElement("div");
-    row.className = "smt-varian-row";
-    row.dataset.id = id;
-    const nomor = box.querySelectorAll(".smt-varian-row").length + 1;
-    row.innerHTML = `
-      <div class="smt-varian-field">
-        <label>Nama varian ${nomor}</label>
-        <input class="varianNama" placeholder="Contoh: Manalagi" value="${adminEscVar(data.nama || "")}">
-      </div>
-      <div class="smt-varian-field">
-        <label>Harga varian (Rp)</label>
-        <input class="varianHarga" type="number" min="1" inputmode="numeric" placeholder="Contoh: 25000" value="${Number(data.harga || 0) || ""}">
-      </div>
-      <div class="smt-varian-field">
-        <label>Berat (gram)</label>
-        <input class="varianBerat" type="number" min="0" inputmode="numeric" placeholder="Contoh: 500" value="${Number(data.berat || 0) || ""}">
-      </div>
-      <div class="smt-varian-field">
-        <label>Stok</label>
-        <input class="varianStok" type="number" min="0" inputmode="numeric" placeholder="Contoh: 10" value="${Number(data.stok || 0) || ""}">
-      </div>
-      <button type="button" class="smt-varian-delete" onclick="this.closest('.smt-varian-row').remove();adminRefreshVariantLabels();">🗑 Hapus</button>
-    `;
-    box.appendChild(row);
-}
-
-function adminRefreshVariantLabels(){
-    document.querySelectorAll("#daftarVarianProduk .smt-varian-row").forEach((row, i)=>{
-        const label=row.querySelector(".smt-varian-field:first-child label");
-        if(label) label.textContent="Nama varian " + (i+1);
-    });
-}
-
-function renderVarianProduk(list){
-    const box = document.getElementById("daftarVarianProduk");
-    if(!box) return;
-    box.innerHTML = "";
-    (Array.isArray(list) ? list : []).forEach(v => tambahBarisVarian(v));
-}
-
-function bacaVarianProduk(){
-    const rows = Array.from(document.querySelectorAll("#daftarVarianProduk .smt-varian-row"));
-    const variants = [];
-    rows.forEach((row, i) => {
-        const nama = (row.querySelector(".varianNama")?.value || "").trim();
-        const harga = Number(row.querySelector(".varianHarga")?.value || 0);
-        const berat = Number(row.querySelector(".varianBerat")?.value || 0);
-        const stok = Number(row.querySelector(".varianStok")?.value || 0);
-        if(!nama) return;
-        if(harga <= 0){
-            throw new Error("Harga varian \"" + nama + "\" harus lebih dari 0.");
-        }
-        variants.push({
-            id: row.dataset.id || ("v" + Date.now() + "_" + i),
-            nama: nama,
-            harga: Math.round(harga),
-            berat: Math.max(0, Math.round(berat)),
-            stok: Math.max(0, Math.round(stok))
-        });
-    });
-    return variants;
-}
-
-/* Mulai dengan dua contoh baris hanya ketika belum ada varian. */
-window.addEventListener("load", function(){
-    const box = document.getElementById("daftarVarianProduk");
-    if(box && !box.children.length) {
-        // Tidak wajib memakai varian; admin dapat menambahkannya sendiri.
-    }
-});
 
 function filterPesanan(){
 
@@ -2556,12 +2511,22 @@ async function adminHapusUlasan(id){
   <p style="margin-top:0;color:#666;">Tambahkan bibit/produk baru ke katalog. Foto dapat dipilih langsung dari HP.</p>
 
   <input id="namaProduk" type="text" placeholder="Nama produk, contoh: Bibit Durian Musang King">
-  <input id="hargaProduk" type="number" min="0" inputmode="numeric" placeholder="Harga dasar (Rp) — kosongkan jika memakai varian">
-  <input id="diskonProduk" type="number" min="0" max="100" inputmode="numeric" placeholder="Diskon (%) — tidak dipakai jika memakai varian">
+  <input id="hargaProduk" type="text" inputmode="numeric" autocomplete="off" placeholder="Harga dasar (Rp), contoh 95.000">
+  <input id="diskonProduk" type="number" min="0" max="100" inputmode="numeric" placeholder="Diskon (%)">
   <input id="stokProduk" type="number" min="0" inputmode="numeric" placeholder="Stok">
   <input id="beratProduk" type="number" min="0" inputmode="numeric" placeholder="Berat per produk (gram)">
 
-  <div style="margin-top:14px;padding:14px;border:1px dashed #c7a15a;border-radius:12px;background:#fffdf8;">
+  
+<div id="smtDeskripsiProdukField" style="margin-top:14px;">
+  <label for="deskripsiProduk" style="display:block;font-weight:800;margin-bottom:7px;color:#173d2f;">
+    📝 Deskripsi / Keterangan Produk
+  </label>
+  <textarea id="deskripsiProduk" rows="5"
+    placeholder="Contoh: Bibit mangga harum manis unggul, cocok ditanam di pekarangan..."
+    style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #d7dfda;border-radius:12px;font-size:15px;line-height:1.5;resize:vertical;"></textarea>
+</div>
+
+<div style="margin-top:14px;padding:14px;border:1px dashed #c7a15a;border-radius:12px;background:#fffdf8;">
     <b>📷 Foto Produk</b>
     <p style="font-size:13px;color:#666;margin:6px 0 10px;">Maksimal 6 foto, masing-masing maksimal 5 MB.</p>
     <div id="pemilihFotoProdukWrap" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -2580,12 +2545,7 @@ async function adminHapusUlasan(id){
     <input id="fileGambarProdukTambah" type="file" accept="image/*" multiple onchange="pilihGambarProduk(event)" style="display:none;">
   </div>
 
-  <div style="margin-top:16px;padding:14px;border:1px solid #e5e0d5;border-radius:12px;background:#fafcf9;">
-    <b>🔖 Varian Produk (opsional)</b>
-    <p style="font-size:13px;color:#666;margin:6px 0 10px;">Setiap varian punya <b>harga, berat, dan stok sendiri</b>. Contoh: Manalagi Rp25.000, Golek Rp30.000, Harum Manis Rp35.000.</p>
-    <div id="daftarVarianProduk"></div>
-    <button type="button" onclick="tambahBarisVarian();adminRefreshVariantLabels();">➕ Tambah Varian</button>
-  </div>
+  <!-- Varian produk dinonaktifkan. -->
 
   <button id="btnProduk" type="button" onclick="tambahProduk()" style="margin-top:16px;width:100%;font-size:16px;">🌱 Simpan Produk</button>
   <div id="statusSimpanProduk" style="margin-top:10px;"></div>
