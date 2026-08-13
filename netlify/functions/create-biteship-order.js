@@ -53,7 +53,7 @@ function messageOf(data) {
   if (Array.isArray(data.errors) && data.errors.length) {
     return data.errors.map(e => typeof e === "string" ? e : (e.message || JSON.stringify(e))).join("; ");
   }
-  return "Biteship menolak pembuatan order pengiriman.";
+  return "Biteship menolak pembuatan order COD.";
 }
 
 function safe(value, fallback = "") {
@@ -102,6 +102,9 @@ exports.handler = async event => {
     const order = snap.val();
 
     if (!order) return json(404, { success: false, message: "Pesanan tidak ditemukan." });
+    if (String(order.metodePembayaran || "").toUpperCase() !== "COD") {
+      return json(400, { success: false, message: "Pesanan ini bukan pesanan COD." });
+    }
     if (String(order.status || "") !== "Dikemas") {
       return json(400, { success: false, message: "Pesanan harus berstatus Dikemas sebelum pengiriman dibuat." });
     }
@@ -176,12 +179,11 @@ exports.handler = async event => {
 
     if (!items.length) return json(400, { success: false, message: "Produk pesanan kosong." });
 
-    const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
-    const codAmount = isCOD ? Math.max(1, Math.round(Number(order.total || 0))) : 0;
-    if (isCOD && codAmount < 1000) {
+    const codAmount = Math.max(1, Math.round(Number(order.total || 0)));
+    if (codAmount < 1000) {
       return json(400, { success: false, message: "Nilai COD minimal Rp1.000." });
     }
-    if (isCOD && codAmount > 15000000) {
+    if (codAmount > 15000000) {
       return json(400, { success: false, message: "Nilai COD maksimal Rp15.000.000 per paket." });
     }
 
@@ -199,18 +201,16 @@ exports.handler = async event => {
       destination_contact_phone: destinationPhone,
       destination_address: destinationAddress,
       destination_postal_code: Number(order.kodePos),
-      ...(isCOD ? {
-        destination_cash_on_delivery: codAmount,
-        destination_cash_on_delivery_type: codType
-      } : {}),
+      destination_cash_on_delivery: codAmount,
+      destination_cash_on_delivery_type: codType,
       courier_company: courierCompany,
       courier_type: courierType,
       delivery_type: "now",
-      order_note: `Pesanan ${safe(order.invoice, orderId)}${isCOD ? " - COD" : ""}`,
+      order_note: `Pesanan ${safe(order.invoice, orderId)} - COD`,
       metadata: {
         local_order_id: orderId,
         invoice: safe(order.invoice),
-        payment_method: safe(order.metodePembayaran, "NON-COD")
+        payment_method: "COD"
       },
       reference_id: safe(order.invoice, orderId),
       items
@@ -249,21 +249,8 @@ exports.handler = async event => {
 
     const data = result.data || {};
     const courier = data.courier || {};
-    // Biteship biasanya mengembalikan AWB di courier.waybill_id.
-    // Beberapa response/event dapat menaruhnya di level order, jadi gunakan
-    // fallback agar nomor resi tidak hilang di Admin.
-    const waybill = safe(
-      courier.waybill_id ||
-      data.waybill_id ||
-      data.waybill ||
-      data.courier_waybill_id
-    );
-    const trackingId = safe(
-      courier.tracking_id ||
-      data.tracking_id ||
-      data.courier_tracking_id
-    );
-    const trackingUrl = safe(courier.link || data.link || data.courier_link);
+    const waybill = safe(courier.waybill_id);
+    const trackingId = safe(courier.tracking_id);
     const status = safe(data.status, "confirmed");
     const now = new Date().toLocaleString("id-ID");
 
@@ -271,13 +258,13 @@ exports.handler = async event => {
       status: "Buat Pengiriman",
       statusKategori: "Buat Pengiriman",
       statusPengiriman: status,
-      statusPembayaran: isCOD ? "COD - Menunggu Penagihan" : (order.statusPembayaran || "Lunas"),
+      statusPembayaran: "COD - Menunggu Penagihan",
       biteshipOrderId: safe(data.id),
       biteshipTrackingId: trackingId,
       resi: waybill,
       biteshipCourier: safe(courier.company, courierCompany),
       biteshipCourierType: safe(courier.type, courierType),
-      biteshipTrackingUrl: trackingUrl,
+      biteshipTrackingUrl: safe(courier.link),
       biteshipCOD: codAmount,
       biteshipCODType: safe(payload.destination_cash_on_delivery_type),
       biteshipShippingPrice: Number(order.ongkir || 0),
@@ -301,7 +288,7 @@ exports.handler = async event => {
         resi: waybill || track.resi || "",
         kurir: safe(courier.company, courierCompany),
         biteshipOrderId: safe(data.id),
-        biteshipTrackingUrl: trackingUrl,
+        biteshipTrackingUrl: safe(courier.link),
         whatsappLast4: String(order.whatsapp || "").replace(/\D/g, "").slice(-4),
         updatedAt: now,
         riwayatStatus: history.slice(-20)
@@ -310,15 +297,14 @@ exports.handler = async event => {
 
     return json(200, {
       success: true,
-      message: `Order Biteship berhasil dibuat${isCOD ? " (COD)" : ""}.`,
+      message: "Order COD Biteship berhasil dibuat.",
       orderId,
       biteshipOrderId: safe(data.id),
       waybill_id: waybill,
       tracking_id: trackingId,
       courier_company: safe(courier.company, courierCompany),
       courier_type: safe(courier.type, courierType),
-      status,
-      tracking_url: trackingUrl
+      status
     });
   } catch (err) {
     console.error("create-biteship-order:", err);
