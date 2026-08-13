@@ -6,7 +6,7 @@ SUBUR MUJUR TANI - WEBHOOK BITESHIP (FIXED)
 2. Use this webhook URL in Biteship:
    https://monumental-sunburst-5531c9.netlify.app/api/biteship-webhook
 
-   This is the dedicated public rewrite route added in netlify.toml.
+   This is the public rewrite route added in netlify.toml.
    The underlying function remains:
    /.netlify/functions/biteship-webhook
 
@@ -29,11 +29,6 @@ SUBUR MUJUR TANI - WEBHOOK BITESHIP (FIXED)
 4. After deployment, test in the browser:
    https://monumental-sunburst-5531c9.netlify.app/api/biteship-webhook
    Expected: ok
-
-   If Biteship still rejects the URL, use the direct Netlify function URL:
-   https://monumental-sunburst-5531c9.netlify.app/.netlify/functions/biteship-webhook
-
-   Both URLs are handled by the same webhook function.
 
 5. The function also accepts POST application/json with an empty body
    and returns HTTP 200 + "ok" for Biteship installation validation.
