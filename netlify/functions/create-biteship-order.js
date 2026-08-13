@@ -53,7 +53,7 @@ function messageOf(data) {
   if (Array.isArray(data.errors) && data.errors.length) {
     return data.errors.map(e => typeof e === "string" ? e : (e.message || JSON.stringify(e))).join("; ");
   }
-  return "Biteship menolak pembuatan order COD.";
+  return "Biteship menolak pembuatan order pengiriman.";
 }
 
 function safe(value, fallback = "") {
@@ -102,9 +102,6 @@ exports.handler = async event => {
     const order = snap.val();
 
     if (!order) return json(404, { success: false, message: "Pesanan tidak ditemukan." });
-    if (String(order.metodePembayaran || "").toUpperCase() !== "COD") {
-      return json(400, { success: false, message: "Pesanan ini bukan pesanan COD." });
-    }
     if (String(order.status || "") !== "Dikemas") {
       return json(400, { success: false, message: "Pesanan harus berstatus Dikemas sebelum pengiriman dibuat." });
     }
@@ -179,11 +176,12 @@ exports.handler = async event => {
 
     if (!items.length) return json(400, { success: false, message: "Produk pesanan kosong." });
 
-    const codAmount = Math.max(1, Math.round(Number(order.total || 0)));
-    if (codAmount < 1000) {
+    const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
+    const codAmount = isCOD ? Math.max(1, Math.round(Number(order.total || 0))) : 0;
+    if (isCOD && codAmount < 1000) {
       return json(400, { success: false, message: "Nilai COD minimal Rp1.000." });
     }
-    if (codAmount > 15000000) {
+    if (isCOD && codAmount > 15000000) {
       return json(400, { success: false, message: "Nilai COD maksimal Rp15.000.000 per paket." });
     }
 
@@ -201,16 +199,18 @@ exports.handler = async event => {
       destination_contact_phone: destinationPhone,
       destination_address: destinationAddress,
       destination_postal_code: Number(order.kodePos),
-      destination_cash_on_delivery: codAmount,
-      destination_cash_on_delivery_type: codType,
+      ...(isCOD ? {
+        destination_cash_on_delivery: codAmount,
+        destination_cash_on_delivery_type: codType
+      } : {}),
       courier_company: courierCompany,
       courier_type: courierType,
       delivery_type: "now",
-      order_note: `Pesanan ${safe(order.invoice, orderId)} - COD`,
+      order_note: `Pesanan ${safe(order.invoice, orderId)}${isCOD ? " - COD" : ""}`,
       metadata: {
         local_order_id: orderId,
         invoice: safe(order.invoice),
-        payment_method: "COD"
+        payment_method: safe(order.metodePembayaran, "NON-COD")
       },
       reference_id: safe(order.invoice, orderId),
       items
@@ -271,7 +271,7 @@ exports.handler = async event => {
       status: "Buat Pengiriman",
       statusKategori: "Buat Pengiriman",
       statusPengiriman: status,
-      statusPembayaran: "COD - Menunggu Penagihan",
+      statusPembayaran: isCOD ? "COD - Menunggu Penagihan" : (order.statusPembayaran || "Lunas"),
       biteshipOrderId: safe(data.id),
       biteshipTrackingId: trackingId,
       resi: waybill,
@@ -310,7 +310,7 @@ exports.handler = async event => {
 
     return json(200, {
       success: true,
-      message: "Order COD Biteship berhasil dibuat.",
+      message: `Order Biteship berhasil dibuat${isCOD ? " (COD)" : ""}.`,
       orderId,
       biteshipOrderId: safe(data.id),
       waybill_id: waybill,

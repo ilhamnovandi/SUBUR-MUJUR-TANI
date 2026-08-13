@@ -108,9 +108,7 @@ exports.handler = async event => {
     const order = snap.val();
 
     if (!order) return json(404, { success: false, message: "Pesanan tidak ditemukan." });
-    if (String(order.metodePembayaran || "").toUpperCase() !== "COD") {
-      return json(400, { success: false, message: "Fitur pengiriman Admin ini khusus pesanan COD." });
-    }
+    const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
     if (!["Dikemas", "Buat Pengiriman"].includes(String(order.status || ""))) {
       return json(400, { success: false, message: "Pesanan harus berada pada tahap Dikemas sebelum tarif dihitung." });
     }
@@ -142,18 +140,23 @@ exports.handler = async event => {
     const currentOngkir = Math.max(0, Math.round(Number(order.ongkir || 0)));
     const codAmount = Math.max(1000, Math.round(totalProduk + currentOngkir));
 
-    // Tipe COD untuk perhitungan tarif ditetapkan di server.
-    // Dibentuk saat runtime agar tidak terbaca sebagai nilai secret oleh Netlify.
+    // Tarif non-COD dikirim tanpa parameter COD. Tarif COD menyertakan
+    // destination_cash_on_delivery agar Biteship mengembalikan COD fee
+    // dan flag available_for_cash_on_delivery yang benar.
     const codType = String.fromCharCode(55) + "_days";
-
     const payload = {
       origin_postal_code: Number(originPostalCode),
       destination_postal_code: Number(destinationPostalCode),
       items,
-      couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree,lalamove,jdl,grab,gosend,borzo",
-      destination_cash_on_delivery: codAmount,
-      destination_cash_on_delivery_type: codType
+      couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree,lalamove,jdl,grab,gosend,borzo"
     };
+    if (isCOD) {
+      if (codAmount > 15000000) {
+        return json(400, { success: false, message: "Nilai COD maksimal Rp15.000.000 per paket." });
+      }
+      payload.destination_cash_on_delivery = codAmount;
+      payload.destination_cash_on_delivery_type = codType;
+    }
 
     const dLat = Number(order.destinationLatitude);
     const dLng = Number(order.destinationLongitude);
@@ -203,8 +206,8 @@ exports.handler = async event => {
       pricing,
       totalProduk,
       currentOngkir,
-      codAmount,
-      codType,
+      codAmount: isCOD ? codAmount : 0,
+      codType: isCOD ? codType : null,
       destinationPostalCode,
       biteship_code: data.code || null
     });
