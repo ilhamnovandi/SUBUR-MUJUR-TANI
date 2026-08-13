@@ -150,10 +150,25 @@ exports.handler = async event => {
       origin_postal_code: Number(originPostalCode),
       destination_postal_code: Number(destinationPostalCode),
       items,
-      couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree,jdl",
+      couriers: "jne,jnt,sicepat,anteraja,ninja,lion,pos,tiki,wahana,sap,idexpress,rpx,sentralcargo,paxel,deliveree,lalamove,jdl,grab,gosend,borzo",
       destination_cash_on_delivery: codAmount,
       destination_cash_on_delivery_type: codType
     };
+
+    const dLat = Number(order.destinationLatitude);
+    const dLng = Number(order.destinationLongitude);
+    const originLat = Number(process.env.BITESHIP_ORIGIN_LATITUDE);
+    const originLng = Number(process.env.BITESHIP_ORIGIN_LONGITUDE);
+    if (Number.isFinite(dLat) && Number.isFinite(dLng)) {
+      payload.destination_latitude = dLat;
+      payload.destination_longitude = dLng;
+      if (Number.isFinite(originLat) && Number.isFinite(originLng)) {
+        payload.origin_latitude = originLat;
+        payload.origin_longitude = originLng;
+        delete payload.origin_postal_code;
+        delete payload.destination_postal_code;
+      }
+    }
 
     const result = await callBiteship(apiKey, payload);
     const data = result.data || {};

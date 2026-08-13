@@ -158,7 +158,11 @@ exports.handler = async event => {
     const destinationAddress = [
       safe(order.alamat),
       order.rt ? "RT " + safe(order.rt) : "",
-      order.rw ? "RW " + safe(order.rw) : ""
+      order.rw ? "RW " + safe(order.rw) : "",
+      order.desa ? "Desa/Kel. " + safe(order.desa) : "",
+      order.kecamatan ? "Kec. " + safe(order.kecamatan) : "",
+      order.kabupaten ? safe(order.kabupaten) : "",
+      order.provinsi ? safe(order.provinsi) : ""
     ].filter(Boolean).join(", ");
 
     if (!safe(order.nama) || !destinationPhone || !destinationAddress || !/^\d{5}$/.test(safe(order.kodePos))) {
@@ -211,6 +215,22 @@ exports.handler = async event => {
       reference_id: safe(order.invoice, orderId),
       items
     };
+
+    // Instant courier membutuhkan koordinat asal dan tujuan. Reguler/Cargo tetap boleh memakai postal code.
+    const originLat = Number(process.env.BITESHIP_ORIGIN_LATITUDE);
+    const originLng = Number(process.env.BITESHIP_ORIGIN_LONGITUDE);
+    const destinationLat = Number(order.destinationLatitude);
+    const destinationLng = Number(order.destinationLongitude);
+    const isInstant = ["instant","same_day","on_demand","instant_delivery"].some(x => String(order.shippingCategory || "").toLowerCase().includes(x))
+      || /lalamove|paxel|grab|gosend|borzo/.test(courierCompany);
+    if (isInstant) {
+      if (!Number.isFinite(originLat) || !Number.isFinite(originLng) || !Number.isFinite(destinationLat) || !Number.isFinite(destinationLng)) {
+        await lockRef.remove().catch(() => {});
+        return json(400, { success:false, message:"Pengiriman Instant/Kendaraan membutuhkan koordinat asal dan tujuan. Pastikan pelanggan menekan Gunakan Lokasi Saya dan koordinat toko sudah diatur di Netlify." });
+      }
+      payload.origin_coordinate = { latitude: originLat, longitude: originLng };
+      payload.destination_coordinate = { latitude: destinationLat, longitude: destinationLng };
+    }
 
     // JSON.stringify menghapus properti undefined, tetapi kita tetap bersihkan agar payload rapi.
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);

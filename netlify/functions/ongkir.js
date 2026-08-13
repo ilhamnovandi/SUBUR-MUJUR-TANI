@@ -56,18 +56,21 @@ exports.handler = async event => {
     const apiKey = String(process.env.BITESHIP_API_KEY || "").trim();
     const origin = String(process.env.BITESHIP_ORIGIN_POSTAL_CODE || "").trim();
     const destination = String(input.destinationPostalCode || input.destination || "").trim();
-    const courier = String(input.courier || "").trim().toLowerCase();
+    const courier = String(input.courier || "all").trim().toLowerCase();
+    const shippingCategory = String(input.shippingCategory || "reguler").trim().toLowerCase();
+    const destinationLatitude = Number(input.destinationLatitude);
+    const destinationLongitude = Number(input.destinationLongitude);
 
     if (!apiKey) return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_API_KEY belum tersedia di Netlify Functions."}) };
     if (!/^\d{5}$/.test(origin)) return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_ORIGIN_POSTAL_CODE harus berupa 5 digit."}) };
     if (!/^\d{5}$/.test(destination)) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Kode pos tujuan harus 5 digit."}) };
-    if (!courier) return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Ekspedisi belum dipilih."}) };
+
 
     // Ekspedisi yang diizinkan tampil di website.
     const allowedCouriers = new Set([
-      "jne", "jnt", "sicepat", "anteraja", "ninja", "lion", "pos", "tiki", "wahana", "sap", "idexpress", "rpx", "sentralcargo", "paxel", "deliveree", "jdl"
+      "jne", "jnt", "sicepat", "anteraja", "ninja", "lion", "pos", "tiki", "wahana", "sap", "idexpress", "rpx", "sentralcargo", "paxel", "deliveree", "jdl", "lalamove", "grab", "gosend", "borzo"
     ]);
-    if (!allowedCouriers.has(courier)) {
+    if (courier !== "all" && !allowedCouriers.has(courier)) {
       return {
         statusCode: 400,
         headers,
@@ -94,12 +97,31 @@ exports.handler = async event => {
       quantity: 1
     }];
 
+    const allCouriers = Array.from(allowedCouriers).join(",");
     const payload = {
       origin_postal_code: Number(origin),
       destination_postal_code: Number(destination),
-      couriers: courier,
+      couriers: courier === "all" ? allCouriers : courier,
       items
     };
+    // Biteship membutuhkan koordinat untuk Instant seperti Lalamove/Paxel/Grab/GoSend.
+    // Reguler/Cargo tetap menggunakan postal code tanpa meminta GPS pelanggan.
+    if (shippingCategory === "instant") {
+      if (!Number.isFinite(destinationLatitude) || !Number.isFinite(destinationLongitude)) {
+        return { statusCode:400, headers, body:JSON.stringify({success:false,message:"Lokasi tujuan wajib dipilih untuk pengiriman Instant/Kendaraan."}) };
+      }
+      const originLat = Number(process.env.BITESHIP_ORIGIN_LATITUDE);
+      const originLng = Number(process.env.BITESHIP_ORIGIN_LONGITUDE);
+      if (!Number.isFinite(originLat) || !Number.isFinite(originLng)) {
+        return { statusCode:500, headers, body:JSON.stringify({success:false,message:"BITESHIP_ORIGIN_LATITUDE dan BITESHIP_ORIGIN_LONGITUDE belum diatur di Netlify."}) };
+      }
+      payload.origin_latitude = originLat;
+      payload.origin_longitude = originLng;
+      payload.destination_latitude = destinationLatitude;
+      payload.destination_longitude = destinationLongitude;
+      delete payload.origin_postal_code;
+      delete payload.destination_postal_code;
+    }
 
     // Jika checkout meminta COD, sertakan nilai COD dan tipe pencairan.
     if (input.codRequested === true) {
