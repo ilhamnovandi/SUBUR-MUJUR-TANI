@@ -2252,25 +2252,75 @@ window.smtJenisPengiriman = localStorage.getItem("smt_jenis_pengiriman") || "reg
 window.smtInstantLocation = null;
 try { window.smtInstantLocation = JSON.parse(localStorage.getItem("smt_instant_location") || "null"); } catch(e) { window.smtInstantLocation = null; }
 
+// Cache tarif supaya pindah REGULER/CARGO tidak meminta pengguna menghitung ulang.
+// Cache di-invalidasi otomatis ketika kode pos/isi keranjang berubah.
+window.smtRatesCache = { key: "", pricing: [], instantKey: "", instantPricing: [] };
+
+function smtBuatKunciOngkir() {
+    const postal = (document.getElementById("kodePos")?.value || "").trim();
+    const cart = Array.isArray(window.keranjang)
+        ? window.keranjang
+        : (typeof keranjang !== "undefined" && Array.isArray(keranjang) ? keranjang : []);
+    const items = cart.map(item => ({
+        id: item.id || item.nama || "",
+        berat: Number(item.berat || 1000),
+        jumlah: Number(item.jumlah || 1),
+        harga: Number(item.harga || 0)
+    }));
+    const loc = window.smtInstantLocation || {};
+    return JSON.stringify({
+        postal,
+        items,
+        lat: Number(loc.latitude || 0),
+        lng: Number(loc.longitude || 0)
+    });
+}
+
+function smtResetPilihanLayanan() {
+    window.smtSelectedShipping = null;
+    localStorage.removeItem("smt_selected_shipping");
+    ongkir = 0;
+    localStorage.setItem("smt_ongkir", "0");
+    const layanan = document.getElementById("layananOngkir");
+    if (layanan) layanan.innerHTML = '<option value="">Pilih Layanan</option>';
+    const o = document.getElementById("ongkir");
+    if (o) o.innerHTML = "Rp 0";
+    const metode = document.getElementById("metodePembayaran");
+    if (metode) metode.value = "";
+    if (typeof updateMetodePembayaranUI === "function") updateMetodePembayaranUI();
+    if (typeof updateTotalBayar === "function") updateTotalBayar();
+}
+
 function pilihJenisPengiriman(jenis) {
     window.smtJenisPengiriman = jenis;
     localStorage.setItem("smt_jenis_pengiriman", jenis);
     document.querySelectorAll(".jenis-kirim-btn").forEach(btn => btn.classList.toggle("active", btn.dataset.jenis === jenis));
     const box = document.getElementById("instantLocationBox");
     if (box) box.style.display = jenis === "instant" ? "block" : "none";
-    if (jenis !== "instant") {
-        // GPS tidak diperlukan untuk Reguler/Cargo.
-        // Jangan menghapus koordinat agar pelanggan bisa kembali ke Instant tanpa mengulang izin.
-    }
-    daftarLayanan = [];
-    window.smtSelectedShipping = null;
-    localStorage.removeItem("smt_selected_shipping");
-    const layanan = document.getElementById("layananOngkir");
-    if (layanan) layanan.innerHTML = '<option value="">Pilih Layanan</option>';
+
+    // Saat kategori berubah, jangan menghapus daftar tarif yang sudah didapat.
+    // Reset hanya layanan yang sedang dipilih, lalu tampilkan kategori baru.
+    smtResetPilihanLayanan();
+
+    // Kembalikan filter kurir ke "Semua" agar seluruh kurir pada kategori baru langsung terlihat.
+    const kurir = document.getElementById("kurirOngkir");
+    if (kurir) kurir.value = "all";
+
     const hasil = document.getElementById("hasilOngkir");
-    if (hasil) hasil.innerHTML = jenis === "instant" && !window.smtInstantLocation
-        ? "📍 Gunakan Lokasi Saya terlebih dahulu untuk menghitung ongkir Instant/Kendaraan." : "";
-    if (typeof updateTotalBayar === "function") updateTotalBayar();
+    if (jenis === "instant" && !window.smtInstantLocation) {
+        if (hasil) hasil.innerHTML = "📍 Gunakan Lokasi Saya terlebih dahulu untuk menghitung ongkir Instant/Kendaraan.";
+        return;
+    }
+
+    const postal = (document.getElementById("kodePos")?.value || "").trim();
+    if (/^[0-9]{5}$/.test(postal) && Array.isArray(keranjang) && keranjang.length) {
+        // Otomatis ambil tarif bila kategori baru belum punya data.
+        // Untuk REGULER/CARGO, tarif dari request yang sama dipakai bersama.
+        // Untuk INSTANT, request otomatis dikirim dengan koordinat GPS.
+        setTimeout(() => hitungOngkirAPI("all", false), 0);
+    } else if (typeof renderLayananTerfilter === "function" && Array.isArray(daftarLayanan) && daftarLayanan.length) {
+        renderLayananTerfilter();
+    }
 }
 
 function ambilLokasiInstant() {
@@ -2287,6 +2337,11 @@ function ambilLokasiInstant() {
         localStorage.setItem("smt_instant_location", JSON.stringify(window.smtInstantLocation));
         if (status) status.innerHTML = "✅ Lokasi siap. <b>Lokasi hanya digunakan untuk menghitung ongkir Instant/Kendaraan.</b>";
         if (btn) { btn.disabled=false; btn.textContent="📍 Lokasi Saya Sudah Dipilih"; }
+        // Setelah GPS tersedia, tarif Instant dihitung otomatis tanpa tombol tambahan.
+        const postal = (document.getElementById("kodePos")?.value || "").trim();
+        if (window.smtJenisPengiriman === "instant" && /^[0-9]{5}$/.test(postal) && Array.isArray(keranjang) && keranjang.length) {
+            setTimeout(() => hitungOngkirAPI("all", true), 0);
+        }
     }, function(err) {
         const msg = err.code === 1 ? "Izin lokasi ditolak. Aktifkan izin lokasi browser lalu coba lagi." : "Lokasi tidak dapat diperoleh. Pastikan GPS aktif.";
         if (status) status.textContent = "❌ " + msg;
@@ -2296,31 +2351,95 @@ function ambilLokasiInstant() {
 }
 
 function kategoriRate(rate) {
+    // Biteship mengirimkan beberapa field yang bisa dipakai untuk menentukan
+    // kategori layanan. Gunakan courier/service code terlebih dahulu karena
+    // nama layanan dapat berbeda-beda antar kurir.
     const st = String(rate.service_type || "").toLowerCase();
     const sht = String(rate.shipping_type || "").toLowerCase();
-    const name = (String(rate.courier_name||"") + " " + String(rate.courier_service_name||"")).toLowerCase();
-    if (["instant","same_day","on_demand","instant_delivery"].some(x=>st.includes(x)) || /lalamove|paxel|gosend|grab|borzo/.test(String(rate.courier_code||"").toLowerCase())) return "instant";
-    if (sht.includes("cargo") || st.includes("cargo") || /jtr|gokil|truck|trucking|cargo|big pack|heavy|jumbo|fuso|cdd|engkel|tronton|pickup/.test(name)) return "cargo";
+    const courier = String(rate.courier_code || rate.company || "").toLowerCase();
+    const serviceCode = String(rate.courier_service_code || rate.type || "").toLowerCase();
+    const name = (
+        String(rate.courier_name || "") + " " +
+        String(rate.courier_service_name || "") + " " +
+        serviceCode
+    ).toLowerCase();
+
+    const instantCodes = [
+        "instant", "same_day", "same-day", "on_demand", "ondemand",
+        "instant_delivery", "instant_car", "gosend", "grabinstant",
+        "grab_instant", "lalamove", "borzo"
+    ];
+    const instantCourierCodes = ["gojek", "grab", "gosend", "lalamove", "borzo", "paxel"];
+    const cargoCodes = [
+        "jtr", "cargo", "trucking", "bigpack", "big_pack", "heavy", "jumbo",
+        "fuso", "cdd", "engkel", "tronton", "pickup", "truck", "freight"
+    ];
+    const cargoCourierCodes = ["sentralcargo", "deliveree"];
+
+    if (
+        instantCodes.some(x => st.includes(x) || serviceCode.includes(x) || courier.includes(x)) ||
+        instantCourierCodes.includes(courier) && !cargoCodes.some(x => name.includes(x))
+    ) return "instant";
+
+    if (
+        sht.includes("cargo") || st.includes("cargo") ||
+        cargoCodes.some(x => serviceCode.includes(x) || name.includes(x)) ||
+        cargoCourierCodes.includes(courier)
+    ) return "cargo";
+
     return "reguler";
 }
 
 function updateCourierFilterOptions() {
-    const sel=document.getElementById("kurirOngkir"); if(!sel) return;
-    const current=sel.value;
-    const seen=new Set();
-    const opts=['<option value="all">Semua kurir yang tersedia</option>'];
-    (daftarLayanan||[]).forEach(r=>{ const c=String(r.courier_code||""); if(!c||seen.has(c))return; seen.add(c); opts.push(`<option value="${c.replace(/"/g,'&quot;')}">${String(r.courier_name||c).replace(/[<>]/g,'')}</option>`); });
-    sel.innerHTML=opts.join("");
-    if([...sel.options].some(o=>o.value===current)) sel.value=current;
+    const sel = document.getElementById("kurirOngkir");
+    if (!sel) return;
+
+    const jenis = window.smtJenisPengiriman || "reguler";
+    const current = sel.value;
+    const seen = new Set();
+    const opts = ['<option value="all">Semua kurir yang tersedia</option>'];
+
+    (daftarLayanan || []).forEach(rate => {
+        if (kategoriRate(rate) !== jenis) return;
+        const code = String(rate.courier_code || rate.company || "").trim();
+        if (!code || seen.has(code)) return;
+        seen.add(code);
+        const name = String(rate.courier_name || code).replace(/[<>]/g, "");
+        opts.push(`<option value="${code.replace(/"/g, '&quot;')}">${name}</option>`);
+    });
+
+    sel.innerHTML = opts.join("");
+    if ([...sel.options].some(o => o.value === current)) sel.value = current;
+    else sel.value = "all";
 }
 
 function renderLayananTerfilter() {
-    const layanan=document.getElementById("layananOngkir"); if(!layanan)return;
-    const courier=document.getElementById("kurirOngkir")?.value || "all";
-    const jenis=window.smtJenisPengiriman || "reguler";
-    const filtered=(daftarLayanan||[]).map((r,i)=>({r,i})).filter(x=>kategoriRate(x.r)===jenis && (courier==="all" || String(x.r.courier_code||"")===courier));
-    layanan.innerHTML='<option value="">Pilih Layanan</option>'+filtered.map(x=>{const r=x.r;const harga=Number(r.price||0);return `<option value="${x.i}">${String(r.courier_name||"").replace(/[<>]/g,'')} — ${String(r.courier_service_name||"").replace(/[<>]/g,'')} | Rp ${harga.toLocaleString("id-ID")} | ${String(r.duration||"-").replace(/[<>]/g,'')}${r.available_for_cash_on_delivery?" | COD ✓":""}</option>`;}).join("");
-    if (!filtered.length && daftarLayanan.length) layanan.innerHTML='<option value="">Tidak ada layanan pada kategori ini</option>';
+    const layanan = document.getElementById("layananOngkir");
+    if (!layanan) return;
+
+    const courier = document.getElementById("kurirOngkir")?.value || "all";
+    const jenis = window.smtJenisPengiriman || "reguler";
+    const filtered = (daftarLayanan || [])
+        .map((r, i) => ({ r, i }))
+        .filter(x =>
+            kategoriRate(x.r) === jenis &&
+            (courier === "all" || String(x.r.courier_code || x.r.company || "") === courier)
+        )
+        .sort((a, b) => Number(a.r.price || a.r.shipping_fee || 0) - Number(b.r.price || b.r.shipping_fee || 0));
+
+    layanan.innerHTML = '<option value="">Pilih Layanan</option>' + filtered.map(x => {
+        const r = x.r;
+        const harga = Number(r.price ?? r.shipping_fee ?? 0);
+        const namaKurir = String(r.courier_name || "Kurir").replace(/[<>]/g, "");
+        const namaLayanan = String(r.courier_service_name || r.courier_service_code || "Layanan").replace(/[<>]/g, "");
+        const durasi = String(r.duration || "-").replace(/[<>]/g, "");
+        const cod = r.available_for_cash_on_delivery ? " | COD ✓" : "";
+        return `<option value="${x.i}">${namaKurir} — ${namaLayanan} | Rp ${harga.toLocaleString("id-ID")} | ${durasi}${cod}</option>`;
+    }).join("");
+
+    if (!filtered.length && Array.isArray(daftarLayanan) && daftarLayanan.length) {
+        layanan.innerHTML = '<option value="">Tidak ada layanan pada kategori ini</option>';
+    }
 }
 
 function updateInstantUI() {
@@ -2334,19 +2453,18 @@ function updateInstantUI() {
 // ===============================
 // HITUNG ONGKIR - BITESHIP
 // ===============================
-async function hitungOngkirAPI() {
+async function hitungOngkirAPI(courierOverride = null, forceRefresh = false) {
 
     const destinationPostalCode =
         document.getElementById("kodePos").value.trim();
 
-    const courier = document.getElementById("kurirOngkir")?.value || "all";
+    const courier = courierOverride || document.getElementById("kurirOngkir")?.value || "all";
     const jenis = window.smtJenisPengiriman || "reguler";
     const hasilOngkir = document.getElementById("hasilOngkir");
 
     if (!destinationPostalCode) {
         alert("Kode Pos wajib di isi terlebih dahulu.");
         document.getElementById("kodePos")?.focus();
-        document.getElementById("kodePos").focus();
         return;
     }
 
@@ -2384,6 +2502,24 @@ async function hitungOngkirAPI() {
     }));
 
     try {
+        const cacheKey = smtBuatKunciOngkir();
+        const isInstant = jenis === "instant";
+        const cachedPricing = isInstant
+            ? (window.smtRatesCache.instantKey === cacheKey ? window.smtRatesCache.instantPricing : [])
+            : (window.smtRatesCache.key === cacheKey ? window.smtRatesCache.pricing : []);
+
+        if (!forceRefresh && courier === "all" && Array.isArray(cachedPricing) && cachedPricing.length) {
+            daftarLayanan = cachedPricing;
+            updateCourierFilterOptions();
+            const kurirSel = document.getElementById("kurirOngkir");
+            if (kurirSel) kurirSel.value = "all";
+            const available = (daftarLayanan || []).filter(r => kategoriRate(r) === jenis);
+            renderLayananTerfilter();
+            hasilOngkir.innerHTML = available.length
+                ? `<div style="padding:15px;background:#e8f5e9;border-radius:10px;"><b>${available.length} layanan ${jenis.toUpperCase()} tersedia.</b><br>Pilih layanan untuk menetapkan nominal ongkir.</div>`
+                : `<div style="padding:15px;background:#fff8e1;color:#7a5a00;border-radius:10px;"><b>Tidak ada layanan ${jenis.toUpperCase()}.</b><br>Coba kategori lain atau periksa rute/berat paket.</div>`;
+            return;
+        }
 
         hasilOngkir.innerHTML =
             "⏳ Menghitung ongkir...";
@@ -2435,20 +2571,35 @@ async function hitungOngkirAPI() {
             hasilOngkir.innerHTML =
                 "❌ Tidak ada layanan tersedia untuk tujuan, berat, atau ekspedisi tersebut.";
             daftarLayanan = [];
+            if (jenis === "instant") {
+                window.smtRatesCache.instantKey = smtBuatKunciOngkir();
+                window.smtRatesCache.instantPricing = [];
+            } else {
+                window.smtRatesCache.key = smtBuatKunciOngkir();
+                window.smtRatesCache.pricing = [];
+            }
             isiLayanan();
             return;
         }
 
         daftarLayanan = Array.isArray(data.pricing) ? data.pricing : [];
+        const resultKey = smtBuatKunciOngkir();
+        if (jenis === "instant") {
+            window.smtRatesCache.instantKey = resultKey;
+            window.smtRatesCache.instantPricing = daftarLayanan.slice();
+        } else {
+            window.smtRatesCache.key = resultKey;
+            window.smtRatesCache.pricing = daftarLayanan.slice();
+        }
         updateCourierFilterOptions();
+        const kurirSel = document.getElementById("kurirOngkir");
+        if (kurirSel && courier === "all") kurirSel.value = "all";
         renderLayananTerfilter();
 
-        hasilOngkir.innerHTML = `
-            <div style="padding:15px;background:#e8f5e9;border-radius:10px;">
-                <b>Ongkir berhasil dihitung.</b><br>
-                Silakan pilih layanan pengiriman.
-            </div>
-        `;
+        const available = (daftarLayanan || []).filter(r => kategoriRate(r) === jenis);
+        hasilOngkir.innerHTML = available.length
+            ? `<div style="padding:15px;background:#e8f5e9;border-radius:10px;"><b>${available.length} layanan ${jenis.toUpperCase()} tersedia.</b><br>Pilih layanan untuk menetapkan nominal ongkir.</div>`
+            : `<div style="padding:15px;background:#fff8e1;color:#7a5a00;border-radius:10px;"><b>Tidak ada layanan ${jenis.toUpperCase()}.</b><br>Biteship tidak mengembalikan tarif untuk kategori ini pada rute tersebut.</div>`;
 
     } catch (err) {
 
@@ -2547,6 +2698,7 @@ document.getElementById("layananOngkir")
 document.getElementById("kodePos")
 .addEventListener("input", function () {
     daftarLayanan = [];
+    window.smtRatesCache = { key: "", pricing: [], instantKey: "", instantPricing: [] };
     ongkir = 0;
     window.smtSelectedShipping = null;
     localStorage.removeItem("smt_selected_shipping");
@@ -2565,6 +2717,15 @@ document.getElementById("kodePos")
         "Rp 0";
 
     updateTotalBayar();
+
+    // Begitu kode pos lengkap 5 digit, hitung ongkir otomatis.
+    const postal = this.value.trim();
+    if (/^[0-9]{5}$/.test(postal) && Array.isArray(keranjang) && keranjang.length) {
+        clearTimeout(window.smtAutoOngkirTimer);
+        window.smtAutoOngkirTimer = setTimeout(() => {
+            hitungOngkirAPI("all", true);
+        }, 350);
+    }
 });
 
 </script>
@@ -3409,6 +3570,15 @@ window.addEventListener("load", function(){
 <script>
 document.addEventListener("DOMContentLoaded", function(){
   try { pilihJenisPengiriman(window.smtJenisPengiriman || "reguler"); updateInstantUI(); } catch(e){ console.warn("Init pengiriman:",e); }
+  // Jika data checkout/kode pos sudah terisi dari sesi sebelumnya, hitung otomatis.
+  setTimeout(function(){
+    try {
+      const postal = (document.getElementById("kodePos")?.value || "").trim();
+      if (/^[0-9]{5}$/.test(postal) && Array.isArray(keranjang) && keranjang.length) {
+        hitungOngkirAPI("all", false);
+      }
+    } catch(e) { console.warn("Auto ongkir:", e); }
+  }, 700);
 });
 </script>
 </body>
