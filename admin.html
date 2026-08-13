@@ -906,6 +906,9 @@ body{margin:0;background:#eee;font-family:Arial,Helvetica,sans-serif;color:#111}
 
 
 
+<div class="box admin-logout-bottom" id="adminLogoutBox" style="margin-top:28px;text-align:center;border:1px solid #ead6d6;background:#fffafa;">
+  <button type="button" onclick="logout()" style="background:#b3261e;width:100%;max-width:420px;font-weight:800;">🚪 Keluar Admin</button>
+</div>
 </body>
 </html>`);
         win.document.close();
@@ -1349,22 +1352,7 @@ document.getElementById(
 <div id="adminDaftarUlasan">Memuat ulasan...</div>
 </div>
 
-<!-- =========================
-     LOGOUT ADMIN
-========================= -->
 
-
-<div class="box">
-
-
-<button onclick="logout()">
-
-🚪 Keluar Admin
-
-</button>
-
-
-</div>
 
 
 
@@ -2442,7 +2430,7 @@ async function adminHapusUlasan(id){
       else if(h.includes("pembayaran masuk"))sec="pembayaran";
       else if(h.includes("voucher diskon"))sec="voucher";
       else if(h.includes("ulasan"))sec="ulasan";
-      else if(!h && box.textContent.toLowerCase().includes("keluar admin"))sec="persistent";
+      else if(box.id === "adminLogoutBox" || (!h && box.textContent.toLowerCase().includes("keluar admin")))sec="logout";
       else if(!h && box.textContent.toLowerCase().includes("© 2026"))sec="persistent";
       else if(h.includes("ringkasan"))sec="pesanan";
       box.dataset.adminSection=sec;
@@ -2450,7 +2438,7 @@ async function adminHapusUlasan(id){
   }
   function showSection(sec){
     document.querySelectorAll(".box").forEach(b=>{
-      const keep=b.dataset.adminSection==="persistent";
+      const keep=b.dataset.adminSection==="logout";
       b.style.display=(keep || b.dataset.adminSection===sec)?"block":"none";
     });
     document.querySelectorAll(".admin-tab").forEach(b=>b.classList.toggle("active",b.dataset.section===sec));
