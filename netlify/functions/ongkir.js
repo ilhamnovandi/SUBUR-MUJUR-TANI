@@ -163,6 +163,7 @@ exports.handler = async event => {
       description:s.description || "",
       shipping_type:s.shipping_type || "parcel",
       service_type:s.service_type || "",
+      type:s.type || "",
       available_for_cash_on_delivery: s.available_for_cash_on_delivery === true,
       cash_on_delivery_fee: Number(s.cash_on_delivery_fee || 0)
     })) : [];
