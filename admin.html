@@ -565,6 +565,21 @@ async function ubahStatus(id, selectedStatus){
 
         const current = order.status || "Menunggu Pembayaran";
         const isCOD = String(order.metodePembayaran || "").toUpperCase() === "COD";
+
+        // "Buat Pengiriman" adalah AKSI pembuatan order Biteship, bukan
+        // perpindahan status. Saat Admin memilih "Buat Pengiriman" lalu
+        // menekan Simpan, langsung jalankan pembuatan order Biteship.
+        // Jangan melewati status "Dikirim" secara manual; status Dikirim
+        // akan diubah otomatis oleh webhook saat Biteship mengirim status
+        // pickup (picking_up/picked/dropping_off).
+        if (selectedStatus === "Buat Pengiriman") {
+            if (!isCOD) return alert("Pembuatan pengiriman Biteship otomatis saat ini tersedia untuk pesanan COD.");
+            if (current !== "Dikemas") {
+                return alert(`⛔ Buat Pengiriman hanya bisa dilakukan saat status pesanan Dikemas.\n\nStatus sekarang: ${current}`);
+            }
+            return await buatPengirimanCOD(id);
+        }
+
         const nextMap = isCOD ? {
             "Menunggu Konfirmasi COD":"Dikemas",
             "Dikemas":"Buat Pengiriman",
