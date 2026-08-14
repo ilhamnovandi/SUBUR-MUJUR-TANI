@@ -31,3 +31,9 @@
   to = "/.netlify/functions/:splat"
   status = 200
   force = true
+
+# BITESHIP_ORIGIN_ORGANIZATION is a public business/organization identifier,
+# not a credential. Netlify otherwise treats its configured value as a secret
+# when documentation/build files contain that same value.
+[build.environment]
+  SECRETS_SCAN_OMIT_KEYS = "BITESHIP_ORIGIN_ORGANIZATION"
