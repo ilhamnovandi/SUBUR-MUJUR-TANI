@@ -208,10 +208,9 @@ exports.handler = async function (event) {
   } catch (err) {
     console.error("Biteship webhook processor error:", err);
 
-    // The webhook endpoint has received the event. We return
-    // an explicit JSON 200 so Biteship does not repeatedly
-    // fail delivery just because Firebase processing failed.
-    return jsonResponse(200, {
+    // A real event failed internally. Return 500 so Biteship can retry
+    // instead of recording a false successful delivery.
+    return jsonResponse(500, {
       success: true,
       received: true,
       processed: false,
